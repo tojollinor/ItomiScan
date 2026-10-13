@@ -103,7 +103,7 @@ Repository: https://github.com/tojollinor/ItomiScan
 
 ## ItomiScan 1.0.0 (Entwicklung)
 
-Der **Entwicklungszweig `develop/1.0.0`** enthält die geplante neue Startlogik.
+Der **Entwicklungszweig `develop/1.0.0`** enthält neue Startlogik und Touchstartseite.
 Im bestehenden Scannerbetrieb bleibt `main` der Update-Kanal.
 
 Block 2: Schlanker lokaler Splash mit Scanner-/Touchgerät-Erkennung und
@@ -111,3 +111,20 @@ Wiederholen/Diagnose; optionales, **nicht automatisch ausgeführtes**
 `setup-boot-splash.sh` für Plymouth auf Debian 12. Details in
 [`docs/STARTUP.md`](docs/STARTUP.md). Eine erfolgreiche Geräteabnahme steht
 noch aus.
+
+
+### Block 3: Touchstartseite, Profile und Bildschirmschoner
+
+Im Entwicklungszweig (noch **nicht** über den normalen Update-Button auf dem N1800 installiert):
+
+- Großflächige 2×2-Startseite mit Scannen, Paperless, Kopieren und Netzwerkordner. Nur Scannen ist jetzt aktiv; andere Ziele werden in den Blöcken 6/7 ergänzt und zeigen bis dahin eine klare Meldung.
+- Vereinfachtes ItomiScan-Scan-Logo in kräftigen, kontrastreichen Farben; direkt mit Tk-Canvas gezeichnet, ohne große Bilddateien.
+- Profile **Dokument (Farbe/200 DPI/Duplex/PDF)**, **Text (Grau/300 DPI/Duplex/PDF)** und **Foto (Farbe/300 DPI/ADF Front/PNG)**; Profil wählen und per „Jetzt scannen“ oder physischer Scan-Taste scannen.
+- Einstellungen und zusätzliche aktive SANE-Optionen können in der bisherigen Detailmaske geändert und über „Profil speichern“ mit einem Namen abgelegt werden. Bis zur Webkonfiguration erfordert die Namenseingabe eine Tastatur.
+- Die bestehende Vorschau für mehrseitige Scans bleibt erhalten. Das PDF wird wie bisher bereits beim Scannen erstellt, Nachbearbeiten/Seitenlöschen aus der Vorschau ist noch nicht implementiert.
+- Provisorische Benutzerprofil-Datei: `~/.config/itomiscan/profiles.json` (atomare Schreibweise, Dateirechte 0600); spätere Migration in zentrale SQLite-Konfiguration.
+- Fünf Minuten ohne Aktivität: dunkler Bildschirmschoner mit Uhrzeit. Berühren oder eine Taste drücken weckt die Oberfläche. Er schaltet derzeit **nicht** die Display-Hardware ab.
+- GitHub-Actions-Tests für Python-/Shell-Syntax, Profile und virtuelle Tk-Oberfläche. Der Echtgerätetest bleibt offen.
+- Sicherheitsregel: Die Update-Taste auf `develop/1.0.0` nimmt bewusst **keine** Updates aus dem stabilen `main` an. Erst nach Freigabe wird auf dem Gerät aktualisiert.
+
+Technische Einzelheiten: [`docs/TOUCH-UI.md`](docs/TOUCH-UI.md).

@@ -1,6 +1,6 @@
 # ItomiScan 1.0.0: Architekturvertrag
 
-**Status 13.10.2026:** Architektur und Projektstruktur vorbereitet; **Boot-/App-Splash und Bereitschaftslogik in Block 2 auf dem Entwicklungszweig implementiert**, Hardwaretest offen. Weitere Komponenten noch nicht implementiert.
+**Status 13.10.2026:** Boot-/App-Splash und Bereitschaftslogik (Block 2) sowie neue Touchstartseite, lokale Profile und Bildschirmschoner (Block 3) auf `develop/1.0.0` implementiert. Offline-/Xvfb-Tests vorhanden, N1800-Praxistest offen. Web- und Zielintegrationen sowie Benutzerverwaltung noch nicht implementiert.
 
 ## Plattform und vorhandener Code
 
@@ -12,7 +12,7 @@
 ## Zielmodule (zunächst nur Paketstruktur)
 
 - `itomiscan/core/`: Geräteerkennung, Scanjobs, Zustandsmaschine, zuverlässige Scan-/Exportlogik; später zentrale Dienstschnittstelle.
-- `itomiscan/gui/`: lokale große 1024×768-Touchoberfläche, PIN-Tastatur, Profil-/Auftragsansicht, Splash-Bereitschaft.
+- `itomiscan/gui/`: große lokale Touchoberfläche und Splash fertig im Entwicklungszweig; PIN-Anmeldung, Auftragsansicht und Zielintegrationen folgen später.
 - `itomiscan/web/`: separater kleiner HTTP-Dienst für **Fernadministration**, nicht zur lokalen Anzeige.
 - `itomiscan/storage/`: SQLite-Speicherung für Profile, Aufträge, Benutzer, Konfiguration sowie sichere Warteschlange.
 - `itomiscan/integrations/`: Paperless-API, CUPS, SMB/Netzwerkziele, E-Mail und USB-Ziele.
@@ -23,7 +23,7 @@ Kein Paket startet beim Import automatisch Hardware, Netzwerkserver oder Hinterg
 
 - Lokale GUI bleibt ohne Root-Rechte. Privilegierte Aktionen über gezielte und geprüfte Rechte, niemals generelle sudo-Freigabe.
 - GUI, Scandienst und Webadministration logisch trennen; ein Scanjob wird zentral verwaltet, nicht durch parallele unabhängige Scanaufrufe.
-- Einstellungen und Scanprofile werden zentral gespeichert und atomar übernommen; SQLite später mit Migrations-/Backup-Verfahren.
+- Scanprofile liegen übergangsweise unter `~/.config/itomiscan/profiles.json` und werden per atomarem Dateiersatz geschrieben (nur Scanparameter, keine Passwörter). Die zentrale Konfiguration inklusive Migration nach SQLite ist für Block 4 vorgesehen.
 - Dateien für noch nicht zugestellte Aufträge bleiben lokal erhalten, bis das Ziel den Eingang bestätigt. Wiederholung muss doppelte Übertragungen möglichst vermeiden.
 - Webzugriff nur auf explizit konfigurierter LAN-/VPN-Adresse, authentifiziert und gegen CSRF/Rate-Limit-/Sitzungsrisiken geschützt. **Kein dauerhaftes Standardpasswort**: Erstkonfiguration setzt Admin-Passwort; danach Anmeldung nur per Passwort ohne Benutzernameneingabe.
 - Optional PIN-Benutzer: ohne Aktivierung kein Login, bei Aktivierung eigene Touch-PIN-Oberfläche; Benutzerrechte serverseitig erzwingen, PINs niemals im Klartext, automatische Abmeldung einstellbar.
@@ -39,9 +39,9 @@ Kein Paket startet beim Import automatisch Hardware, Netzwerkserver oder Hinterg
 
 ## Oberflächen- und Zielprinzipien
 
-- Vier große Hauptaktionen: Scannen, Paperless, Kopieren, Netzwerkordner; weitere Funktionen über aufgabenorientierte Screens und ggf. Schnellaktionen.
-- Einfacher, kontrastreicher ItomiScan-Schriftzug und Icon für das ältere Display; endgültige Logo-Assets erst nach expliziter Auswahl/Übernahme.
-- Vor dem Speichern oder Senden Vorschau, sofern Profil keine automatische Verarbeitung festlegt.
+- Vier große Hauptaktionen auf der neuen Startseite: Scannen (funktionsfähig) sowie Paperless, Kopieren, Netzwerkordner (**noch nicht verfügbar**, Platzhalter mit verständlicher Meldung). Weitere Funktionen folgen blockweise.
+- Vereinfachtes, kontrastreiches Scan-Symbol als flache Canvas-Zeichnung im GUI und Splash, an das vereinbarte minimalistische Logo angelehnt; ohne hochauflösende Bildressourcen für das ältere Display.
+- Lokales Scannen öffnet die beibehaltene SANE-Detailmaske mit bestehender PDF-/PNG-Vorschau und Navigation. Bereits bisher gespeicherte Scans bleiben gespeichert; nachträgliches Editieren und eine zielbezogene Freigabe-/Sendevorschau folgen später.
 - Erweiterte Netz- und Integrationskonfiguration im Web; alltägliche Optionen am Scanner.
 
 ## Deployment-Regel

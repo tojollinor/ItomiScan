@@ -15,6 +15,10 @@ Stand: 13.10.2026. Planung mit **8 endlichen Blöcken**. Nach jedem Block stoppe
 
 **Block 1:** abgeschlossen: GitHub-Sicherung und Paketstruktur.
 
-**Block 2:** App-Splash, asynchrone Hardwarebereitschaft, Fehleransicht, Neustartversuch sowie optionales Plymouth-Einrichtungsskript auf `develop/1.0.0` implementiert. Offline-Tests vorhanden; N1800-Gerätetest/Boot-Splash-Aktivierung noch offen. Blöcke 3–8 nicht umgesetzt.
+**Block 2:** App-Splash, asynchrone Hardwarebereitschaft, Fehleransicht, Neustartversuch sowie optionales Plymouth-Einrichtungsskript auf `develop/1.0.0` implementiert. Tests unter Linux/Xvfb vorhanden; Hardwaretest/Boot-Splash-Aktivierung offen.
+
+**Block 3:** Große 2×2-Touchstartseite, einfaches ItomiScan-Scan-Logo (flache Tk-Canvas-Zeichnung), Scanprofile mit atomarer JSON-Speicherung, Schnellscan über gewähltes Profil, alte SANE-Detailansicht mit Vorschau/Profil speichern/Zurück-Taste sowie 5-Minuten-Bildschirmschoner auf `develop/1.0.0` implementiert. Paperless/Netzwerk/Kopieren nur klar markierte Platzhalter. GitHub-Actions-Prüfungen für Syntax, Python-Unit-Tests und virtuelle GUI erfolgreich; **Praxistest am N1800 offen**.
+
+**Blöcke 4–8:** noch nicht umgesetzt. Release 1.0.0 unverändert erst nach Abschluss und ausdrücklicher Freigabe.
 
 **Technische Randbedingungen:** Kein unnötiger RAM-/CPU-Verbrauch; bestehendes `app.py` und aktuelle SANE-Funktion nicht unnötig umbauen. GitHub-Commits sind Implementierungsnachweise, kein Beleg für Hardwaretests.
