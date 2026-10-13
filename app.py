@@ -11,7 +11,11 @@ import threading
 from datetime import datetime
 from pathlib import Path
 import tkinter as tk
-from tkinter import messagebox, ttk
+from tkinter import messagebox, simpledialog, ttk
+
+from itomiscan.core.profiles import ProfileError, ProfileStore
+from itomiscan.gui.home import HomeScreen
+from itomiscan.gui.screensaver import IdleScreen
 
 from PIL import Image, ImageTk
 
@@ -131,6 +135,11 @@ class ItomiScan:
         self.ip_var = tk.StringVar(value="IP wird ermittelt …")
         self.page_var = tk.StringVar(value="Keine Vorschau")
         self.format_var = tk.StringVar(value="PDF")
+        self.profile_store = ProfileStore()
+        self.home = None
+        self.idle_screen = None
+        self.scan_view = tk.Frame(self.root, bg=BASE)
+        self.scan_view.place(x=0, y=0, relwidth=1, relheight=1)
         self._style()
         self._layout()
         # The N1800 front-panel button is a separate USB HID keyboard.
@@ -141,12 +150,21 @@ class ItomiScan:
         # Without a window manager, give the kiosk keyboard focus explicitly.
         self.root.after(500, self.root.focus_force)
         if self.device and self.options:
-            # Startup splash already probed the hardware off the GUI thread.
+            # Reuse SANE options from the splash's background readiness probe.
             self.render_options()
+            self.apply_profile(self.profile_store.current())
             self.status_var.set("Bereit · " + self.device)
         else:
             # Preserve the original behavior for direct app.py invocations.
             self.root.after(200, self.load_scanner)
+        self.home = HomeScreen(
+            self.root, self.profile_store, self.select_profile,
+            self.show_scan, self.quick_scan, self.unavailable,
+            self.shutdown, self.check_update, self.exit, self.status_var,
+        )
+        self.idle_screen = IdleScreen(self.root, lambda: self.busy, seconds=300)
+        if self.device and self.options:
+            self.show_home()
         self.root.after(250, self.refresh_ip)
 
     def _style(self):
@@ -168,14 +186,16 @@ class ItomiScan:
                          cursor="hand2", width=width)
 
     def _layout(self):
-        header = tk.Frame(self.root, bg=BASE, height=62)
+        header = tk.Frame(self.scan_view, bg=BASE, height=62)
         header.pack(fill="x", padx=20, pady=(10, 4))
         tk.Label(header, text="▣  ItomiScan", bg=BASE, fg=FG,
                  font=("DejaVu Sans", 24, "bold")).pack(side="left")
         tk.Label(header, textvariable=self.ip_var, bg=BASE, fg=MUTED,
                  font=("DejaVu Sans", 13)).pack(side="right", padx=8)
         self._btn(header, "⏻ Ausschalten", self.shutdown).pack(side="right", padx=(0, 8))
-        body = tk.Frame(self.root, bg=BASE)
+        self._btn(header, "← Startseite", self.show_home, width=12).pack(
+            side="right", padx=(0, 10))
+        body = tk.Frame(self.scan_view, bg=BASE)
         body.pack(fill="both", expand=True, padx=16, pady=7)
         left = tk.Frame(body, bg=PANEL, width=405)
         left.pack(side="left", fill="y", padx=(0, 12))
@@ -225,7 +245,9 @@ class ItomiScan:
                                    font=("DejaVu Sans", 9), wraplength=590)
         self.path_label.pack(pady=(3, 12))
 
-        footer = tk.Frame(self.root, bg=BASE)
+        self._btn(left, "Profil speichern", self.save_profile, width=16).pack(
+            fill="x", padx=13, pady=(0, 8))
+        footer = tk.Frame(self.scan_view, bg=BASE)
         footer.pack(fill="x", padx=18, pady=(5, 13))
         self._btn(footer, "Beenden", self.exit).pack(side="left")
         self._btn(footer, "↻  Update", self.check_update).pack(side="left", padx=8)
@@ -237,6 +259,9 @@ class ItomiScan:
                  font=("DejaVu Sans", 10), wraplength=360).pack(side="right", padx=16)
 
     def on_front_scan_key(self, event):
+        if self.idle_screen and self.idle_screen.active:
+            self.idle_screen.wake()
+            return "break"
         # Ignore other windows, e.g. confirmation or error dialogs.
         if event.widget.winfo_toplevel() is not self.root:
             return
@@ -246,6 +271,84 @@ class ItomiScan:
             return
         self.start_scan()
         return "break"
+
+    def show_home(self):
+        if self.busy or not self.home:
+            return
+        self.scan_view.place_forget()
+        self.home.show()
+
+    def show_scan(self):
+        if self.home:
+            self.home.hide()
+        self.scan_view.place(x=0, y=0, relwidth=1, relheight=1)
+        self.scan_view.lift()
+
+    def apply_profile(self, profile):
+        """Apply supported preset options; never send unsupported SANE flags."""
+        self.format_var.set(profile["output"])
+        wanted = {"--mode": profile["mode"],
+                  "--source": profile["source"],
+                  "--resolution": str(profile["resolution"])}
+        wanted.update(profile.get("settings", {}))
+        for opt, variable in self.fields:
+            value = wanted.get(opt["flag"])
+            if value is None or opt["inactive"]:
+                continue
+            value = str(value)
+            if opt["kind"] in ("enum", "bool") and value not in opt["choices"]:
+                continue
+            variable.set(value)
+
+    def select_profile(self, name):
+        try:
+            self.profile_store.select(name)
+            self.apply_profile(self.profile_store.current())
+            self.status_var.set("Profil ausgewählt: " + name)
+        except (OSError, ProfileError) as exc:
+            messagebox.showerror("Scanprofil", str(exc), parent=self.root)
+            if self.home:
+                self.home.refresh()
+
+    def save_profile(self):
+        if self.busy:
+            return
+        current = self.profile_store.selected
+        name = simpledialog.askstring(
+            "Scanprofil speichern", "Profilname (max. 32 Zeichen):",
+            initialvalue=current, parent=self.root)
+        if name is None:
+            return
+        flags = {opt["flag"]: variable.get().strip() for opt, variable in self.fields
+                 if not opt["inactive"]}
+        try:
+            data = {"name": name, "mode": flags.get("--mode", "Color"),
+                    "source": flags.get("--source", "ADF Duplex"),
+                    "resolution": int(float(flags.get("--resolution", "200"))),
+                    "output": self.format_var.get(),
+                    "settings": flags}
+            self.profile_store.save(data)
+            if self.home:
+                self.home.refresh()
+            self.status_var.set("Profil gespeichert: " + name)
+        except (ProfileError, ValueError, OSError) as exc:
+            messagebox.showerror("Scanprofil", str(exc), parent=self.root)
+
+    def quick_scan(self):
+        if self.busy:
+            return
+        if not self.device:
+            messagebox.showwarning("Scanner", "Scanner ist noch nicht bereit.",
+                                   parent=self.root)
+            return
+        self.apply_profile(self.profile_store.current())
+        self.start_scan()
+
+    def unavailable(self, name, block):
+        messagebox.showinfo(
+            name, name + " wird in Entwicklungsblock " + str(block) +
+            "/8 ergänzt. Die Funktion ist aktuell noch nicht verfügbar.",
+            parent=self.root)
 
     def _wheel(self, event):
         self.canvas.yview_scroll(-1 if event.delta > 0 else 1, "units")
@@ -266,7 +369,10 @@ class ItomiScan:
                 raise RuntimeError("Kein Fujitsu-Scanner gefunden. USB-Verbindung prüfen.")
             self.options = read_options(self.device)
             self.render_options()
+            self.apply_profile(self.profile_store.current())
             self.status_var.set("Bereit · " + self.device)
+            if self.home:
+                self.show_home()
         except (OSError, RuntimeError, subprocess.TimeoutExpired) as exc:
             self.status_var.set("Scannerfehler")
             messagebox.showerror("Scanner", str(exc), parent=self.root)
@@ -335,6 +441,11 @@ class ItomiScan:
     def start_scan(self):
         if self.busy or not self.device:
             return
+        if self.idle_screen and self.idle_screen.active:
+            self.idle_screen.wake()
+            return
+        if self.home and self.home.visible:
+            self.show_scan()
         try:
             settings = self.chosen_args()
         except ValueError as exc:

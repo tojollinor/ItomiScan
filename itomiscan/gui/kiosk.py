@@ -82,6 +82,8 @@ class KioskStartup:
                     # Build the complete interface behind the splash;
                     # remove the covering frame only once Tk has laid it out.
                     ItomiScan(self.root, initial_device=a, initial_options=b)
+                    # Keep the startup overlay above the newly constructed views.
+                    self.splash.frame.lift()
                     self.root.update_idletasks()
                     self.running = False
                     self.active = False
