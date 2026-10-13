@@ -50,6 +50,21 @@ class ScanProfilesTests(unittest.TestCase):
             store.select("Foto")
         self.assertEqual(self.path.read_text(), "{not-json")
 
+    def test_advanced_options_round_trip(self):
+        store = ProfileStore(self.path)
+        item = store.current()
+        item["settings"] = {"--brightness": "10", "--mode": "Gray",
+                            "--resolution": "300", "-l": "1.0"}
+        store.save(item)
+        new = ProfileStore(self.path).current()
+        self.assertEqual(new["settings"]["--brightness"], "10")
+
+    def test_unsafe_scanner_flag_is_rejected(self):
+        item = ProfileStore(self.path).current()
+        item["settings"] = {"--mode;rm -rf": "Gray"}
+        with self.assertRaises(ProfileError):
+            validate_profile(item)
+
     def test_permissions_and_atomic_json(self):
         store = ProfileStore(self.path)
         store.select("Text")
