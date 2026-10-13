@@ -279,7 +279,7 @@ class AdminHandler(BaseHTTPRequestHandler):
         ctype = self.headers.get("Content-Type", "").lower()
         if ctype.startswith("application/x-www-form-urlencoded"):
             values = parse_qs(raw.decode("utf-8"), keep_blank_values=True,
-                              max_num_fields=35)
+                              max_num_fields=70)
             if any(len(value) != 1 and key != "assigned_profiles"
                    for key, value in values.items()):
                 raise ValueError("Doppelte Formularfelder sind nicht erlaubt.")
