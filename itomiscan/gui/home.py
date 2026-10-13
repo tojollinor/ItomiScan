@@ -34,13 +34,17 @@ class HomeScreen:
     """No remote actions here: unavailable destinations are explicitly labelled."""
 
     def __init__(self, root, profiles, select_profile, open_scan, quick_scan,
-                 unavailable, shutdown, update, exit_app, status):
+                 unavailable, shutdown, update, exit_app, status, logout=None):
         self.root = root
         self.profiles = profiles
         self.select_profile = select_profile
         self.open_scan = open_scan
         self.quick_scan = quick_scan
         self.unavailable = unavailable
+        self.logout = logout
+        self.allowed = None
+        self.tiles = {}
+        self.controls = {}
         self.frame = tk.Frame(root, bg=BASE)
         self.selected_var = tk.StringVar(value=profiles.selected)
         self._build(shutdown, update, exit_app, status)
@@ -67,6 +71,9 @@ class HomeScreen:
                  font=("DejaVu Sans", 28, "bold")).pack(side="left")
         tk.Label(brand, text="Dokumentenscanner", bg=BASE, fg=MUTED,
                  font=("DejaVu Sans", 11)).pack(anchor="w")
+        self.user_var = tk.StringVar(value="")
+        tk.Label(header, textvariable=self.user_var, bg=BASE, fg=CYAN,
+                 font=("DejaVu Sans", 13, "bold")).pack(side="right", padx=10)
         tk.Label(header, textvariable=status, bg=BASE, fg="#90d9ba",
                  font=("DejaVu Sans", 10), wraplength=285,
                  justify="right").pack(side="right", anchor="n", padx=6)
@@ -77,18 +84,19 @@ class HomeScreen:
             tiles.grid_columnconfigure(i, weight=1, uniform="actions")
             tiles.grid_rowconfigure(i, weight=1, uniform="actions")
         actions = (
-            ("SCAN", "Scannen", "PDF oder Bild speichern", True, self.open_scan),
-            ("ARCHIV", "Paperless", "In Vorbereitung", False,
-             lambda: self.unavailable("Paperless", 6)),
-            ("KOPIE", "Kopieren", "In Vorbereitung", False,
-             lambda: self.unavailable("Kopieren", 7)),
-            ("NETZ", "Netzwerkordner", "In Vorbereitung", False,
-             lambda: self.unavailable("Netzwerkordner", 6)),
+            ("scan", "SCAN", "Scannen", "PDF oder Bild speichern", True, self.open_scan),
+            ("paperless", "ARCHIV", "Paperless", "In Vorbereitung", False,
+             lambda: self.unavailable("paperless", "Paperless", 6)),
+            ("copy", "KOPIE", "Kopieren", "In Vorbereitung", False,
+             lambda: self.unavailable("copy", "Kopieren", 7)),
+            ("network", "NETZ", "Netzwerkordner", "In Vorbereitung", False,
+             lambda: self.unavailable("network", "Netzwerkordner", 6)),
         )
-        for index, (short, title, subtitle, enabled, command) in enumerate(actions):
+        for index, (permission, short, title, subtitle, enabled, command) in enumerate(actions):
             row, column = divmod(index, 2)
             card = tk.Frame(tiles, bg=CARD, bd=0)
             card.grid(row=row, column=column, padx=8, pady=8, sticky="nsew")
+            self.tiles[permission] = card
             tk.Label(card, text=short, bg=CARD,
                      fg=CYAN if enabled else MUTED,
                      font=("DejaVu Sans", 10, "bold")).pack(pady=(12, 0))
@@ -99,6 +107,7 @@ class HomeScreen:
 
         profiles = tk.Frame(self.frame, bg=CARD)
         profiles.pack(fill="x", padx=37, pady=(2, 12))
+        self.controls["profile_bar"] = profiles
         tk.Label(profiles, text="Scanprofil", bg=CARD, fg=FG,
                  font=("DejaVu Sans", 13, "bold")).pack(side="left", padx=(18, 10))
         self.profile_select = ttk.Combobox(profiles, textvariable=self.selected_var,
@@ -112,22 +121,55 @@ class HomeScreen:
 
         bottom = tk.Frame(self.frame, bg=BASE)
         bottom.pack(fill="x", padx=31, pady=(0, 18))
-        self._button(bottom, "Beenden", exit_app, font=11,
-                     pad_y=7).pack(side="left", padx=4)
-        self._button(bottom, "Update", update, font=11,
-                     pad_y=7).pack(side="left", padx=4)
-        self._button(bottom, "Ausschalten", shutdown, font=11,
-                     pad_y=7).pack(side="right", padx=4)
+        self.controls["exit"] = self._button(bottom, "Beenden", exit_app, font=11,
+                                             pad_y=7)
+        self.controls["exit"].pack(side="left", padx=4)
+        self.controls["update"] = self._button(bottom, "Update", update, font=11,
+                                               pad_y=7)
+        self.controls["update"].pack(side="left", padx=4)
+        self.controls["shutdown"] = self._button(bottom, "Ausschalten", shutdown,
+                                                 font=11, pad_y=7)
+        self.controls["shutdown"].pack(side="right", padx=4)
+        self.controls["logout"] = self._button(
+            bottom, "Benutzer wechseln", self.logout or (lambda: None), font=11,
+            pad_y=7)
+        self.controls["logout"].pack(side="right", padx=4)
+        self.controls["logout"].pack_forget()
 
     def _selected(self, _event=None):
         self.select_profile(self.selected_var.get())
 
-    def refresh(self):
-        self.profile_select.configure(values=self.profiles.names())
-        self.selected_var.set(self.profiles.selected)
+    def set_access(self, user, *, profile_names=None, selected=None):
+        self.allowed = set(user["permissions"]) if user else None
+        self.user_var.set(user["name"] if user else "")
+        for permission, widget in self.tiles.items():
+            if self.allowed is None or permission in self.allowed:
+                widget.grid()
+            else:
+                widget.grid_remove()
+        for permission in ("exit", "update", "shutdown"):
+            widget = self.controls[permission]
+            if self.allowed is None or permission in self.allowed:
+                widget.pack(side="right" if permission == "shutdown" else "left",
+                            padx=4)
+            else:
+                widget.pack_forget()
+        if user:
+            self.controls["logout"].pack(side="right", padx=4)
+        else:
+            self.controls["logout"].pack_forget()
+        if self.allowed is not None and "scan" not in self.allowed:
+            self.controls["profile_bar"].pack_forget()
+        else:
+            self.controls["profile_bar"].pack(fill="x", padx=37, pady=(2, 12))
+        self.refresh(names=profile_names, selected=selected)
+
+    def refresh(self, *, names=None, selected=None):
+        self.profile_select.configure(values=names if names is not None
+                                      else self.profiles.names())
+        self.selected_var.set(selected if selected is not None else self.profiles.selected)
 
     def show(self):
-        self.refresh()
         self.frame.place(x=0, y=0, relwidth=1, relheight=1)
         self.frame.lift()
 
