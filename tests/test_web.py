@@ -37,7 +37,7 @@ class WebAdminTests(unittest.TestCase):
         if headers:
             defaults.update(headers)
         if fields is not None:
-            raw = urlencode(fields, encoding="utf-8")
+            raw = urlencode(fields, encoding="utf-8", doseq=True)
             defaults["Content-Type"] = "application/x-www-form-urlencoded"
         connection.request(method, path, raw, defaults)
         response = connection.getresponse()
@@ -138,6 +138,62 @@ class WebAdminTests(unittest.TestCase):
             with self.subTest(ip=ip):
                 with self.assertRaises(ValueError):
                     build_server(ip, 0, db_path=self.server.store.path)
+
+    def test_pin_user_administration_off_by_default(self):
+        self.login()
+        code, _, page = self.req("GET", "/users")
+        self.assertEqual(code, 200)
+        self.assertIn("PIN-Benutzerverwaltung", page)
+        self.assertIn("Deaktiviert", page)
+        payload = {
+            "csrf":self.csrf, "name":"Anna", "pin":"4286", "active":"yes",
+            "default_profile":"Foto",
+            "assigned_profiles":["Foto","Dokument"],
+            "perm_scan":"yes", "perm_copy":"yes",
+        }
+        self.assertEqual(self.req("POST", "/users/save", payload)[0], 303)
+        self.assertEqual(self.req("GET", "/users")[0], 200)
+        self.assertEqual(self.server.users.list_users()[0]["name"], "Anna")
+        self.assertNotIn("4286", self.req("GET", "/users")[2])
+        self.assertFalse(self.server.users.settings()["enabled"])
+        self.assertEqual(self.req("POST", "/users/config", {
+            "csrf":self.csrf, "enabled":"yes", "timeout_minutes":"3"})[0], 303)
+        self.assertTrue(self.server.users.settings()["enabled"])
+        self.assertEqual(self.server.users.settings()["timeout_minutes"], 3)
+        self.assertTrue(self.server.users.verify_pin("4286"))
+        self.assertEqual(self.req("GET", "/backup.json")[0], 200)
+        self.assertNotIn("4286", self.req("GET", "/backup.json")[2])
+
+    def test_pin_user_endpoint_requires_csrf_and_web_login(self):
+        code, _, _ = self.req("GET", "/users")
+        self.assertEqual(code, 303)
+        self.login()
+        data = {"name":"Test","pin":"6789","assigned_profiles":"Dokument",
+                "default_profile":"Dokument"}
+        self.assertEqual(self.req("POST", "/users/save", data)[0], 403)
+        self.assertEqual(self.server.users.list_users(), [])
+        data["csrf"] = self.csrf
+        self.assertEqual(self.req("POST", "/users/save", data)[0], 303)
+        uid = self.server.users.list_users()[0]["id"]
+        self.assertEqual(self.req("POST", "/users/config", {
+            "csrf":self.csrf, "enabled":"yes", "timeout_minutes":"1"})[0], 400)
+        # Creating an inactive account does not authorize enabling a PIN gate.
+        self.assertFalse(self.server.users.settings()["enabled"])
+        self.assertEqual(self.req("POST", "/users/delete",
+                                  {"csrf":self.csrf,"user_id":str(uid)})[0], 303)
+
+    def test_last_active_pin_user_cannot_be_removed(self):
+        self.login()
+        self.assertEqual(self.req("POST", "/users/save", {
+            "csrf":self.csrf, "name":"Scanner", "pin":"234567",
+            "active":"yes", "assigned_profiles":"Dokument",
+            "default_profile":"Dokument", "perm_scan":"yes"})[0], 303)
+        self.assertEqual(self.req("POST", "/users/config", {
+            "csrf":self.csrf,"enabled":"yes","timeout_minutes":"1"})[0], 303)
+        uid = self.server.users.list_users()[0]["id"]
+        self.assertEqual(self.req("POST", "/users/delete",
+                                 {"csrf":self.csrf,"user_id":str(uid)})[0], 400)
+        self.assertTrue(self.server.users.settings()["enabled"])
 
     def test_logout_clears_session(self):
         self.login()
