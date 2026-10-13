@@ -52,14 +52,14 @@ def shell(args, timeout=25, **kwargs):
     return subprocess.run(args, capture_output=True, text=True, timeout=timeout, **kwargs)
 
 
-def find_device():
-    result = shell(["scanimage", "-L"])
+def find_device(timeout=25):
+    result = shell(["scanimage", "-L"], timeout=timeout)
     match = re.findall(r"device \x60([^\x27]+)\x27", result.stdout + result.stderr)
     return next((item for item in match if item.startswith(DEVICE_PREFIX)), None)
 
 
-def read_options(device):
-    result = shell(["scanimage", "-d", device, "--help"])
+def read_options(device, timeout=25):
+    result = shell(["scanimage", "-d", device, "--help"], timeout=timeout)
     if result.returncode != 0:
         raise RuntimeError((result.stderr or result.stdout).strip())
     section = None
@@ -108,7 +108,7 @@ def read_options(device):
 
 
 class ItomiScan:
-    def __init__(self, root):
+    def __init__(self, root, initial_device=None, initial_options=None):
         self.root = root
         self.root.title("ItomiScan")
         self.root.configure(bg=BASE)
@@ -118,8 +118,8 @@ class ItomiScan:
         self.root.geometry(f"{self.root.winfo_screenwidth()}x{self.root.winfo_screenheight()}+0+0")
         self.root.bind("<Escape>", lambda e: None)
         self.busy = False
-        self.device = None
-        self.options = []
+        self.device = initial_device
+        self.options = list(initial_options or [])
         self.fields = []
         self.pages = []
         self.page_index = 0
@@ -140,8 +140,14 @@ class ItomiScan:
         self.root.bind_all("<KP_Enter>", self.on_front_scan_key, add="+")
         # Without a window manager, give the kiosk keyboard focus explicitly.
         self.root.after(500, self.root.focus_force)
-        self.root.after(200, self.load_scanner)
-        self.refresh_ip()
+        if self.device and self.options:
+            # Startup splash already probed the hardware off the GUI thread.
+            self.render_options()
+            self.status_var.set("Bereit · " + self.device)
+        else:
+            # Preserve the original behavior for direct app.py invocations.
+            self.root.after(200, self.load_scanner)
+        self.root.after(250, self.refresh_ip)
 
     def _style(self):
         theme = ttk.Style(self.root)
