@@ -168,6 +168,7 @@ class ItomiScan:
                  font=("DejaVu Sans", 24, "bold")).pack(side="left")
         tk.Label(header, textvariable=self.ip_var, bg=BASE, fg=MUTED,
                  font=("DejaVu Sans", 13)).pack(side="right", padx=8)
+        self._btn(header, "⏻ Ausschalten", self.shutdown).pack(side="right", padx=(0, 8))
         body = tk.Frame(self.root, bg=BASE)
         body.pack(fill="both", expand=True, padx=16, pady=7)
         left = tk.Frame(body, bg=PANEL, width=405)
@@ -479,6 +480,32 @@ class ItomiScan:
                                "ItomiScan wurde aktualisiert.\nOberfläche jetzt neu starten?",
                                parent=self.root):
             os.execv(sys.executable, [sys.executable, str(Path(__file__).resolve())])
+
+    def shutdown(self):
+        if self.busy:
+            messagebox.showinfo("Scannen", "Bitte zuerst den Scan abschließen.", parent=self.root)
+            return
+        if not messagebox.askyesno(
+            "ItomiScan ausschalten",
+            "Scanner vollständig herunterfahren?\n\nDer Scanner wird ausgeschaltet.",
+            icon="warning", parent=self.root,
+        ):
+            return
+        self.status_var.set("Scanner wird heruntergefahren …")
+        try:
+            # Only this exact command is authorized in the installer sudoers rule.
+            result = shell(["sudo", "-n", "/usr/bin/systemctl", "poweroff"], timeout=15)
+            if result.returncode != 0:
+                raise RuntimeError((result.stderr or result.stdout).strip()
+                                   or "Systemberechtigung fehlt.")
+        except (OSError, RuntimeError, subprocess.TimeoutExpired) as exc:
+            self.status_var.set("Ausschalten fehlgeschlagen")
+            messagebox.showerror(
+                "Ausschalten fehlgeschlagen",
+                "Die Berechtigung zum Herunterfahren fehlt oder der Befehl ist fehlgeschlagen.\n"
+                "Einmalig setup-shutdown.sh als root ausführen.\n\n" + str(exc),
+                parent=self.root,
+            )
 
     def exit(self):
         if self.busy:
