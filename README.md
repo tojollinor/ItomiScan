@@ -21,6 +21,7 @@ auf dem echten Gerät durchgeführt; die neue GUI ist noch **nicht am Gerät erp
 - Update-Schaltfläche: GitHub `main` prüfen, mit Bestätigung fast-forward
 - Testanbindung für die Fronttaste: `Return` bzw. `KP_Enter` löst den vorhandenen Scanvorgang aus (nur im Hauptfenster, nicht während eines Scans). Die echte Tastenbelegung des als `PFU LIMITED ENTER KEY` erkannten HID-Geräts ist noch am N1800 zu prüfen.
 - Beenden schließt nur die Anwendung, **nicht** Debian
+- **Ausschalten** im Kopfbereich: Bestätigungsdialog, danach vollständiges Herunterfahren von Debian; während eines Scans gesperrt
 
 **Noch nicht realisiert:** Druckausgabe, Profilverwaltung, Webadministration,
 OCR, automatischer Zuschnitt für alle Papierformate und sichere Sensor-/Fehlerdiagnose.
@@ -50,6 +51,22 @@ werden nicht umkonfiguriert. Die GUI läuft **ohne root-Rechte**.
 
 Das Skript installiert Debian-Pakete einschließlich `sane-utils`, Xorg,
 `python3-tk`, Pillow und `img2pdf`. Für den Webserver wird nichts geöffnet.
+Zusätzlich erhält nur der Kiosk-Benutzer eine eng begrenzte Berechtigung für
+`sudo -n /usr/bin/systemctl poweroff` (kein allgemeiner root-Zugriff).
+
+### Einmalige Einrichtung auf bereits installierten Geräten
+
+Der GitHub-Update-Button lädt nur den Programmcode. Die neue Systemberechtigung
+muss daher einmalig **als root über SSH** eingerichtet werden:
+
+```bash
+curl -fL https://raw.githubusercontent.com/tojollinor/ItomiScan/main/setup-shutdown.sh -o /tmp/itomiscan-shutdown.sh
+bash /tmp/itomiscan-shutdown.sh
+```
+
+Das Hilfsskript ermittelt den bestehenden Kiosk-Benutzer aus der ItomiScan-tty1-
+Autologin-Konfiguration, prüft die sudoers-Regel und installiert bei Bedarf `sudo`.
+Es fährt das Gerät dabei **nicht** herunter.
 
 ## Nach dem Start
 
@@ -60,6 +77,8 @@ Das Skript installiert Debian-Pakete einschließlich `sane-utils`, Xorg,
   bewusst den Fast-Forward. Updates werden erst nach Bestätigung eingespielt.
 - **Beenden** zeigt die lokale Linux-Konsole; zum erneuten Start dort
   `startx ~/ItomiScan/start-kiosk.sh -- :0 vt1` ausführen.
+- **Ausschalten** nach Bestätigung: fährt den Scanner vollständig herunter.
+  Ein eventuell fehlendes Ausführungsrecht wird als Fehlermeldung angezeigt.
 - Für die Hardwarediagnose: `scanimage -L` und
   `scanimage -d 'fujitsu:fi-6110dj:10407' --help`.
 
