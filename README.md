@@ -3,7 +3,7 @@
 Lokale, leichtgewichtige Touchoberfläche für den Fujitsu ScanSnap N1800 mit
 **Debian 12 i386**, Intel Atom N270 und 1 GB RAM. Die Scaneinheit wurde unter
 Linux als **fujitsu:fi-6110dj:10407** erkannt. SANE-Einzelscan wurde bereits
-auf dem echten Gerät durchgeführt; die neue GUI ist noch **nicht am Gerät erprobt**.
+auf dem echten Gerät durchgeführt; die lokale GUI einschließlich Vollbild, PDF-Erstellung und Front-Scantaste wurde am Gerät erfolgreich erprobt.
 
 ## Funktionen (erste Testversion)
 
@@ -19,7 +19,7 @@ auf dem echten Gerät durchgeführt; die neue GUI ist noch **nicht am Gerät erp
 - Schnellere JPEG-Vorschau durch reduzierte Dekodierauflösung
 - Speicherung im Benutzerordner `~/Scans/ItomiScan_YYYYMMDD_HHMMSS/`
 - Update-Schaltfläche: GitHub `main` prüfen, mit Bestätigung fast-forward
-- Testanbindung für die Fronttaste: `Return` bzw. `KP_Enter` löst den vorhandenen Scanvorgang aus (nur im Hauptfenster, nicht während eines Scans). Die echte Tastenbelegung des als `PFU LIMITED ENTER KEY` erkannten HID-Geräts ist noch am N1800 zu prüfen.
+- Testanbindung für die Fronttaste: `Return` bzw. `KP_Enter` löst den vorhandenen Scanvorgang aus (nur im Hauptfenster, nicht während eines Scans). Der Scanstart mit der externen Fronttaste wurde vom Nutzer auf dem N1800 bestätigt.
 - Beenden schließt nur die Anwendung, **nicht** Debian
 - **Ausschalten** im Kopfbereich: Bestätigungsdialog, danach vollständiges Herunterfahren von Debian; während eines Scans gesperrt
 
@@ -87,11 +87,11 @@ Es fährt das Gerät dabei **nicht** herunter.
 - Vor längeren Tests zuerst wenige Seiten mit 200 DPI scannen, 1 GB RAM ist knapp.
 - Die GUI wurde auf dem N1800 gestartet. Das zunächst zu kleine Fenster
   (976 × 509 bei 1024 × 768 Display) wurde im Code auf explizite Xorg-Bildschirmgröße
-  umgestellt; praktische Nachprüfung der Korrektur steht noch aus.
+  umgestellt; der Nutzer bestätigte anschließend die korrekte Vollbilddarstellung.
 - Die Touch-Kalibrierung muss gegebenenfalls noch angepasst werden.
 - JPEG ist bei Farb-/Graustufen-PDFs verlustbehaftet; Schwarzweiß-PDFs und
   gewählte PNG-Bilder nutzen weiterhin die bisherige PNG-Verarbeitung.
-- Die tatsächliche Geschwindigkeitsverbesserung ist auf dem Gerät noch zu messen.
+- Die PDF-Erstellung wurde nach dem Update vom Nutzer als deutlich schneller bestätigt; eine Zeitmessung wurde nicht vorgenommen.
 - GUI, Scannerrechte, Papierstau-/Doppeleinzugserkennung und die tatsächliche
   Duplex-Reihenfolge benötigen Gerätetests.
 - Der Firmware-/Windows-Datenträger wurde nicht verändert.
