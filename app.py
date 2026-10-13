@@ -683,6 +683,20 @@ class ItomiScan:
             return
         if not self._allowed("scan"):
             return
+        if self.users.settings()["enabled"]:
+            identity = self.users.get_user(self.current_user["id"])
+            if not identity or not identity["active"]:
+                self.show_login("Benutzerkonto nicht mehr aktiv.")
+                return
+            if self.session_profile not in identity["assigned_profiles"]:
+                self.show_home()
+                messagebox.showwarning("Scanprofil", "Dieses Profil ist nicht mehr freigegeben.", parent=self.root)
+                return
+            preset = self._profile_record(self.session_profile)
+            if preset is None:
+                self.show_home()
+                return
+            self.apply_profile(preset)
         if self.idle_screen and self.idle_screen.active:
             self.idle_screen.wake()
             return
