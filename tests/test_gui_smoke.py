@@ -39,6 +39,73 @@ class TouchGuiTests(unittest.TestCase):
                 initial_options=OPTIONS)
         self.root.update_idletasks()
 
+    def enable_pin(self, *, permissions=("scan",), profiles=("Foto",)):
+        user_id = self.app.users.save_user(
+            name="Testkonto", pin="2580", permissions=list(permissions),
+            assigned_profiles=list(profiles), default_profile=profiles[0],
+            active=True)
+        self.app.users.configure(enabled=True, timeout_minutes=1)
+        self.app.auth_tick()
+        return user_id
+
+    def unlock(self):
+        for digit in "2580":
+            self.app.pin_screen.press(digit)
+        self.app.pin_screen.press("OK")
+
+    def test_pin_blocks_scanning_before_login(self):
+        calls = []
+        self.app.start_scan = lambda: calls.append("scan")
+        self.enable_pin()
+        self.assertTrue(self.app.pin_screen.active)
+        self.assertFalse(self.app.home.visible)
+        self.assertEqual(
+            self.app.on_front_scan_key(SimpleNamespace(widget=self.root)), "break")
+        self.assertEqual(calls, [])
+        self.unlock()
+        self.assertFalse(self.app.pin_screen.active)
+        self.assertTrue(self.app.home.visible)
+        self.app.on_front_scan_key(SimpleNamespace(widget=self.root))
+        self.assertEqual(calls, ["scan"])
+        self.assertEqual(self.app.home.selected_var.get(), "Foto")
+
+    def test_restricted_features_hidden_and_denied_by_backend(self):
+        self.enable_pin(permissions=("copy",))
+        self.unlock()
+        self.assertEqual(self.app.home.tiles["scan"].winfo_manager(), "")
+        self.assertEqual(self.app.home.tiles["paperless"].winfo_manager(), "")
+        self.assertNotEqual(self.app.home.tiles["copy"].winfo_manager(), "")
+        self.assertEqual(self.app.home.controls["shutdown"].winfo_manager(), "")
+        self.assertEqual(self.app.home.controls["update"].winfo_manager(), "")
+        with patch("app.messagebox.showwarning"):
+            self.app.start_scan()
+            self.app.show_scan()
+            self.app.check_update()
+            self.app.shutdown()
+        self.assertFalse(self.app.busy)
+        self.assertFalse(self.app.scan_view.winfo_manager())
+
+    def test_personal_profile_and_logout_by_inactivity(self):
+        self.enable_pin(permissions=("scan",), profiles=("Foto",))
+        self.unlock()
+        self.assertEqual(self.app.home.selected_var.get(), "Foto")
+        self.assertEqual(self.app.format_var.get(), "Bild (PNG)")
+        self.assertEqual(self.app.profile_store.db.list_profiles()[1], "Dokument")
+        self.app.last_activity -= 85
+        self.app.auth_tick()
+        self.assertTrue(self.app.pin_screen.active)
+        self.assertFalse(self.app.home.visible)
+        self.assertIsNone(self.app.current_user)
+        self.assertEqual(self.app.pages, [])
+
+    def test_web_disabling_pin_login_shows_public_home(self):
+        self.enable_pin()
+        self.assertTrue(self.app.pin_screen.active)
+        self.app.users.configure(enabled=False)
+        self.app.auth_tick()
+        self.assertFalse(self.app.pin_screen.active)
+        self.assertTrue(self.app.home.visible)
+
     def test_home_and_detail_toggle(self):
         self.assertTrue(self.app.home.visible)
         self.app.show_scan()
