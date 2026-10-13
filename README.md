@@ -19,6 +19,7 @@ auf dem echten Gerät durchgeführt; die neue GUI ist noch **nicht am Gerät erp
 - Schnellere JPEG-Vorschau durch reduzierte Dekodierauflösung
 - Speicherung im Benutzerordner `~/Scans/ItomiScan_YYYYMMDD_HHMMSS/`
 - Update-Schaltfläche: GitHub `main` prüfen, mit Bestätigung fast-forward
+- Testanbindung für die Fronttaste: `Return` bzw. `KP_Enter` löst den vorhandenen Scanvorgang aus (nur im Hauptfenster, nicht während eines Scans). Die echte Tastenbelegung des als `PFU LIMITED ENTER KEY` erkannten HID-Geräts ist noch am N1800 zu prüfen.
 - Beenden schließt nur die Anwendung, **nicht** Debian
 
 **Noch nicht realisiert:** Druckausgabe, Profilverwaltung, Webadministration,
