@@ -133,6 +133,13 @@ class ItomiScan:
         self.format_var = tk.StringVar(value="PDF")
         self._style()
         self._layout()
+        # The N1800 front-panel button is a separate USB HID keyboard.
+        # Bind its likely Enter/KP-Enter key to the normal scan action.
+        # Verify the actual keycode on the device before claiming support.
+        self.root.bind_all("<Return>", self.on_front_scan_key, add="+")
+        self.root.bind_all("<KP_Enter>", self.on_front_scan_key, add="+")
+        # Without a window manager, give the kiosk keyboard focus explicitly.
+        self.root.after(500, self.root.focus_force)
         self.root.after(200, self.load_scanner)
         self.refresh_ip()
 
@@ -221,6 +228,17 @@ class ItomiScan:
         self.scan_button.pack(side="right")
         tk.Label(footer, textvariable=self.status_var, bg=BASE, fg=MUTED,
                  font=("DejaVu Sans", 10), wraplength=360).pack(side="right", padx=16)
+
+    def on_front_scan_key(self, event):
+        # Ignore other windows, e.g. confirmation or error dialogs.
+        if event.widget.winfo_toplevel() is not self.root:
+            return
+        if self.root.grab_current() not in (None, self.root):
+            return
+        if self.busy or not self.device:
+            return
+        self.start_scan()
+        return "break"
 
     def _wheel(self, event):
         self.canvas.yview_scroll(-1 if event.delta > 0 else 1, "units")
