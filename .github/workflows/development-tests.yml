@@ -23,5 +23,12 @@ jobs:
         run: /usr/bin/python3 -m compileall -q app.py itomiscan tests
       - name: Shell syntax
         run: bash -n install.sh setup-shutdown.sh setup-boot-splash.sh
-      - name: Unit and virtual-display touchscreen tests
-        run: xvfb-run -a /usr/bin/python3 -m unittest discover -s tests -v
+      - name: Offline configuration, startup and package tests
+        run: |
+          /usr/bin/python3 -m unittest discover -s tests -p test_profiles.py -v
+          /usr/bin/python3 -m unittest discover -s tests -p test_startup.py -v
+          /usr/bin/python3 -m unittest discover -s tests -p test_scaffold.py -v
+      - name: Touchscreen smoke tests in isolated X process
+        run: xvfb-run -a /usr/bin/python3 -m unittest discover -s tests -p test_gui_smoke.py -v
+      - name: Web administration security tests in separate process
+        run: /usr/bin/python3 -m unittest discover -s tests -p test_web.py -v

@@ -21,9 +21,10 @@ class WebAdminTests(unittest.TestCase):
         self.server = build_server("127.0.0.1", 0, db_path=path)
         self.worker = threading.Thread(target=self.server.serve_forever, daemon=True)
         self.worker.start()
+        # unittest cleanups are LIFO: shutdown, close, then join.
+        self.addCleanup(self.worker.join, 3)
         self.addCleanup(self.server.server_close)
         self.addCleanup(self.server.shutdown)
-        self.addCleanup(self.worker.join, 3)
         self.port = self.server.server_port
         self.cookie = ""
         self.csrf = ""
