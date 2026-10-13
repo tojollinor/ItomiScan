@@ -122,9 +122,14 @@ Im Entwicklungszweig (noch **nicht** über den normalen Update-Button auf dem N1
 - Profile **Dokument (Farbe/200 DPI/Duplex/PDF)**, **Text (Grau/300 DPI/Duplex/PDF)** und **Foto (Farbe/300 DPI/ADF Front/PNG)**; Profil wählen und per „Jetzt scannen“ oder physischer Scan-Taste scannen.
 - Einstellungen und zusätzliche aktive SANE-Optionen können in der bisherigen Detailmaske geändert und über „Profil speichern“ mit einem Namen abgelegt werden. Bis zur Webkonfiguration erfordert die Namenseingabe eine Tastatur.
 - Die bestehende Vorschau für mehrseitige Scans bleibt erhalten. Das PDF wird wie bisher bereits beim Scannen erstellt, Nachbearbeiten/Seitenlöschen aus der Vorschau ist noch nicht implementiert.
-- Provisorische Benutzerprofil-Datei: `~/.config/itomiscan/profiles.json` (atomare Schreibweise, Dateirechte 0600); spätere Migration in zentrale SQLite-Konfiguration.
+- Historischer Block-3-Stand: Profile in `profiles.json`; seit Block 4 in gemeinsamer SQLite-Konfiguration. Die alte JSON-Datei bleibt erhalten.
 - Fünf Minuten ohne Aktivität: dunkler Bildschirmschoner mit Uhrzeit. Berühren oder eine Taste drücken weckt die Oberfläche. Er schaltet derzeit **nicht** die Display-Hardware ab.
 - GitHub-Actions-Tests für Python-/Shell-Syntax, Profile und virtuelle Tk-Oberfläche. Der Echtgerätetest bleibt offen.
 - Sicherheitsregel: Die Update-Taste auf `develop/1.0.0` nimmt bewusst **keine** Updates aus dem stabilen `main` an. Erst nach Freigabe wird auf dem Gerät aktualisiert.
 
 Technische Einzelheiten: [`docs/TOUCH-UI.md`](docs/TOUCH-UI.md).
+
+
+### Block 4: Passwortgeschützte Webadministration (Entwicklung)
+
+Getrennter kleiner Python-Webserver für Profile, vorbereitete Papier-/Druck-/Netzwerkziele, Systemstatus, SANE-Diagnose und JSON-Konfigurationssicherungen. Gemeinsame SQLite-DB; bestehende JSON-Profile werden erhalten. Erste Passwortvergabe über SSH, Anmeldung nur per Passwort ohne Benutzername, kein Standardpasswort. LAN-Betrieb ausschließlich über HTTPS. Opt-in-Einrichtung mit `setup-web.sh` erfolgt **nicht automatisch**. Keine echte Übertragung oder Druckfunktion vor Block 6/7. Siehe [docs/WEB-ADMIN.md](docs/WEB-ADMIN.md). Gerätetest offen, `main` unverändert.

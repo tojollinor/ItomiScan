@@ -1,6 +1,6 @@
 # ItomiScan 1.0.0: Architekturvertrag
 
-**Status 13.10.2026:** Boot-/App-Splash und Bereitschaftslogik (Block 2) sowie neue Touchstartseite, lokale Profile und Bildschirmschoner (Block 3) auf `develop/1.0.0` implementiert. Offline-/Xvfb-Tests vorhanden, N1800-Praxistest offen. Web- und Zielintegrationen sowie Benutzerverwaltung noch nicht implementiert.
+**Status 13.10.2026:** Blöcke 1–4 auf `develop/1.0.0` implementiert. Block 4: Webadministration und SQLite. Automatisierte GUI-/HTTP-Tests vorhanden, N1800/LAN-Test offen. Benutzer/PIN und Zielintegration folgen später.
 
 ## Plattform und vorhandener Code
 
@@ -13,8 +13,8 @@
 
 - `itomiscan/core/`: Geräteerkennung, Scanjobs, Zustandsmaschine, zuverlässige Scan-/Exportlogik; später zentrale Dienstschnittstelle.
 - `itomiscan/gui/`: große lokale Touchoberfläche und Splash fertig im Entwicklungszweig; PIN-Anmeldung, Auftragsansicht und Zielintegrationen folgen später.
-- `itomiscan/web/`: separater kleiner HTTP-Dienst für **Fernadministration**, nicht zur lokalen Anzeige.
-- `itomiscan/storage/`: SQLite-Speicherung für Profile, Aufträge, Benutzer, Konfiguration sowie sichere Warteschlange.
+- `itomiscan/web/`: kleiner unabhängiger, ausdrücklich aktivierbarer HTTPS-Webdienst mit Anmeldung, Profilen, Zieladressen, Status und Sicherung; kein Browser auf dem Gerät.
+- `itomiscan/storage/`: SQLite für Profile, Geräteeinstellungen, Zieladressen und Passwort-Hash umgesetzt; Aufträge, PIN-Benutzer und Warteschlange folgen.
 - `itomiscan/integrations/`: Paperless-API, CUPS, SMB/Netzwerkziele, E-Mail und USB-Ziele.
 
 Kein Paket startet beim Import automatisch Hardware, Netzwerkserver oder Hintergrundthreads. Komponenten werden erst in späteren Blöcken schrittweise an den bestehenden Einstiegspunkt angeschlossen. Nicht alle Dienste müssen permanent laufen.
@@ -23,11 +23,11 @@ Kein Paket startet beim Import automatisch Hardware, Netzwerkserver oder Hinterg
 
 - Lokale GUI bleibt ohne Root-Rechte. Privilegierte Aktionen über gezielte und geprüfte Rechte, niemals generelle sudo-Freigabe.
 - GUI, Scandienst und Webadministration logisch trennen; ein Scanjob wird zentral verwaltet, nicht durch parallele unabhängige Scanaufrufe.
-- Scanprofile liegen übergangsweise unter `~/.config/itomiscan/profiles.json` und werden per atomarem Dateiersatz geschrieben (nur Scanparameter, keine Passwörter). Die zentrale Konfiguration inklusive Migration nach SQLite ist für Block 4 vorgesehen.
+- Gemeinsame SQLite-Konfiguration unter `~/.config/itomiscan/itomiscan.db` (Datei 0600, Elternverzeichnis 0700). Bestehende `profiles.json` wird beim ersten Start übernommen und bleibt unverändert erhalten.
 - Dateien für noch nicht zugestellte Aufträge bleiben lokal erhalten, bis das Ziel den Eingang bestätigt. Wiederholung muss doppelte Übertragungen möglichst vermeiden.
-- Webzugriff nur auf explizit konfigurierter LAN-/VPN-Adresse, authentifiziert und gegen CSRF/Rate-Limit-/Sitzungsrisiken geschützt. **Kein dauerhaftes Standardpasswort**: Erstkonfiguration setzt Admin-Passwort; danach Anmeldung nur per Passwort ohne Benutzernameneingabe.
+- Der Webdienst bindet standardmäßig nur an 127.0.0.1, im LAN nur nach passwortgeschützter Erstkonfiguration über SSH und mit HTTPS-Zertifikat. Anmeldung ausschließlich per Passwort ohne Benutzername. PBKDF2, Sitzungsablauf, HttpOnly-/SameSite-Cookies, CSRF, Rate-Limits und Host-/Origin-Kontrolle implementiert.
 - Optional PIN-Benutzer: ohne Aktivierung kein Login, bei Aktivierung eigene Touch-PIN-Oberfläche; Benutzerrechte serverseitig erzwingen, PINs niemals im Klartext, automatische Abmeldung einstellbar.
-- Sicherheitsrelevante Zugangsdaten nicht in Logs, Scandateien oder exportierter Konfiguration offenlegen.
+- Sicherung ohne Admin-Hash, Sitzungen und Ziel-Zugangsdaten. In Block 4 werden nur Zieladressen gespeichert, noch keine API-/SMB-/SMTP-Passwörter. Webdienst ohne Root-Rechte. Details `docs/WEB-ADMIN.md`.
 
 ## Start und Fehlerbehandlung (Block 2)
 

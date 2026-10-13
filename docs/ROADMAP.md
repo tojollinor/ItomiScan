@@ -19,6 +19,8 @@ Stand: 13.10.2026. Planung mit **8 endlichen Blöcken**. Nach jedem Block stoppe
 
 **Block 3:** Große 2×2-Touchstartseite, einfaches ItomiScan-Scan-Logo (flache Tk-Canvas-Zeichnung), Scanprofile mit atomarer JSON-Speicherung, Schnellscan über gewähltes Profil, alte SANE-Detailansicht mit Vorschau/Profil speichern/Zurück-Taste sowie 5-Minuten-Bildschirmschoner auf `develop/1.0.0` implementiert. Paperless/Netzwerk/Kopieren nur klar markierte Platzhalter. GitHub-Actions-Prüfungen für Syntax, Python-Unit-Tests und virtuelle GUI erfolgreich; **Praxistest am N1800 offen**.
 
-**Blöcke 4–8:** noch nicht umgesetzt. Release 1.0.0 unverändert erst nach Abschluss und ausdrücklicher Freigabe.
+**Block 4:** Passwortgeschützte HTTPS-Webadministration, SQLite-Konfiguration, Profile, Zieldefinitionen, Status/Diagnose und JSON-Sicherung auf `develop/1.0.0` implementiert; automatisierte HTTP-/GUI-Tests grün. Manuelles Dienst-Setup vorbereitet; Gerätetest offen. Echte Netzwerkziele/Druck bleiben für spätere Blöcke.
+
+**Blöcke 5–8:** noch nicht umgesetzt. Release 1.0.0 erst nach ausdrücklicher Freigabe.
 
 **Technische Randbedingungen:** Kein unnötiger RAM-/CPU-Verbrauch; bestehendes `app.py` und aktuelle SANE-Funktion nicht unnötig umbauen. GitHub-Commits sind Implementierungsnachweise, kein Beleg für Hardwaretests.

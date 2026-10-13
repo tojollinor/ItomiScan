@@ -1,6 +1,6 @@
 # ItomiScan Touch-Oberfläche (Block 3/8)
 
-Status 13.10.2026: **auf `develop/1.0.0` committet, nicht am N1800 getestet**, `main` unverändert.
+Status 13.10.2026: Block-3-Funktionen auf `develop/1.0.0` committet, nicht am N1800 getestet; `main` unverändert. Seit Block 4 liegen Profile in SQLite.
 
 ## Ansicht und Navigation
 
@@ -14,9 +14,9 @@ Status 13.10.2026: **auf `develop/1.0.0` committet, nicht am N1800 getestet**, `
 
 - Voreinstellungen: Dokument = Color/200 DPI/ADF Duplex/PDF; Text = Gray/300 DPI/ADF Duplex/PDF; Foto = Color/300 DPI/ADF Front/PNG.
 - Die Eingabefelder der Detailansicht bleiben veränderbar. **Profil speichern** legt Ausgabeformat, Modus, Quelle, DPI und die übrigen aktiven SANE-Eingaben unter einem Namen ab. Eine vorhandene Vorlage desselben Namens wird überschrieben; bis zu 30 Profile.
-- Das Profil wird aktuell lokal in `~/.config/itomiscan/profiles.json` gespeichert. JSON-Einträge werden validiert und **atomar** ersetzt, Verzeichnis 0700, Datei 0600. Beschädigte Konfigurationsdateien werden nicht automatisch überschrieben.
+- Historischer Block-3-Stand: Profile lagen in `~/.config/itomiscan/profiles.json`. Seit Block 4 wird nach `~/.config/itomiscan/itomiscan.db` migriert. JSON bleibt als unverändertes Original.
 - Geräteabhängig inaktive/nicht unterstützte Optionen werden beim Anwenden ignoriert. Die Felder bestimmen weiterhin wie bisher die an `scanimage` übergebenen Argumente, **ohne Shell-Aufruf**. Bestehende JPEG-PDF-Beschleunigung bleibt erhalten.
-- Profile sind in Block 3 noch lokale Übergangsdaten. Mehrbenutzerverwaltung, webbasierte Bearbeitung und SQLite-Übernahme folgen in Block 4/5.
+- Webbasierte Profilverwaltung und SQLite-Migration sind ab Block 4 implementiert; PIN-Benutzerverwaltung folgt Block 5.
 
 ## Bildschirmschoner
 
