@@ -35,6 +35,8 @@ if [[ ! -d "$PROJECT/.git" ]]; then
     https://github.com/tojollinor/ItomiScan.git "$PROJECT"
 fi
 chmod +x "$PROJECT/start-kiosk.sh"
+# GitHub Contents creates mode 100644; ignore this local executable-bit change.
+runuser -u "$USER_NAME" -- git -C "$PROJECT" config core.filemode false
 if getent group scanner >/dev/null; then
   usermod -aG scanner "$USER_NAME"
 fi
