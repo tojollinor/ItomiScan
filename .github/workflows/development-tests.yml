@@ -26,6 +26,7 @@ jobs:
       - name: Offline configuration, startup and package tests
         run: |
           /usr/bin/python3 -m unittest discover -s tests -p test_profiles.py -v
+          /usr/bin/python3 -m unittest discover -s tests -p test_users.py -v
           /usr/bin/python3 -m unittest discover -s tests -p test_startup.py -v
           /usr/bin/python3 -m unittest discover -s tests -p test_scaffold.py -v
       - name: Touchscreen smoke tests in isolated X process
