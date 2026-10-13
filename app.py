@@ -8,6 +8,7 @@ import subprocess
 import sys
 import tempfile
 import threading
+import time
 from datetime import datetime
 from pathlib import Path
 import tkinter as tk
@@ -15,7 +16,9 @@ from tkinter import messagebox, simpledialog, ttk
 
 from itomiscan.core.profiles import ProfileError, ProfileStore
 from itomiscan.gui.home import HomeScreen
+from itomiscan.gui.pin import PinScreen
 from itomiscan.gui.screensaver import IdleScreen
+from itomiscan.storage.users import UserStore
 
 from PIL import Image, ImageTk
 
@@ -136,6 +139,12 @@ class ItomiScan:
         self.page_var = tk.StringVar(value="Keine Vorschau")
         self.format_var = tk.StringVar(value="PDF")
         self.profile_store = ProfileStore()
+        self.users = UserStore(self.profile_store.path)
+        self.current_user = None
+        self.session_profile = None
+        self.last_activity = time.monotonic()
+        self.pin_screen = None
+        self.login_enabled = self.users.settings()["enabled"]
         if self.profile_store.warning:
             self.status_var.set(self.profile_store.warning)
         self.home = None
@@ -163,13 +172,21 @@ class ItomiScan:
             self.root, self.profile_store, self.select_profile,
             self.show_scan, self.quick_scan, self.unavailable,
             self.shutdown, self.check_update, self.exit, self.status_var,
+            logout=self.logout,
         )
+        self.pin_screen = PinScreen(self.root, self.verify_pin)
+        self.root.bind_all("<ButtonPress>", self.record_activity, add="+")
+        self.root.bind_all("<KeyPress>", self.record_activity, add="+")
         idle_minutes = self.profile_store.db.get_settings().get("screensaver_minutes", 5) if self.profile_store.db else 5
-        self.idle_screen = IdleScreen(self.root, lambda: self.busy,
-                                     seconds=idle_minutes * 60)
-        if self.device and self.options:
+        self.idle_screen = IdleScreen(
+            self.root, lambda: self.busy or self.pin_screen.active,
+            seconds=idle_minutes * 60)
+        if self.login_enabled:
+            self.show_login()
+        elif self.device and self.options:
             self.show_home()
         self.root.after(250, self.refresh_ip)
+        self.root.after(2000, self.auth_tick)
 
     def _style(self):
         theme = ttk.Style(self.root)
@@ -196,7 +213,8 @@ class ItomiScan:
                  font=("DejaVu Sans", 24, "bold")).pack(side="left")
         tk.Label(header, textvariable=self.ip_var, bg=BASE, fg=MUTED,
                  font=("DejaVu Sans", 13)).pack(side="right", padx=8)
-        self._btn(header, "⏻ Ausschalten", self.shutdown).pack(side="right", padx=(0, 8))
+        self.detail_shutdown = self._btn(header, "⏻ Ausschalten", self.shutdown)
+        self.detail_shutdown.pack(side="right", padx=(0, 8))
         self._btn(header, "← Startseite", self.show_home, width=12).pack(
             side="right", padx=(0, 10))
         body = tk.Frame(self.scan_view, bg=BASE)
@@ -249,12 +267,15 @@ class ItomiScan:
                                    font=("DejaVu Sans", 9), wraplength=590)
         self.path_label.pack(pady=(3, 12))
 
-        self._btn(left, "Profil speichern", self.save_profile, width=16).pack(
-            fill="x", padx=13, pady=(0, 8))
+        self.profile_save_button = self._btn(
+            left, "Profil speichern", self.save_profile, width=16)
+        self.profile_save_button.pack(fill="x", padx=13, pady=(0, 8))
         footer = tk.Frame(self.scan_view, bg=BASE)
         footer.pack(fill="x", padx=18, pady=(5, 13))
-        self._btn(footer, "Beenden", self.exit).pack(side="left")
-        self._btn(footer, "↻  Update", self.check_update).pack(side="left", padx=8)
+        self.detail_exit = self._btn(footer, "Beenden", self.exit)
+        self.detail_exit.pack(side="left")
+        self.detail_update = self._btn(footer, "↻  Update", self.check_update)
+        self.detail_update.pack(side="left", padx=8)
         self.progress = ttk.Progressbar(footer, mode="indeterminate", length=90)
         self.progress.pack(side="left", padx=12)
         self.scan_button = self._btn(footer, "▣  SCANNEN", self.start_scan, BLUE, width=15)
@@ -263,6 +284,8 @@ class ItomiScan:
                  font=("DejaVu Sans", 10), wraplength=360).pack(side="right", padx=16)
 
     def on_front_scan_key(self, event):
+        if self.pin_screen and self.pin_screen.active:
+            return "break"
         if self.idle_screen and self.idle_screen.active:
             self.idle_screen.wake()
             return "break"
