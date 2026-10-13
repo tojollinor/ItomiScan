@@ -12,11 +12,11 @@ auf dem echten Gerät durchgeführt; die neue GUI ist noch **nicht am Gerät erp
 - SANE-Scannererkennung und gerätespezifische Einstellmöglichkeiten
 - Standard: ADF-Duplex, Farbe, 200 DPI
 - Inaktive Optionen werden angezeigt, aber deaktiviert
-- Mehrseitiges Scannen über \`scanimage --batch\`
+- Mehrseitiges Scannen über `scanimage --batch`
 - Bildvorschau mit Vor/Zurück für beide Seiten und mehrere Blätter
 - Auswahl: PNG-Einzelbilder oder eine zusammengefasste PDF-Datei
-- Speicherung im Benutzerordner \`~/Scans/ItomiScan_YYYYMMDD_HHMMSS/\`
-- Update-Schaltfläche: GitHub \`main\` prüfen, mit Bestätigung fast-forward
+- Speicherung im Benutzerordner `~/Scans/ItomiScan_YYYYMMDD_HHMMSS/`
+- Update-Schaltfläche: GitHub `main` prüfen, mit Bestätigung fast-forward
 - Beenden schließt nur die Anwendung, **nicht** Debian
 
 **Noch nicht realisiert:** Druckausgabe, Profilverwaltung, Webadministration,
@@ -30,23 +30,23 @@ werden; dafür ist noch eine dynamische Aktualisierung geplant.
 
 Voraussetzungen: Debian 12, aktives LAN, SSH, funktionierender SANE-Treiber.
 Die Installation verwendet den **vorhandenen normalen Linux-Benutzer** (nicht root).
-Seinen Namen bitte bei \`BENUTZERNAME\` ersetzen.
+Seinen Namen bitte bei `BENUTZERNAME` ersetzen.
 
 Als root via SSH:
 
-\`\`\`bash
+```bash
 apt install -y git
 git clone https://github.com/tojollinor/ItomiScan.git /tmp/itomiscan-setup
 bash /tmp/itomiscan-setup/install.sh BENUTZERNAME
 reboot
-\`\`\`
+```
 
-Beim nächsten Start meldet die Konsole \`tty1\` den angegebenen Benutzer
+Beim nächsten Start meldet die Konsole `tty1` den angegebenen Benutzer
 automatisch an und startet nur dort Xorg mit ItomiScan. Andere SSH-Zugänge
 werden nicht umkonfiguriert. Die GUI läuft **ohne root-Rechte**.
 
-Das Skript installiert Debian-Pakete einschließlich \`sane-utils\`, Xorg,
-\`python3-tk\`, Pillow und \`img2pdf\`. Für den Webserver wird nichts geöffnet.
+Das Skript installiert Debian-Pakete einschließlich `sane-utils`, Xorg,
+`python3-tk`, Pillow und `img2pdf`. Für den Webserver wird nichts geöffnet.
 
 ## Nach dem Start
 
@@ -56,9 +56,9 @@ Das Skript installiert Debian-Pakete einschließlich \`sane-utils\`, Xorg,
 - **Update** benötigt eine Internetverbindung; lokale Änderungen verhindern
   bewusst den Fast-Forward. Updates werden erst nach Bestätigung eingespielt.
 - **Beenden** zeigt die lokale Linux-Konsole; zum erneuten Start dort
-  \`startx ~/ItomiScan/start-kiosk.sh -- :0 vt1\` ausführen.
-- Für die Hardwarediagnose: \`scanimage -L\` und
-  \`scanimage -d 'fujitsu:fi-6110dj:10407' --help\`.
+  `startx ~/ItomiScan/start-kiosk.sh -- :0 vt1` ausführen.
+- Für die Hardwarediagnose: `scanimage -L` und
+  `scanimage -d 'fujitsu:fi-6110dj:10407' --help`.
 
 ## Wichtige Hinweise
 
