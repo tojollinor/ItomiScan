@@ -120,6 +120,7 @@ class HomeScreen:
                      bg=BLUE, font=15, pad_y=12).pack(side="right", padx=12, pady=5)
 
         bottom = tk.Frame(self.frame, bg=BASE)
+        self.controls["footer"] = bottom
         bottom.pack(fill="x", padx=31, pady=(0, 18))
         self.controls["exit"] = self._button(bottom, "Beenden", exit_app, font=11,
                                              pad_y=7)
@@ -161,7 +162,8 @@ class HomeScreen:
         if self.allowed is not None and "scan" not in self.allowed:
             self.controls["profile_bar"].pack_forget()
         else:
-            self.controls["profile_bar"].pack(fill="x", padx=37, pady=(2, 12))
+            self.controls["profile_bar"].pack(fill="x", padx=37, pady=(2, 12),
+                                              before=self.controls["footer"])
         self.refresh(names=profile_names, selected=selected)
 
     def refresh(self, *, names=None, selected=None):
