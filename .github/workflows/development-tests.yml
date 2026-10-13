@@ -1,0 +1,27 @@
+name: ItomiScan development checks
+
+on:
+  push:
+    branches:
+      - develop/1.0.0
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  offline-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install lightweight GUI test dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            python3-tk python3-pil python3-pil.imagetk xvfb xauth
+      - name: Python syntax
+        run: /usr/bin/python3 -m compileall -q app.py itomiscan tests
+      - name: Shell syntax
+        run: bash -n install.sh setup-shutdown.sh setup-boot-splash.sh
+      - name: Unit and virtual-display touchscreen tests
+        run: xvfb-run -a /usr/bin/python3 -m unittest discover -s tests -v
