@@ -1,6 +1,6 @@
 # ItomiScan 1.0.0: Architekturvertrag
 
-**Status 13.10.2026:** Architekturziel und Projektstruktur vorbereitet, neue Komponenten **noch nicht implementiert**.
+**Status 13.10.2026:** Architektur und Projektstruktur vorbereitet; **Boot-/App-Splash und Bereitschaftslogik in Block 2 auf dem Entwicklungszweig implementiert**, Hardwaretest offen. Weitere Komponenten noch nicht implementiert.
 
 ## Plattform und vorhandener Code
 
@@ -31,10 +31,10 @@ Kein Paket startet beim Import automatisch Hardware, Netzwerkserver oder Hinterg
 
 ## Start und Fehlerbehandlung (Block 2)
 
-- Früher Boot-Splash nach Möglichkeiten der Hardware/Bootkette; bei GUI-Start eigener Splash.
-- Hauptansicht erst freigeben, wenn SANE-Erkennung, benötigte Optionen, lokale GUI und Touch-Eingabegerät initialisiert sind.
+- App-Splash mit Tkinter bereits auf dem Entwicklungszweig eingebunden; früher Plymouth-Boot-Splash als **optionales, noch nicht am Gerät ausgeführtes** Skript vorbereitet.
+- Hauptansicht erst freigeben, wenn SANE-Erkennung, benötigte Optionen und das Kernel-Touch-Eingabegerät vorhanden sind und die lokale GUI angelegt wurde. Kernel-Erkennung **beweist keine tatsächlich korrekte Berührung oder Kalibrierung**.
 - Netzwerkdrucker und Paperless nicht als blockierende Startvoraussetzungen behandeln; Fehler separat anzeigen.
-- Endlosschleifen verhindern: definierte Frist für Initialisierung, Wiederholen/Diagnose ohne Konsolenausgaben im normalen Benutzerbetrieb.
+- Auf dem Entwicklungszweig begrenzte Initialisierungsdauer und SANE-Subprozess-Timeouts, Wiederholen/Diagnose/Beenden nach Fehlschlag. Details: `docs/STARTUP.md`.
 - Geräteseitige Funktion und Splash-Integration sind **erst nach N1800-Praxistest bestätigt**.
 
 ## Oberflächen- und Zielprinzipien

@@ -99,3 +99,15 @@ Es fährt das Gerät dabei **nicht** herunter.
   oder die installierten Debian-Pakete.
 
 Repository: https://github.com/tojollinor/ItomiScan
+
+
+## ItomiScan 1.0.0 (Entwicklung)
+
+Der **Entwicklungszweig `develop/1.0.0`** enthält die geplante neue Startlogik.
+Im bestehenden Scannerbetrieb bleibt `main` der Update-Kanal.
+
+Block 2: Schlanker lokaler Splash mit Scanner-/Touchgerät-Erkennung und
+Wiederholen/Diagnose; optionales, **nicht automatisch ausgeführtes**
+`setup-boot-splash.sh` für Plymouth auf Debian 12. Details in
+[`docs/STARTUP.md`](docs/STARTUP.md). Eine erfolgreiche Geräteabnahme steht
+noch aus.

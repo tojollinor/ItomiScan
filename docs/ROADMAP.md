@@ -13,6 +13,8 @@ Stand: 13.10.2026. Planung mit **8 endlichen Blöcken**. Nach jedem Block stoppe
 | **7/8** | CUPS-Netzwerkdrucker, Kopierfunktion, Druckaufträge | Papier scannen und auf gewähltem Drucker ausgeben |
 | **8/8** | Integrationstests, 1-GiB-Optimierung, Fehlerschutz, Rollback, Installer, KB und Release | Release **1.0.0** nur nach ausdrücklicher Endfreigabe |
 
-**Block-1-Status:** Umsetzung der GitHub-Sicherung und Paketstruktur; lokale N1800-Installation bleibt unangetastet. Keine bereits geplanten Funktionen der Blöcke 2–8 als umgesetzt ausgeben.
+**Block 1:** abgeschlossen: GitHub-Sicherung und Paketstruktur.
+
+**Block 2:** App-Splash, asynchrone Hardwarebereitschaft, Fehleransicht, Neustartversuch sowie optionales Plymouth-Einrichtungsskript auf `develop/1.0.0` implementiert. Offline-Tests vorhanden; N1800-Gerätetest/Boot-Splash-Aktivierung noch offen. Blöcke 3–8 nicht umgesetzt.
 
 **Technische Randbedingungen:** Kein unnötiger RAM-/CPU-Verbrauch; bestehendes `app.py` und aktuelle SANE-Funktion nicht unnötig umbauen. GitHub-Commits sind Implementierungsnachweise, kein Beleg für Hardwaretests.
