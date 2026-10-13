@@ -112,7 +112,10 @@ class ItomiScan:
         self.root = root
         self.root.title("ItomiScan")
         self.root.configure(bg=BASE)
-        self.root.attributes("-fullscreen", True)
+        # Without a window manager Tk's -fullscreen hint may be ignored.
+        # Size the kiosk window explicitly to the Xorg screen instead.
+        self.root.overrideredirect(True)
+        self.root.geometry(f"{self.root.winfo_screenwidth()}x{self.root.winfo_screenheight()}+0+0")
         self.root.bind("<Escape>", lambda e: None)
         self.busy = False
         self.device = None
@@ -319,16 +322,25 @@ class ItomiScan:
         if self.tempdir:
             self.tempdir.cleanup()
         self.tempdir = tempfile.TemporaryDirectory(prefix="itomiscan-")
-        threading.Thread(target=self.scan_worker, args=(settings, self.format_var.get()),
+        scan_mode = next((variable.get().strip() for opt, variable in self.fields
+                          if opt["flag"] == "--mode" and not opt["inactive"]), "")
+        threading.Thread(target=self.scan_worker,
+                         args=(settings, self.format_var.get(), scan_mode),
                          daemon=True).start()
 
-    def scan_worker(self, settings, output_format):
+    def scan_worker(self, settings, output_format, scan_mode):
         folder = Path(self.tempdir.name)
-        cmd = ["scanimage", "-d", self.device, "--format=png",
-               "--batch=page-%04d.png"] + settings
+        # For PDF color/gray pages, JPEG avoids expensive PNG compression on
+        # the Atom N270 and img2pdf embeds the JPEG stream without re-encoding.
+        # Keep lossless PNG for line art and for explicit PNG output.
+        use_jpeg = output_format == "PDF" and scan_mode in ("Color", "Gray")
+        image_format = "jpeg" if use_jpeg else "png"
+        extension = "jpg" if use_jpeg else "png"
+        cmd = ["scanimage", "-d", self.device, "--format=" + image_format,
+               "--batch=page-%04d." + extension] + settings
         try:
             result = shell(cmd, timeout=600, cwd=str(folder))
-            scans = sorted(folder.glob("page-*.png"))
+            scans = sorted(folder.glob("page-*." + extension))
             if not scans:
                 raise RuntimeError(result.stderr.strip() or "Kein Dokument eingezogen.")
             stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -338,6 +350,7 @@ class ItomiScan:
             target.mkdir(parents=True, exist_ok=False)
             if output_format == "PDF":
                 path = target / "Dokument.pdf"
+                self.dispatch(lambda: self.status_var.set("PDF wird erstellt …"))
                 pdf = shell(["img2pdf", *map(str, scans), "-o", str(path)], timeout=180)
                 if pdf.returncode != 0:
                     raise RuntimeError("PDF-Erstellung: " + (pdf.stderr or pdf.stdout))
@@ -380,11 +393,14 @@ class ItomiScan:
         if not self.pages:
             return
         try:
-            with Image.open(self.pages[self.page_index]) as src:
-                image = src.convert("RGB")
             self.root.update_idletasks()
             width = max(240, self.preview.winfo_width() - 25)
             height = max(200, self.preview.winfo_height() - 25)
+            with Image.open(self.pages[self.page_index]) as src:
+                # Decode JPEG previews at reduced resolution to save CPU/RAM.
+                if src.format == "JPEG":
+                    src.draft("RGB", (width, height))
+                image = src.convert("RGB")
             image.thumbnail((width, height), Image.Resampling.LANCZOS)
             self.photo = ImageTk.PhotoImage(image)
             self.preview.configure(image=self.photo, text="")
