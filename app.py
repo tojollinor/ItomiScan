@@ -299,15 +299,198 @@ class ItomiScan:
         self.start_scan()
         return "break"
 
+    def record_activity(self, _event=None):
+        self.last_activity = time.monotonic()
+
+    def _allowed(self, permission, *, silent=False):
+        """Re-check database permissions before every restricted operation."""
+        try:
+            if not self.users.settings()["enabled"]:
+                return True
+            user_id = self.current_user["id"] if self.current_user else None
+            allowed = self.users.authorized(user_id, permission)
+            if not allowed and not silent:
+                if self.current_user is None:
+                    self.show_login()
+                else:
+                    messagebox.showwarning(
+                        "Keine Berechtigung",
+                        "Diese Funktion ist für den angemeldeten Benutzer nicht freigegeben.",
+                        parent=self.root,
+                    )
+            return allowed
+        except (OSError, ValueError) as exc:
+            self.status_var.set("Berechtigungsprüfung fehlgeschlagen: " + str(exc))
+            return False
+
+    def _profile_record(self, name):
+        self.profile_store.reload()
+        return next((dict(p) for p in self.profile_store.profiles
+                     if p["name"] == name), None)
+
+    def show_login(self, message="Persönliche PIN mit 4 bis 6 Ziffern"):
+        if self.busy:
+            return
+        self.current_user = None
+        self.session_profile = None
+        if self.home:
+            self.home.hide()
+        self.scan_view.place_forget()
+        if self.idle_screen:
+            self.idle_screen.wake()
+        if self.pin_screen:
+            self.pin_screen.show(message)
+        self.record_activity()
+
+    def verify_pin(self, pin):
+        if self.busy:
+            return
+        try:
+            if not self.users.settings()["enabled"]:
+                self.pin_screen.hide()
+                self.show_home()
+                return
+            identity = self.users.verify_pin(pin)
+            if not identity:
+                seconds = self.users.settings()["locked_seconds"]
+                if seconds:
+                    self.pin_screen.error(
+                        "Zu viele Versuche. PIN-Eingabe für ca. "
+                        + str(seconds) + " Sekunden gesperrt.")
+                else:
+                    self.pin_screen.error("PIN nicht erkannt. Bitte erneut versuchen.")
+                return
+            self.current_user = identity
+            self.session_profile = identity["default_profile"]
+            self.record_activity()
+            self.pin_screen.hide()
+            self.show_home()
+        except (OSError, ValueError) as exc:
+            self.pin_screen.error("Anmeldung derzeit nicht möglich: " + str(exc))
+
+    def _clear_previous_scan(self):
+        """Prevent next user from seeing previous user's scan preview."""
+        self.pages = []
+        self.page_index = 0
+        self.photo = None
+        self.output_path = None
+        self.page_var.set("Keine Vorschau")
+        self.path_label.configure(text="Noch keine Datei")
+        self.preview.configure(image="", text="Dokument einlegen\nund „Scannen“ drücken")
+        if self.tempdir:
+            self.tempdir.cleanup()
+            self.tempdir = None
+
+    def logout(self):
+        if self.busy:
+            return
+        self._clear_previous_scan()
+        if self.users.settings()["enabled"]:
+            self.show_login("Abgemeldet. Bitte persönliche PIN eingeben.")
+        else:
+            self.current_user = None
+            self.session_profile = None
+            self.show_home()
+
+    def auth_tick(self):
+        """Pick up web changes, expiration and account revocation without restart."""
+        try:
+            info = self.users.settings()
+            enabled = info["enabled"]
+            self.login_enabled = enabled
+            if not self.busy:
+                if not enabled:
+                    if self.current_user or self.pin_screen.active:
+                        self.current_user = None
+                        self.session_profile = None
+                        self.pin_screen.hide()
+                        self.show_home()
+                elif not self.current_user:
+                    if not self.pin_screen.active:
+                        self.show_login()
+                else:
+                    fresh = self.users.get_user(self.current_user["id"])
+                    if not fresh or not fresh["active"]:
+                        self.logout()
+                    elif time.monotonic() - self.last_activity >= (
+                            info["timeout_minutes"] * 60):
+                        self.logout()
+                    else:
+                        changed = fresh != self.current_user
+                        self.current_user = fresh
+                        if changed and self.home.visible:
+                            self.show_home()
+        except (OSError, ValueError) as exc:
+            # Access controls must fail closed if the database becomes unreadable.
+            self.status_var.set("Benutzerverwaltung nicht erreichbar: " + str(exc))
+            if not self.busy and self.login_enabled:
+                self.show_login("Benutzerverwaltung nicht erreichbar.")
+        finally:
+            try:
+                if self.root.winfo_exists():
+                    self.root.after(2000, self.auth_tick)
+            except tk.TclError:
+                pass
+
+    def _detail_buttons(self):
+        user = self.current_user if self.login_enabled else None
+        access = set(user["permissions"]) if user else None
+        for permission, button, side in (
+            ("shutdown", self.detail_shutdown, "right"),
+            ("update", self.detail_update, "left"),
+            ("exit", self.detail_exit, "left"),
+        ):
+            if access is None or permission in access:
+                button.pack(side=side, padx=8)
+            else:
+                button.pack_forget()
+        # Editing global profiles is restricted to the web administrator when
+        # per-user access control is active.
+        if user is None:
+            self.profile_save_button.pack(fill="x", padx=13, pady=(0, 8))
+        else:
+            self.profile_save_button.pack_forget()
+
     def show_home(self):
         if self.busy or not self.home:
             return
-        self.scan_view.place_forget()
         self.profile_store.reload()
-        self.apply_profile(self.profile_store.current())
+        enabled = self.users.settings()["enabled"]
+        if enabled and not self.current_user:
+            self.show_login()
+            return
+        user = None
+        if enabled:
+            user = self.users.get_user(self.current_user["id"])
+            if not user or not user["active"]:
+                self.show_login("Benutzerkonto nicht mehr aktiv.")
+                return
+            self.current_user = user
+        self.scan_view.place_forget()
+        if self.pin_screen:
+            self.pin_screen.hide()
+        if user:
+            names = [name for name in user["assigned_profiles"]
+                     if self._profile_record(name)]
+            if self.session_profile not in names:
+                self.session_profile = user["default_profile"]
+            if self.session_profile not in names:
+                self.session_profile = names[0] if names else None
+            current = self._profile_record(self.session_profile) if self.session_profile else None
+            if current:
+                self.apply_profile(current)
+            self.home.set_access(user, profile_names=names,
+                                 selected=self.session_profile or "")
+        else:
+            self.session_profile = None
+            self.apply_profile(self.profile_store.current())
+            self.home.set_access(None)
+        self._detail_buttons()
         self.home.show()
 
     def show_scan(self):
+        if not self._allowed("scan"):
+            return
         if self.home:
             self.home.hide()
         self.scan_view.place(x=0, y=0, relwidth=1, relheight=1)
@@ -330,9 +513,21 @@ class ItomiScan:
             variable.set(value)
 
     def select_profile(self, name):
+        if not self._allowed("scan"):
+            return
         try:
-            self.profile_store.select(name)
-            self.apply_profile(self.profile_store.current())
+            if self.users.settings()["enabled"]:
+                user = self.users.get_user(self.current_user["id"])
+                if not user or name not in user["assigned_profiles"]:
+                    raise ProfileError("Dieses Profil ist nicht freigegeben.")
+                profile = self._profile_record(name)
+                if not profile:
+                    raise ProfileError("Das Profil ist nicht mehr vorhanden.")
+                self.session_profile = name
+                self.apply_profile(profile)
+            else:
+                self.profile_store.select(name)
+                self.apply_profile(self.profile_store.current())
             self.status_var.set("Profil ausgewählt: " + name)
         except (OSError, ProfileError) as exc:
             messagebox.showerror("Scanprofil", str(exc), parent=self.root)
@@ -341,6 +536,11 @@ class ItomiScan:
 
     def save_profile(self):
         if self.busy:
+            return
+        if self.users.settings()["enabled"]:
+            messagebox.showinfo(
+                "Scanprofil", "Gemeinsame Profile werden über die Webadministration verwaltet.",
+                parent=self.root)
             return
         current = self.profile_store.selected
         name = simpledialog.askstring(
@@ -364,16 +564,24 @@ class ItomiScan:
             messagebox.showerror("Scanprofil", str(exc), parent=self.root)
 
     def quick_scan(self):
-        if self.busy:
+        if self.busy or not self._allowed("scan"):
             return
         if not self.device:
             messagebox.showwarning("Scanner", "Scanner ist noch nicht bereit.",
                                    parent=self.root)
             return
-        self.apply_profile(self.profile_store.current())
+        if self.users.settings()["enabled"]:
+            profile = self._profile_record(self.session_profile)
+            if not profile:
+                return
+        else:
+            profile = self.profile_store.current()
+        self.apply_profile(profile)
         self.start_scan()
 
-    def unavailable(self, name, block):
+    def unavailable(self, permission, name, block):
+        if not self._allowed(permission):
+            return
         messagebox.showinfo(
             name, name + " wird in Entwicklungsblock " + str(block) +
             "/8 ergänzt. Die Funktion ist aktuell noch nicht verfügbar.",
@@ -401,7 +609,10 @@ class ItomiScan:
             self.apply_profile(self.profile_store.current())
             self.status_var.set("Bereit · " + self.device)
             if self.home:
-                self.show_home()
+                if self.users.settings()["enabled"]:
+                    self.show_login()
+                else:
+                    self.show_home()
         except (OSError, RuntimeError, subprocess.TimeoutExpired) as exc:
             self.status_var.set("Scannerfehler")
             messagebox.showerror("Scanner", str(exc), parent=self.root)
@@ -469,6 +680,8 @@ class ItomiScan:
 
     def start_scan(self):
         if self.busy or not self.device:
+            return
+        if not self._allowed("scan"):
             return
         if self.idle_screen and self.idle_screen.active:
             self.idle_screen.wake()
@@ -574,7 +787,7 @@ class ItomiScan:
             self.status_var.set("Vorschaufehler: " + str(exc))
 
     def check_update(self):
-        if self.busy:
+        if self.busy or not self._allowed("update"):
             return
         self.status_var.set("GitHub wird geprüft …")
         threading.Thread(target=self.update_worker, args=(False,), daemon=True).start()
@@ -636,6 +849,8 @@ class ItomiScan:
                      [sys.executable, "-m", "itomiscan.gui.kiosk"])
 
     def shutdown(self):
+        if not self._allowed("shutdown"):
+            return
         if self.busy:
             messagebox.showinfo("Scannen", "Bitte zuerst den Scan abschließen.", parent=self.root)
             return
@@ -662,6 +877,8 @@ class ItomiScan:
             )
 
     def exit(self):
+        if not self._allowed("exit"):
+            return
         if self.busy:
             messagebox.showinfo("Scannen", "Bitte zuerst den Scan abschließen.", parent=self.root)
             return
