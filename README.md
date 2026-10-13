@@ -133,3 +133,13 @@ Technische Einzelheiten: [`docs/TOUCH-UI.md`](docs/TOUCH-UI.md).
 ### Block 4: Passwortgeschützte Webadministration (Entwicklung)
 
 Getrennter kleiner Python-Webserver für Profile, vorbereitete Papier-/Druck-/Netzwerkziele, Systemstatus, SANE-Diagnose und JSON-Konfigurationssicherungen. Gemeinsame SQLite-DB; bestehende JSON-Profile werden erhalten. Erste Passwortvergabe über SSH, Anmeldung nur per Passwort ohne Benutzername, kein Standardpasswort. LAN-Betrieb ausschließlich über HTTPS. Opt-in-Einrichtung mit `setup-web.sh` erfolgt **nicht automatisch**. Keine echte Übertragung oder Druckfunktion vor Block 6/7. Siehe [docs/WEB-ADMIN.md](docs/WEB-ADMIN.md). Gerätetest offen, `main` unverändert.
+
+
+### Block 5: Optionale Benutzerverwaltung (Entwicklung)
+
+- Webadministration: Tab **Benutzer**, dort aktive Konten mit 4–6-stelliger PIN, Funktionsrechten und persönlich zugewiesenen Scanprofilen verwalten.
+- PIN-Anmeldung standardmäßig deaktiviert. Nach Aktivierung erscheint auf dem N1800 erst das große PIN-Tastenfeld. Erst danach persönliche Startseite; physische Scantaste bleibt vorher gesperrt.
+- Zeitgesteuerte Abmeldung (1–60 Minuten), Benutzerwechsel und Löschung der vorherigen Vorschau beim Abmelden. Ein Scanauftrag wird nicht mitten im Scannen unterbrochen.
+- PINs werden nur als gesalzene Prüfsummen gespeichert und nicht exportiert. Nach fünf Fehlversuchen drei Minuten PIN-Sperre. Webadmin-Passwort bleibt unabhängig.
+- Berechtigungen werden vor Aktionen und zugewiesene Profile direkt vor Scanbeginn überprüft. Gemeinsame Profiländerungen bei aktiver Benutzerverwaltung nur im Web.
+- Automatisierte Tests vorhanden. **Kein realer N1800-Test, kein 1.0.0-Release und keine Änderungen an `main`.** Details: [docs/USERS.md](docs/USERS.md).

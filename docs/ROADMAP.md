@@ -21,6 +21,8 @@ Stand: 13.10.2026. Planung mit **8 endlichen Blöcken**. Nach jedem Block stoppe
 
 **Block 4:** Passwortgeschützte HTTPS-Webadministration, SQLite-Konfiguration, Profile, Zieldefinitionen, Status/Diagnose und JSON-Sicherung auf `develop/1.0.0` implementiert; automatisierte HTTP-/GUI-Tests grün. Manuelles Dienst-Setup vorbereitet; Gerätetest offen. Echte Netzwerkziele/Druck bleiben für spätere Blöcke.
 
-**Blöcke 5–8:** noch nicht umgesetzt. Release 1.0.0 erst nach ausdrücklicher Freigabe.
+**Block 5:** Optionale PIN-Benutzerverwaltung mit Benutzer-/Rechteformularen in der Webadministration, PIN-Ziffernfeld auf dem Gerät, persönlicher Profilzuweisung, gesalzen gehashten PINs, Fehlversuchsperre und Abmeldung nach Inaktivität. Funktionsberechtigungen werden unmittelbar vor den Aktionen geprüft. GitHub-Tests laufen, Geräteprüfung ausstehend.
+
+**Blöcke 6–8:** noch nicht umgesetzt. Release 1.0.0 erst nach ausdrücklicher Freigabe.
 
 **Technische Randbedingungen:** Kein unnötiger RAM-/CPU-Verbrauch; bestehendes `app.py` und aktuelle SANE-Funktion nicht unnötig umbauen. GitHub-Commits sind Implementierungsnachweise, kein Beleg für Hardwaretests.

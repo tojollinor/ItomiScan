@@ -57,4 +57,4 @@ bash setup-web.sh BENUTZERNAME 192.168.1.50
 - CI prüft Python-/Shell-Syntax, SQLite/Profil-Migration, virtuelle Tk-Oberfläche und echte lokale HTTP-Anfragen getrennt.
 - Geprüfte Szenarien: Authentifizierung, nicht autorisierter Zugriff, CSRF, Host/Origin, HTML-Escaping, Profil- und Zielanlage, JSON-Sicherung/Import, TLS-Pflicht beim Nicht-Loopback-Binden.
 - **Am N1800 noch offen:** HTTPS mit Zertifikat/Vertrauensstellung, tatsächlicher LAN-Zugriff, RAM-/CPU-Belastung, Scannerrechte, paralleles Scannen mit Webzugriff und Wiederherstellungstest.
-- Noch keine optionalen PIN-Benutzer (Block 5), keine Zielübertragung (Block 6), kein CUPS-Kopieren (Block 7). Releases und Rollback erst in Block 8 nach ausdrücklicher Abnahme.
+- **Block 5:** der zusätzliche Tab `Benutzer` verwaltet aktive/inaktive PIN-Benutzer, Rechte, zugewiesene Scanprofile sowie die optionale PIN-Anmeldung und Inaktivitätsfrist. Benutzer-PINs/-Hashes gehören nicht zum JSON-Konfigurationsbackup. Keine Zielübertragung (Block 6), kein CUPS-Kopieren (Block 7); Release erst in Block 8.

@@ -1,6 +1,6 @@
 # ItomiScan 1.0.0: Architekturvertrag
 
-**Status 13.10.2026:** Blöcke 1–4 auf `develop/1.0.0` implementiert. Block 4: Webadministration und SQLite. Automatisierte GUI-/HTTP-Tests vorhanden, N1800/LAN-Test offen. Benutzer/PIN und Zielintegration folgen später.
+**Status 14.10.2026:** Blöcke 1–5 auf `develop/1.0.0` implementiert. Block 5: optionale PIN-Verwaltung und persönliche Berechtigungen. Automatisierte Datenbank-/GUI-/HTTP-Tests; reale N1800-/LAN-Abnahme noch offen. Zielintegrationen folgen in Blöcken 6–7.
 
 ## Plattform und vorhandener Code
 
@@ -12,9 +12,9 @@
 ## Zielmodule (zunächst nur Paketstruktur)
 
 - `itomiscan/core/`: Geräteerkennung, Scanjobs, Zustandsmaschine, zuverlässige Scan-/Exportlogik; später zentrale Dienstschnittstelle.
-- `itomiscan/gui/`: große lokale Touchoberfläche und Splash fertig im Entwicklungszweig; PIN-Anmeldung, Auftragsansicht und Zielintegrationen folgen später.
+- `itomiscan/gui/`: Touchoberfläche und Splash sowie PIN-Tastatur mit Benutzerwechsel und zeitgesteuerter Sperre vorhanden. Auftragsansicht und Zielintegrationen folgen.
 - `itomiscan/web/`: kleiner unabhängiger, ausdrücklich aktivierbarer HTTPS-Webdienst mit Anmeldung, Profilen, Zieladressen, Status und Sicherung; kein Browser auf dem Gerät.
-- `itomiscan/storage/`: SQLite für Profile, Geräteeinstellungen, Zieladressen und Passwort-Hash umgesetzt; Aufträge, PIN-Benutzer und Warteschlange folgen.
+- `itomiscan/storage/`: SQLite für Profile, Einstellungen, Zieladressen, Administratorhash und PIN-Benutzer samt Berechtigungen vorhanden. Auftragsspeicher und Warteschlange folgen.
 - `itomiscan/integrations/`: Paperless-API, CUPS, SMB/Netzwerkziele, E-Mail und USB-Ziele.
 
 Kein Paket startet beim Import automatisch Hardware, Netzwerkserver oder Hintergrundthreads. Komponenten werden erst in späteren Blöcken schrittweise an den bestehenden Einstiegspunkt angeschlossen. Nicht alle Dienste müssen permanent laufen.
@@ -26,7 +26,7 @@ Kein Paket startet beim Import automatisch Hardware, Netzwerkserver oder Hinterg
 - Gemeinsame SQLite-Konfiguration unter `~/.config/itomiscan/itomiscan.db` (Datei 0600, Elternverzeichnis 0700). Bestehende `profiles.json` wird beim ersten Start übernommen und bleibt unverändert erhalten.
 - Dateien für noch nicht zugestellte Aufträge bleiben lokal erhalten, bis das Ziel den Eingang bestätigt. Wiederholung muss doppelte Übertragungen möglichst vermeiden.
 - Der Webdienst bindet standardmäßig nur an 127.0.0.1, im LAN nur nach passwortgeschützter Erstkonfiguration über SSH und mit HTTPS-Zertifikat. Anmeldung ausschließlich per Passwort ohne Benutzername. PBKDF2, Sitzungsablauf, HttpOnly-/SameSite-Cookies, CSRF, Rate-Limits und Host-/Origin-Kontrolle implementiert.
-- Optional PIN-Benutzer: ohne Aktivierung kein Login, bei Aktivierung eigene Touch-PIN-Oberfläche; Benutzerrechte serverseitig erzwingen, PINs niemals im Klartext, automatische Abmeldung einstellbar.
+- Optionale PIN-Anmeldung seit Block 5: Ausgeschaltet = Startseite sofort; eingeschaltet = PIN-Ziffernfeld mit individueller Rechte- und Profilzuweisung. Eindeutige 4–6-stellige PINs werden gesalzen gehasht gespeichert, fünf Fehlversuche verursachen drei Minuten globale PIN-Sperre; automatische Abmeldung nach 1–60 Minuten. Berechtigungen werden bei jeder sensiblen Aktion gegen die SQLite-Datenbank geprüft und persönliche Profile vor dem Scan erneut angewendet. Details unter `docs/USERS.md`.
 - Sicherung ohne Admin-Hash, Sitzungen und Ziel-Zugangsdaten. In Block 4 werden nur Zieladressen gespeichert, noch keine API-/SMB-/SMTP-Passwörter. Webdienst ohne Root-Rechte. Details `docs/WEB-ADMIN.md`.
 
 ## Start und Fehlerbehandlung (Block 2)

@@ -16,7 +16,7 @@ Status 13.10.2026: Block-3-Funktionen auf `develop/1.0.0` committet, nicht am N1
 - Die Eingabefelder der Detailansicht bleiben veränderbar. **Profil speichern** legt Ausgabeformat, Modus, Quelle, DPI und die übrigen aktiven SANE-Eingaben unter einem Namen ab. Eine vorhandene Vorlage desselben Namens wird überschrieben; bis zu 30 Profile.
 - Historischer Block-3-Stand: Profile lagen in `~/.config/itomiscan/profiles.json`. Seit Block 4 wird nach `~/.config/itomiscan/itomiscan.db` migriert. JSON bleibt als unverändertes Original.
 - Geräteabhängig inaktive/nicht unterstützte Optionen werden beim Anwenden ignoriert. Die Felder bestimmen weiterhin wie bisher die an `scanimage` übergebenen Argumente, **ohne Shell-Aufruf**. Bestehende JPEG-PDF-Beschleunigung bleibt erhalten.
-- Webbasierte Profilverwaltung und SQLite-Migration sind ab Block 4 implementiert; PIN-Benutzerverwaltung folgt Block 5.
+- Webbasierte Profilverwaltung und SQLite-Migration bestehen seit Block 4. Ab Block 5 können Benutzer eigene zugewiesene Profile und Berechtigungen erhalten, einschließlich PIN-Ziffernfeld und automatischer Abmeldung. Gemeinsame Profile werden bei aktiver PIN-Verwaltung nur im Web verändert.
 
 ## Bildschirmschoner
 
@@ -27,7 +27,7 @@ Status 13.10.2026: Block-3-Funktionen auf `develop/1.0.0` committet, nicht am N1
 ## Prüfungen und noch offene Punkte
 
 - GitHub-Actions-Linux-Workflow: Python-Kompilierung, Shell-Syntax, Profildatei-Unit-Tests sowie virtuelle Tk-GUI-Prüfung unter Xvfb.
-- Geräteprüfungen offen: reale Touch-Zielgrößen, Übergabe Splash → Startseite, PIN noch nicht implementiert, Startprofil, physische Scan-Taste auf der Startseite, Profil-Speichern, Bildschirmschoner, unveränderte Scan-/PDF-Engine auf dem Atom N270.
+- Geräteprüfungen offen: reale Touch-Zielgrößen, Übergabe Splash → Startseite oder PIN-Eingabe, physische Scantaste vor und nach Login, persönliche Scanprofile, zeitgesteuerte Abmeldung, Bildschirmschoner und unveränderte Scan-/PDF-Verarbeitung auf dem Atom N270.
 - Eine echte vollwertige Zielvorschau mit nachträglichem Löschen/Drehen/Umsortieren von Seiten ist noch nicht implementiert. Die bereits vorhandene Vorschau zeigt die gescannten Seiten. Die sichere Auftragsverwaltung und Übertragungsziele folgen in den vereinbarten späteren Blöcken.
 
-In **Block 4/8** folgt die passwortgeschützte Webadministration, noch **nicht vorhanden**. Release 1.0.0 frühestens in Block 8 nach ausdrücklicher Abnahme.
+**Blöcke 4 und 5 sind im Entwicklungszweig implementiert:** passwortgeschützte Webadministration und optionale PIN-Benutzer. Hardwareabnahme offen. Release 1.0.0 frühestens in Block 8 nach ausdrücklicher Freigabe.
