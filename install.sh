@@ -34,6 +34,8 @@ if [[ ! -d "$PROJECT/.git" ]]; then
   runuser -u "$USER_NAME" -- git clone \
     https://github.com/tojollinor/ItomiScan.git "$PROJECT"
 fi
+# Prevent kiosk autostart from being enabled with syntactically invalid code.
+/usr/bin/python3 -m py_compile "$PROJECT/app.py"
 chmod +x "$PROJECT/start-kiosk.sh"
 # GitHub Contents creates mode 100644; ignore this local executable-bit change.
 runuser -u "$USER_NAME" -- git -C "$PROJECT" config core.filemode false
