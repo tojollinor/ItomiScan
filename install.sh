@@ -36,6 +36,8 @@ if [[ ! -d "$PROJECT/.git" ]]; then
 fi
 # Prevent kiosk autostart from being enabled with syntactically invalid code.
 /usr/bin/python3 -m py_compile "$PROJECT/app.py"
+# Grant the GUI only the single root command needed by "Ausschalten".
+bash "$PROJECT/setup-shutdown.sh" "$USER_NAME"
 chmod +x "$PROJECT/start-kiosk.sh"
 # GitHub Contents creates mode 100644; ignore this local executable-bit change.
 runuser -u "$USER_NAME" -- git -C "$PROJECT" config core.filemode false
