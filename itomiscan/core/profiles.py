@@ -4,6 +4,7 @@ Profiles contain only non-secret scanning parameters. Writes are atomic.
 """
 import json
 import os
+import re
 import tempfile
 from pathlib import Path
 
@@ -45,8 +46,20 @@ def validate_profile(data):
     output = data.get("output")
     if output not in FORMATS:
         raise ProfileError("Ausgabeformat ist ungültig.")
+    settings = data.get("settings", {})
+    if not isinstance(settings, dict) or len(settings) > 75:
+        raise ProfileError("Ungültige zusätzliche Scaneinstellungen.")
+    clean = {}
+    for flag, value in settings.items():
+        if not isinstance(flag, str) or not re.fullmatch(
+                r"(?:--[a-z][a-z0-9-]*|-[ltxy])", flag):
+            raise ProfileError("Ungültiger Scannerparameter.")
+        if not isinstance(value, str) or len(value) > 120 or any(
+                ord(character) < 32 for character in value):
+            raise ProfileError("Ungültiger Scannerwert.")
+        clean[flag] = value
     return {"name": name.strip(), "mode": mode, "resolution": resolution,
-            "source": source, "output": output}
+            "source": source, "output": output, "settings": clean}
 
 
 class ProfileStore:
