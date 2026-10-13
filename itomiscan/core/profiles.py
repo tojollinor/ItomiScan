@@ -1,17 +1,13 @@
-"""Lightweight local scan presets. Replaced by central configuration in Block 4.
+"""Validated profiles stored centrally in SQLite since Block 4.
 
-Profiles contain only non-secret scanning parameters. Writes are atomic.
+The old profiles.json is migrated once, retained as an unmodified fallback.
 """
-import json
-import os
 import re
-import tempfile
-from pathlib import Path
+from itomiscan.storage.config import ConfigError, ConfigStore
 
 FORMATS = ("PDF", "Bild (PNG)")
 MODES = ("Color", "Gray", "Lineart", "Halftone")
 SOURCES = ("ADF Front", "ADF Back", "ADF Duplex")
-
 DEFAULT_PROFILES = (
     {"name": "Dokument", "mode": "Color", "resolution": 200,
      "source": "ADF Duplex", "output": "PDF"},
@@ -23,7 +19,7 @@ DEFAULT_PROFILES = (
 
 
 class ProfileError(ValueError):
-    """Invalid or unwriteable profile configuration."""
+    pass
 
 
 def validate_profile(data):
@@ -63,85 +59,48 @@ def validate_profile(data):
 
 
 class ProfileStore:
-    """User-local JSON store; no database server and no root rights needed."""
+    """Compatibility facade: live-read shared SQLite on kiosk/web requests."""
 
     def __init__(self, path=None):
-        self.path = Path(path) if path is not None else (
-            Path.home() / ".config" / "itomiscan" / "profiles.json")
         self.warning = ""
+        self.profiles = [dict(p) for p in DEFAULT_PROFILES]
         self.selected = "Dokument"
-        self.profiles = [dict(item) for item in DEFAULT_PROFILES]
-        self._load()
-
-    def _load(self):
-        if not self.path.exists():
-            return
+        self.db = None
+        self.path = None
         try:
-            data = json.loads(self.path.read_text(encoding="utf-8"))
-            if not isinstance(data, dict) or data.get("version") != 1:
-                raise ProfileError("Unbekannte Konfigurationsversion.")
-            profiles = data.get("profiles")
-            if not isinstance(profiles, list) or not 1 <= len(profiles) <= 30:
-                raise ProfileError("Ungültige Anzahl Profile.")
-            valid = [validate_profile(p) for p in profiles]
-            names = [p["name"] for p in valid]
-            if len(names) != len(set(names)):
-                raise ProfileError("Doppelte Profilnamen.")
-            selected = data.get("selected")
-            if selected not in names:
-                selected = names[0]
-        except (OSError, UnicodeError, json.JSONDecodeError, ProfileError) as exc:
-            # Never overwrite a damaged configuration just because loading failed.
+            self.db = ConfigStore(path)
+            self.path = self.db.path
+            self.reload()
+        except (ConfigError, OSError, ValueError) as exc:
             self.warning = "Profilkonfiguration nicht lesbar: " + str(exc)
+
+    def reload(self):
+        if self.db is None:
             return
-        self.profiles, self.selected = valid, selected
+        self.profiles, self.selected = self.db.list_profiles()
 
     def names(self):
+        self.reload()
         return [p["name"] for p in self.profiles]
 
     def current(self):
+        self.reload()
         return dict(next(p for p in self.profiles if p["name"] == self.selected))
 
     def select(self, name):
-        if name not in self.names():
-            raise ProfileError("Unbekanntes Profil: " + str(name))
-        self.selected = name
-        self._write()
+        if self.warning:
+            raise ProfileError(self.warning)
+        try:
+            self.db.select_profile(name)
+            self.reload()
+        except (ConfigError, OSError) as exc:
+            raise ProfileError(str(exc)) from exc
 
     def save(self, profile):
-        item = validate_profile(profile)
-        for index, existing in enumerate(self.profiles):
-            if existing["name"] == item["name"]:
-                self.profiles[index] = item
-                break
-        else:
-            if len(self.profiles) >= 30:
-                raise ProfileError("Maximal 30 Profile möglich.")
-            self.profiles.append(item)
-        self.selected = item["name"]
-        self._write()
-
-    def _write(self):
         if self.warning:
-            raise ProfileError(self.warning + " (bitte zuerst reparieren).")
-        data = {"version": 1, "selected": self.selected,
-                "profiles": self.profiles}
-        target = self.path
-        target.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
-        temporary = None
+            raise ProfileError(self.warning)
         try:
-            with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8",
-                                             dir=str(target.parent), prefix=".profiles-",
-                                             suffix=".tmp", delete=False) as stream:
-                temporary = Path(stream.name)
-                os.chmod(temporary, 0o600)
-                json.dump(data, stream, ensure_ascii=False, indent=2)
-                stream.write("\n")
-                stream.flush()
-                os.fsync(stream.fileno())
-            os.replace(temporary, target)
-        except OSError as exc:
-            raise ProfileError("Profile konnten nicht gespeichert werden: " + str(exc)) from exc
-        finally:
-            if temporary is not None:
-                temporary.unlink(missing_ok=True)
+            self.db.save_profile(validate_profile(profile))
+            self.reload()
+        except (ConfigError, OSError) as exc:
+            raise ProfileError(str(exc)) from exc

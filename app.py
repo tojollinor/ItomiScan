@@ -164,7 +164,9 @@ class ItomiScan:
             self.show_scan, self.quick_scan, self.unavailable,
             self.shutdown, self.check_update, self.exit, self.status_var,
         )
-        self.idle_screen = IdleScreen(self.root, lambda: self.busy, seconds=300)
+        idle_minutes = self.profile_store.db.get_settings().get("screensaver_minutes", 5) if self.profile_store.db else 5
+        self.idle_screen = IdleScreen(self.root, lambda: self.busy,
+                                     seconds=idle_minutes * 60)
         if self.device and self.options:
             self.show_home()
         self.root.after(250, self.refresh_ip)
@@ -278,6 +280,8 @@ class ItomiScan:
         if self.busy or not self.home:
             return
         self.scan_view.place_forget()
+        self.profile_store.reload()
+        self.apply_profile(self.profile_store.current())
         self.home.show()
 
     def show_scan(self):

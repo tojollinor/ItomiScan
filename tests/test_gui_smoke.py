@@ -30,7 +30,7 @@ class TouchGuiTests(unittest.TestCase):
         self.addCleanup(self.temp.cleanup)
         self.root = tk.Tk()
         self.addCleanup(self.root.destroy)
-        path = Path(self.temp.name) / "profiles.json"
+        path = Path(self.temp.name) / "itomiscan.db"
         self.store = ProfileStore(path)
         with patch("app.ProfileStore", return_value=self.store), patch.object(
                 ItomiScan, "refresh_ip", lambda _self: None):
