@@ -24,7 +24,8 @@ from urllib.parse import parse_qs, urlsplit
 
 from itomiscan.core.profiles import validate_profile
 from itomiscan.storage.config import ConfigError, ConfigStore
-from itomiscan.web import pages
+from itomiscan.storage.users import PERMISSIONS, PinError, UserStore
+from itomiscan.web import pages, user_pages
 
 
 MAX_BODY = 160 * 1024
@@ -136,6 +137,7 @@ class AdminServer(ThreadingHTTPServer):
         self.secure = secure
         self.bind_ip = address[0]
         self.sessions = Sessions()
+        self.users = UserStore(store.path)
         self.diagnostic = ""
 
 
@@ -236,6 +238,11 @@ class AdminHandler(BaseHTTPRequestHandler):
             elif path == "/profiles":
                 profiles, selected = self.server.store.list_profiles()
                 html = pages.profiles_page(profiles, selected, csrf, notice)
+            elif path == "/users":
+                profiles, _ = self.server.store.list_profiles()
+                html = user_pages.users_page(
+                    self.server.users.list_users(), self.server.users.settings(),
+                    [p["name"] for p in profiles], csrf, notice)
             elif path == "/targets":
                 html = pages.targets_page(self.server.store.list_targets(), csrf, notice)
             elif path == "/system":
@@ -273,9 +280,11 @@ class AdminHandler(BaseHTTPRequestHandler):
         if ctype.startswith("application/x-www-form-urlencoded"):
             values = parse_qs(raw.decode("utf-8"), keep_blank_values=True,
                               max_num_fields=35)
-            if any(len(value) != 1 for value in values.values()):
+            if any(len(value) != 1 and key != "assigned_profiles"
+                   for key, value in values.items()):
                 raise ValueError("Doppelte Formularfelder sind nicht erlaubt.")
-            return {key: value[0] for key, value in values.items()}
+            return {key: value if key == "assigned_profiles" else value[0]
+                    for key, value in values.items()}
         if ctype.startswith("multipart/form-data;"):
             prefix = ("MIME-Version: 1.0\r\nContent-Type: "
                       + self.headers.get("Content-Type", "") + "\r\n\r\n")
@@ -328,6 +337,28 @@ class AdminHandler(BaseHTTPRequestHandler):
             if path == "/logout":
                 self.server.sessions.remove(self._session_token())
                 return self._redirect("/login", cookie=self._cookie("", expired=True))
+            if path == "/users/config":
+                self.server.users.configure(
+                    enabled=form.get("enabled") == "yes",
+                    timeout_minutes=int(form.get("timeout_minutes", "")))
+                return self._redirect("/users?ok=Anmeldung%20konfiguriert")
+            if path == "/users/save":
+                raw_id = form.get("user_id", "")
+                selected = form.get("assigned_profiles", [])
+                if not isinstance(selected, list):
+                    selected = [selected]
+                permissions = [p for p in PERMISSIONS
+                               if form.get("perm_" + p) == "yes"]
+                self.server.users.save_user(
+                    user_id=int(raw_id) if raw_id else None,
+                    name=form.get("name", ""), pin=form.get("pin", "") or None,
+                    active=form.get("active") == "yes", permissions=permissions,
+                    assigned_profiles=selected,
+                    default_profile=form.get("default_profile", ""))
+                return self._redirect("/users?ok=Benutzer%20gespeichert")
+            if path == "/users/delete":
+                self.server.users.delete_user(int(form.get("user_id", "")))
+                return self._redirect("/users?ok=Benutzer%20entfernt")
             if path == "/profiles/save":
                 advanced = json.loads(form.get("advanced", "{}"))
                 item = validate_profile({
