@@ -136,6 +136,8 @@ class ItomiScan:
         self.page_var = tk.StringVar(value="Keine Vorschau")
         self.format_var = tk.StringVar(value="PDF")
         self.profile_store = ProfileStore()
+        if self.profile_store.warning:
+            self.status_var.set(self.profile_store.warning)
         self.home = None
         self.idle_screen = None
         self.scan_view = tk.Frame(self.root, bg=BASE)
@@ -558,6 +560,13 @@ class ItomiScan:
             origin = shell(["git", "-C", str(folder), "remote", "get-url", "origin"])
             if origin.returncode or "tojollinor/ItomiScan" not in origin.stdout:
                 raise RuntimeError("Unerwartetes Git-Repository. Update abgebrochen.")
+            # Development checkouts must never update against stable main.
+            branch_name = shell(["git", "-C", str(folder),
+                                 "branch", "--show-current"])
+            if branch_name.returncode or branch_name.stdout.strip() != "main":
+                raise RuntimeError(
+                    "Updates sind nur im stabilen main-Zweig erlaubt. "
+                    "Entwicklungsfassungen über Git verwalten.")
             if apply:
                 dirty = shell(["git", "-C", str(folder), "status", "--porcelain"])
                 if dirty.stdout.strip():
@@ -596,7 +605,8 @@ class ItomiScan:
         if messagebox.askyesno("Update installiert",
                                "ItomiScan wurde aktualisiert.\nOberfläche jetzt neu starten?",
                                parent=self.root):
-            os.execv(sys.executable, [sys.executable, str(Path(__file__).resolve())])
+            os.execv(sys.executable,
+                     [sys.executable, "-m", "itomiscan.gui.kiosk"])
 
     def shutdown(self):
         if self.busy:

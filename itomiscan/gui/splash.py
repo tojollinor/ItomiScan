@@ -2,6 +2,8 @@
 
 import tkinter as tk
 
+from itomiscan.gui.home import draw_logo
+
 BG = "#101927"
 PANEL = "#192738"
 WHITE = "#f1f5fb"
@@ -16,13 +18,14 @@ class StartupSplash:
         self.frame = tk.Frame(root, bg=BG)
         self.frame.pack(fill="both", expand=True)
 
-        tk.Label(self.frame, text="ItomiScan", font=("DejaVu Sans", 32, "bold"),
-                 bg=BG, fg=WHITE).pack(pady=(65, 12))
+        draw_logo(self.frame, 84).pack(pady=(29, 8))
+        tk.Label(self.frame, text="ItomiScan", font=("DejaVu Sans", 30, "bold"),
+                 bg=BG, fg=WHITE).pack(pady=(0, 8))
         tk.Label(self.frame, text="Dokumentenscanner", font=("DejaVu Sans", 13),
                  bg=BG, fg=MUTED).pack()
         self.canvas = tk.Canvas(self.frame, width=150, height=150,
                                 bg=BG, bd=0, highlightthickness=0)
-        self.canvas.pack(pady=(70, 23))
+        self.canvas.pack(pady=(33, 18))
         self.canvas.create_oval(21, 21, 129, 129, outline="#34475e", width=11)
         self.arc = self.canvas.create_arc(21, 21, 129, 129, start=90, extent=85,
                                           style=tk.ARC, outline=CYAN, width=11)
