@@ -7,7 +7,7 @@ auf dem echten Gerät durchgeführt; die neue GUI ist noch **nicht am Gerät erp
 
 ## Funktionen (erste Testversion)
 
-- Lokale Vollbild-Oberfläche (Tkinter/Xorg, kein Desktop, kein Webserver)
+- Lokale Vollbild-Oberfläche (Tkinter/Xorg, ohne Fenstermanager oder Webserver; Displaygröße explizit übernommen)
 - IP-Anzeige
 - SANE-Scannererkennung und gerätespezifische Einstellmöglichkeiten
 - Standard: ADF-Duplex, Farbe, 200 DPI
@@ -15,6 +15,8 @@ auf dem echten Gerät durchgeführt; die neue GUI ist noch **nicht am Gerät erp
 - Mehrseitiges Scannen über `scanimage --batch`
 - Bildvorschau mit Vor/Zurück für beide Seiten und mehrere Blätter
 - Auswahl: PNG-Einzelbilder oder eine zusammengefasste PDF-Datei
+- PDF-Optimierung: Farbe/Graustufen direkt als JPEG-Zwischenbilder; Schwarzweiß und PNG-Ausgabe bleiben verlustfrei als PNG
+- Schnellere JPEG-Vorschau durch reduzierte Dekodierauflösung
 - Speicherung im Benutzerordner `~/Scans/ItomiScan_YYYYMMDD_HHMMSS/`
 - Update-Schaltfläche: GitHub `main` prüfen, mit Bestätigung fast-forward
 - Beenden schließt nur die Anwendung, **nicht** Debian
@@ -63,8 +65,13 @@ Das Skript installiert Debian-Pakete einschließlich `sane-utils`, Xorg,
 ## Wichtige Hinweise
 
 - Vor längeren Tests zuerst wenige Seiten mit 200 DPI scannen, 1 GB RAM ist knapp.
-- Die Grafikoberfläche wurde bisher nicht auf dem N1800 getestet. Die
-  Touch-Kalibrierung muss gegebenenfalls noch angepasst werden.
+- Die GUI wurde auf dem N1800 gestartet. Das zunächst zu kleine Fenster
+  (976 × 509 bei 1024 × 768 Display) wurde im Code auf explizite Xorg-Bildschirmgröße
+  umgestellt; praktische Nachprüfung der Korrektur steht noch aus.
+- Die Touch-Kalibrierung muss gegebenenfalls noch angepasst werden.
+- JPEG ist bei Farb-/Graustufen-PDFs verlustbehaftet; Schwarzweiß-PDFs und
+  gewählte PNG-Bilder nutzen weiterhin die bisherige PNG-Verarbeitung.
+- Die tatsächliche Geschwindigkeitsverbesserung ist auf dem Gerät noch zu messen.
 - GUI, Scannerrechte, Papierstau-/Doppeleinzugserkennung und die tatsächliche
   Duplex-Reihenfolge benötigen Gerätetests.
 - Der Firmware-/Windows-Datenträger wurde nicht verändert.
