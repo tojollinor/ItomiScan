@@ -1,6 +1,9 @@
 """Start splash first, then construct the existing scanner GUI when ready."""
 
+import logging
 import queue
+import sys
+import time
 import subprocess
 import threading
 import tkinter as tk
@@ -8,21 +11,33 @@ import tkinter as tk
 from itomiscan.core.startup import StartupFailure, wait_until_ready
 from itomiscan.gui.splash import StartupSplash
 
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s itomiscan.kiosk: %(message)s", stream=sys.stderr)
+LOG = logging.getLogger("itomiscan.kiosk")
+
+
+def _timed_probe(label, callback, timeout):
+    started = time.monotonic()
+    LOG.info("%s gestartet (Timeout %ss)", label, timeout)
+    try:
+        result = callback()
+    except subprocess.TimeoutExpired as exc:
+        LOG.error("%s Timeout nach %.2fs: %s", label, time.monotonic() - started, exc)
+        raise RuntimeError(f"{label}: Zeitlimit von {timeout}s überschritten.") from exc
+    except Exception:
+        LOG.exception("%s fehlgeschlagen nach %.2fs", label, time.monotonic() - started)
+        raise
+    LOG.info("%s erfolgreich nach %.2fs", label, time.monotonic() - started)
+    return result
+
 
 def detect_scanner():
     from app import find_device
-    try:
-        return find_device(timeout=8)
-    except subprocess.TimeoutExpired as exc:
-        raise RuntimeError("SANE-Geräteerkennung benötigt zu lange.") from exc
+    return _timed_probe("SANE-Geräteerkennung", lambda: find_device(timeout=30), 30)
 
 
 def detect_options(device):
     from app import read_options
-    try:
-        return read_options(device, timeout=12)
-    except subprocess.TimeoutExpired as exc:
-        raise RuntimeError("SANE-Optionen konnten nicht rechtzeitig gelesen werden.") from exc
+    return _timed_probe("SANE-Optionen", lambda: read_options(device, timeout=30), 30)
 
 
 class KioskStartup:
@@ -46,6 +61,7 @@ class KioskStartup:
         attempt = self.attempt
         self.active = True
         self.splash.loading()
+        LOG.info("Startversuch %s", attempt)
         thread = threading.Thread(target=self.worker, args=(attempt,), daemon=True)
         thread.start()
 
@@ -54,14 +70,17 @@ class KioskStartup:
             result = wait_until_ready(
                 detect_scanner, detect_options,
                 lambda step, msg: self.events.put((attempt, "stage", step, msg)),
-                timeout=45,
+                timeout=90,
             )
         except StartupFailure as exc:
+            LOG.error("Startversuch %s fehlgeschlagen: %s | %s", attempt, exc, exc.detail)
             self.events.put((attempt, "failure", str(exc), exc.detail))
         except Exception as exc:
+            LOG.exception("Unerwarteter Fehler bei Startversuch %s", attempt)
             self.events.put((attempt, "failure", "Scannerstart fehlgeschlagen.",
                              str(exc)))
         else:
+            LOG.info("Startversuch %s erfolgreich: %s, %s Optionen", attempt, result[0], len(result[1]))
             self.events.put((attempt, "ready", result[0], result[1]))
 
     def poll(self):
