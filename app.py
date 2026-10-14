@@ -287,6 +287,7 @@ class ItomiScan:
                 ("Erneut scannen", self.rescan_page),
                 ("Drehen", self.rotate_page),
                 ("Löschen", self.delete_page),
+                ("Leerseiten", self.remove_blank_pages),
                 ("← Seite", lambda: self.move_page(-1)),
                 ("Seite →", lambda: self.move_page(1))):
             self._btn(edit, label, callback).pack(side="left", expand=True, fill="x", padx=3)
@@ -1090,6 +1091,66 @@ class ItomiScan:
         self.progress.stop()
         self.status_var.set("Erneuter Scan fehlgeschlagen · Alte Seite erhalten")
         show_scanner_error(self.root, error)
+
+    def remove_blank_pages(self):
+        """Suggest nearly blank pages; never remove them without confirmation."""
+        if self.busy or not self.review_pending or not self.pages:
+            return
+        self.busy = True
+        self.status_var.set("Leere Seiten werden geprüft …")
+        threading.Thread(target=self._find_blank_pages_worker,
+                         args=(list(self.pages),), daemon=True).start()
+
+    def _find_blank_pages_worker(self, pages):
+        candidates = []
+        try:
+            for index, filename in enumerate(pages):
+                with Image.open(filename) as img:
+                    gray = img.convert("L")
+                    gray.thumbnail((160, 220), Image.Resampling.BILINEAR)
+                    histogram = gray.histogram()
+                    pixels = max(1, gray.width * gray.height)
+                    # Conservative heuristic: at least 99.5% nearly white pixels.
+                    white = sum(histogram[245:])
+                    if white / pixels >= 0.995:
+                        candidates.append(index)
+            self.dispatch(lambda: self._confirm_blank_pages(pages, candidates))
+        except (OSError, ValueError) as exc:
+            error = str(exc)
+            self.dispatch(lambda: self._blank_pages_error(error))
+
+    def _blank_pages_error(self, error):
+        self.busy = False
+        self.status_var.set("Leerseitenerkennung fehlgeschlagen")
+        show_scanner_error(self.root, error)
+
+    def _confirm_blank_pages(self, snapshot, candidates):
+        self.busy = False
+        if not candidates:
+            self.status_var.set("Keine eindeutig leeren Seiten erkannt")
+            messagebox.showinfo("Leerseiten", "Keine eindeutig leeren Seiten gefunden.",
+                                parent=self.root)
+            return
+        numbers = ", ".join(str(index + 1) for index in candidates)
+        if not messagebox.askyesno(
+                "Leerseiten entfernen",
+                f"Diese Seiten wirken leer: {numbers}.\\n"
+                "Sollen sie aus dem Dokument entfernt werden? "
+                "Bei sehr hellen Vorlagen bitte vorher prüfen.",
+                parent=self.root):
+            return
+        if self.pages != snapshot:
+            return
+        remove = set(candidates)
+        self.pages = [page for index, page in enumerate(self.pages) if index not in remove]
+        self.page_index = min(self.page_index, max(0, len(self.pages) - 1))
+        if self.pages:
+            self.show_page()
+        else:
+            self.photo = None
+            self.preview.configure(image="", text="Keine Seiten mehr vorhanden")
+            self.page_var.set("Keine Seiten")
+        self.status_var.set(str(len(candidates)) + " Leerseite(n) entfernt")
 
     def rotate_page(self):
         if self.busy or not self.pages:
