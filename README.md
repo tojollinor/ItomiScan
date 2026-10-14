@@ -117,7 +117,7 @@ noch aus.
 
 Im Entwicklungszweig (noch **nicht** über den normalen Update-Button auf dem N1800 installiert):
 
-- Großflächige 2×2-Startseite mit Scannen, Paperless, Kopieren und Netzwerkordner. Nur Scannen ist jetzt aktiv; andere Ziele werden in den Blöcken 6/7 ergänzt und zeigen bis dahin eine klare Meldung.
+- Großflächige 2×2-Startseite. Stand Block 6: Scannen, Paperless und Netzwerkordner zum Scannen und Vormerken, E-Mail/USB per weiterer Zielauswahl; Kopieren folgt in Block 7.
 - Vereinfachtes ItomiScan-Scan-Logo in kräftigen, kontrastreichen Farben; direkt mit Tk-Canvas gezeichnet, ohne große Bilddateien.
 - Profile **Dokument (Farbe/200 DPI/Duplex/PDF)**, **Text (Grau/300 DPI/Duplex/PDF)** und **Foto (Farbe/300 DPI/ADF Front/PNG)**; Profil wählen und per „Jetzt scannen“ oder physischer Scan-Taste scannen.
 - Einstellungen und zusätzliche aktive SANE-Optionen können in der bisherigen Detailmaske geändert und über „Profil speichern“ mit einem Namen abgelegt werden. Bis zur Webkonfiguration erfordert die Namenseingabe eine Tastatur.
@@ -143,3 +143,14 @@ Getrennter kleiner Python-Webserver für Profile, vorbereitete Papier-/Druck-/Ne
 - PINs werden nur als gesalzene Prüfsummen gespeichert und nicht exportiert. Nach fünf Fehlversuchen drei Minuten PIN-Sperre. Webadmin-Passwort bleibt unabhängig.
 - Berechtigungen werden vor Aktionen und zugewiesene Profile direkt vor Scanbeginn überprüft. Gemeinsame Profiländerungen bei aktiver Benutzerverwaltung nur im Web.
 - Automatisierte Tests vorhanden. **Kein realer N1800-Test, kein 1.0.0-Release und keine Änderungen an `main`.** Details: [docs/USERS.md](docs/USERS.md).
+
+
+### Block 6: Dokumentenziele und Warteschlange (Entwicklung)
+
+- Scans per Paperless-ngx-HTTPS-API, SMB-Netzwerkfreigabe (`smbclient`), SMTP/TLS-Mail oder eingehängtem USB-Stick zustellen.
+- PDF-Dateien werden zuerst mit UUID, SHA-256 und persistenter SQLite-Auftragsnummer lokal gesichert. **Originale unter `~/Scans` bleiben vorhanden**.
+- Bei nicht erreichbaren Zielen wird sicher wiederholt; nach unklarer Zustellung ist zuerst eine explizite Prüfung nötig, um Doppelversand möglichst zu vermeiden.
+- Webadministration zeigt Zieladressen, gesondert geschützte API-/SMB-/SMTP-Zugangsdaten sowie Status und Fehler der Warteschlange. Secrets und PDF-Spool sind nicht im normalen JSON-Backup enthalten.
+- Zustellung benötigt einen separaten Nicht-root-Dienst, der nur über das **optionale** Skript `setup-delivery.sh` eingerichtet wird. Auf dem bestehenden Scanner wurde nichts installiert.
+- Paperless-Upload bestätigt zunächst **Beginn der Verarbeitung**, nicht die fertig archivierte Datei. SMB, Mail, USB und echtes Paperless müssen noch am N1800 getestet werden.
+- [Vollständige Einrichtung und Grenzen](docs/DELIVERY.md). CUPS-Kopiermodus folgt in Block 7, Release erst nach Block 8 und ausdrücklicher Freigabe.
