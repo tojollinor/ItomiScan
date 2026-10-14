@@ -1,315 +1,163 @@
 #!/usr/bin/env bash
-# Opt-in Debian 12 boot splash. Run as root ONLY after reviewing the changes.
-# Never called by a GitHub GUI update or by the default installer.
+# Opt-in ItomiScan Plymouth splash for Debian 12 i386.
+# This script is never called by the kiosk update button or normal installer.
 set -euo pipefail
 
 if [[ $EUID -ne 0 ]]; then
-  echo "Bitte als root ausführen." >&2
+  echo "Bitte als root über SSH ausführen." >&2
   exit 2
 fi
-if [[ ! -f /etc/default/grub ]] || ! command -v update-grub >/dev/null 2>&1 || ! command -v update-initramfs >/dev/null 2>&1; then
-  echo "GRUB/update-initramfs nicht gefunden. Boot-Konfiguration unverändert." >&2
+ROOT="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
+if [[ ! -f "$ROOT/itomiscan/branding.py" ]]; then
+  echo "ItomiScan-Brandingmodul fehlt; keine Boot-Änderungen." >&2
   exit 3
 fi
-# Refuse an unsafe GRUB edit before installing packages or changing files.
-if ! grep -Eq '^GRUB_CMDLINE_LINUX_DEFAULT="[^"]*"
-  echo "Nur für Debian 12 (bookworm) vorgesehen. Boot-Konfiguration unverändert." >&2
+if [[ ! -f /etc/default/grub || ! -d /boot/grub ]] ||
+   ! command -v update-grub >/dev/null 2>&1 ||
+   ! command -v update-initramfs >/dev/null 2>&1; then
+  echo "GRUB/initramfs nicht vollständig vorhanden; keine Boot-Änderungen." >&2
+  exit 3
+fi
+if ! grep -q '^VERSION_CODENAME=bookworm$' /etc/os-release; then
+  echo "Nur für Debian 12 (bookworm); keine Boot-Änderungen." >&2
+  exit 3
+fi
+if ! grep -Eq '^GRUB_CMDLINE_LINUX_DEFAULT="[^"]*"$' /etc/default/grub; then
+  echo "GRUB_CMDLINE_LINUX_DEFAULT nicht eindeutig lesbar; keine Änderungen." >&2
   exit 3
 fi
 
-export DEBIAN_FRONTEND=noninteractive
-apt-get update
-apt-get install -y --no-install-recommends plymouth plymouth-themes python3-pil fonts-dejavu-core
-backup_dir="/var/lib/itomiscan/boot-backups/$(date -u +%Y%m%dT%H%M%SZ)-${BASHPID}"
-install -d -m 0700 "$backup_dir"
+# Make a separate, collision-free copy BEFORE changing theme or GRUB.
+backup_parent="/var/lib/itomiscan/boot-backups"
+install -d -m 0700 "$backup_parent"
+backup_dir="$(mktemp -d -p "$backup_parent" "boot-$(date -u +%Y%m%dT%H%M%SZ)-XXXXXXXX")"
 cp -a /etc/default/grub "$backup_dir/grub.original"
-chmod 0600 "$backup_dir/grub.original"
 cmp -s /etc/default/grub "$backup_dir/grub.original" || {
-  echo "GRUB-Backup konnte nicht verifiziert werden; Abbruch ohne Boot-Änderung." >&2
+  echo "GRUB-Sicherung unvollständig, Abbruch." >&2
   exit 4
 }
-[[ ! -f /boot/grub/grub.cfg ]] || cp -a /boot/grub/grub.cfg "$backup_dir/grub.cfg.original"
-plymouth-set-default-theme > "$backup_dir/plymouth-theme.original" || true
-
-echo "Backup angelegt: $backup_dir"
-# Set only the kernel command line used by GRUB. Never remove existing flags.
-python3 - <<'PY'
-from pathlib import Path
-import re
-path = Path('/etc/default/grub')
-text = path.read_text()
-pattern = re.compile(r'^(GRUB_CMDLINE_LINUX_DEFAULT=)"([^"]*)"$', re.MULTILINE)
-match = pattern.search(text)
-if not match:
-    raise SystemExit('GRUB_CMDLINE_LINUX_DEFAULT fehlt oder enthält ungeprüfte Syntax; nichts ändern.')
-flags = match.group(2).split()
-for arg in ('quiet', 'splash', 'loglevel=3', 'systemd.show_status=false', 'vt.global_cursor_default=0'):
-    if arg not in flags:
-        flags.append(arg)
-path.write_text(text[:match.start()] + match.group(1) + '"' + ' '.join(flags) + '"' + text[match.end():])
-PY
-
-theme_dir=/usr/share/plymouth/themes/itomiscan
-install -d "$theme_dir"
-# Render the SAME icon geometry, colours, title and subtitle as gui/splash.py.
-# Images are prepared once during setup, never during boot.
-python3 - "$theme_dir" <<'PYIMAGE'
-from PIL import Image, ImageDraw, ImageFont
-from pathlib import Path
-import sys
-out = Path(sys.argv[1])
-bg = (16, 25, 39, 255)
-cyan = (66, 191, 234, 255)
-white = (241, 245, 251, 255)
-muted = (168, 186, 205, 255)
-fontpath = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
-regular = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
-# draw_logo(..., 84) from itomiscan/gui/home.py
-icon = Image.new("RGBA", (84, 84), bg)
-d = ImageDraw.Draw(icon)
-s = 84 / 72
-scale = lambda points: tuple(round(v*s) for v in points)
-d.rectangle(scale((1, 1, 71, 71)), fill=(7, 61, 129, 255))
-d.polygon(scale((23, 15, 44, 15, 52, 23, 52, 58, 23, 58)), fill=(255, 255, 255, 255))
-d.rectangle(scale((15, 36, 57, 40)), fill=(66, 191, 234, 255))
-for x,y,dx,dy in ((13,13,8,8),(59,13,-8,8),(13,59,8,-8),(59,59,-8,-8)):
-    d.line(scale((x,y+dy,x,y,x+dx,y)), fill=(66,191,234,255), width=max(3,round(4*s)))
-icon.save(out / "icon.png")
-def centered_text(filename, parts, size, bold=True):
-    font = ImageFont.truetype(fontpath if bold else regular, size)
-    widths = [ImageDraw.Draw(Image.new("RGBA",(1,1))).textbbox((0,0),t,font=font)[2] for t,_ in parts]
-    image = Image.new("RGBA",(max(1,sum(widths)),size+14),(0,0,0,0))
-    d = ImageDraw.Draw(image)
-    x = 0
-    for (label,color),width in zip(parts,widths):
-        d.text((x,0),label,font=font,fill=color)
-        x += width
-    image.save(out / filename)
-centered_text("brand.png",[("Itomi",white),("Scan",cyan)],30)
-centered_text("subtitle.png",[("Dokumentenscanner",muted)],13,False)
-centered_text("status.png",[("Scanner wird vorbereitet",white)],19)
-centered_text("detail.png",[("Systemstart …",muted)],12,False)
-# Same ring dimensions and colours as Tk startup spinner.
-ring = Image.new("RGBA",(150,150),(0,0,0,0))
-rd = ImageDraw.Draw(ring)
-rd.ellipse((21,21,129,129),outline=(52,71,94,255),width=11)
-# Tk draws from the top towards the left; Pillow measures clockwise.
-# Match the initial Tk spinner arc to avoid a visible jump at handover.
-rd.arc((21,21,129,129),start=180,end=265,fill=cyan,width=11)
-ring.save(out / "ring.png")
-PYIMAGE
-cat > "$theme_dir/itomiscan.plymouth" <<'THEME'
-[Plymouth Theme]
-Name=ItomiScan
-Description=ItomiScan early boot splash matching Tk kiosk
-ModuleName=script
-
-[script]
-ImageDir=/usr/share/plymouth/themes/itomiscan
-ScriptFile=/usr/share/plymouth/themes/itomiscan/itomiscan.script
-THEME
-cat > "$theme_dir/itomiscan.script" <<'SCRIPT'
-Window.SetBackgroundTopColor(0.062745, 0.098039, 0.152941);
-Window.SetBackgroundBottomColor(0.062745, 0.098039, 0.152941);
-# Mirror the vertical stacking of StartupSplash on a 1024x768 panel.
-# Coordinates scale from screen centre, so smaller displays remain centred.
-icon = Image("icon.png");
-brand = Image("brand.png");
-subtitle = Image("subtitle.png");
-ring = Image("ring.png");
-status = Image("status.png");
-detail = Image("detail.png");
-cx = Window.GetWidth() / 2;
-top = (Window.GetHeight() - 768) / 2;
-icon_sprite = Sprite(icon);
-icon_sprite.SetX(cx - icon.GetWidth() / 2);
-icon_sprite.SetY(top + 29);
-brand_sprite = Sprite(brand);
-brand_sprite.SetX(cx - brand.GetWidth() / 2);
-brand_sprite.SetY(top + 126);
-subtitle_sprite = Sprite(subtitle);
-subtitle_sprite.SetX(cx - subtitle.GetWidth() / 2);
-subtitle_sprite.SetY(top + 177);
-ring_sprite = Sprite(ring);
-ring_sprite.SetX(cx - ring.GetWidth() / 2);
-ring_sprite.SetY(top + 228);
-status_sprite = Sprite(status);
-status_sprite.SetX(cx - status.GetWidth() / 2);
-status_sprite.SetY(top + 410);
-detail_sprite = Sprite(detail);
-detail_sprite.SetX(cx - detail.GetWidth() / 2);
-detail_sprite.SetY(top + 457);
-# Static ring during early boot; the Tk splash animates after Xorg starts.
-# Avoid unsupported Plymouth script APIs on Debian 12.
-SCRIPT
-# Hide the GRUB selection pause on this single-OS appliance.
-if grep -Eq '^GRUB_TIMEOUT_STYLE=' /etc/default/grub; then
-  sed -i -E 's/^GRUB_TIMEOUT_STYLE=.*/GRUB_TIMEOUT_STYLE=hidden/' /etc/default/grub
-else
-  printf '\nGRUB_TIMEOUT_STYLE=hidden\n' >> /etc/default/grub
+if [[ -f /boot/grub/grub.cfg ]]; then
+  cp -a /boot/grub/grub.cfg "$backup_dir/grub.cfg.original"
 fi
-if grep -Eq '^GRUB_TIMEOUT=' /etc/default/grub; then
-  sed -i -E 's/^GRUB_TIMEOUT=.*/GRUB_TIMEOUT=0/' /etc/default/grub
-else
-  printf '\nGRUB_TIMEOUT=0\n' >> /etc/default/grub
+theme_dir="/usr/share/plymouth/themes/itomiscan"
+if [[ -d "$theme_dir" ]]; then
+  cp -a "$theme_dir" "$backup_dir/previous-itomiscan-theme"
 fi
-plymouth-set-default-theme itomiscan
-echo 'Aktualisiere initramfs; dies kann auf dem Atom N270 einige Minuten dauern.'
-update-initramfs -u
-update-grub
-printf '\nItomiScan Boot-Splash eingerichtet. Backup: %s\n' "$backup_dir"
-printf 'Nach Neustart prüfen. BIOS/GRUB und kurze Konsolenübergänge können weiterhin sichtbar sein.\n'
-printf 'Wiederherstellung: gesicherte GRUB-Datei zurückkopieren, vorheriges Theme setzen, update-initramfs -u und update-grub ausführen.\n'
- /etc/default/grub; then
-  echo "GRUB_CMDLINE_LINUX_DEFAULT nicht eindeutig lesbar. Bitte zuerst prüfen; nichts geändert." >&2
-  exit 3
+if command -v plymouth-set-default-theme >/dev/null 2>&1; then
+  plymouth-set-default-theme > "$backup_dir/previous-theme-name" || true
 fi
-if [[ ! -d /boot/grub ]]; then
-  echo "/boot/grub fehlt. Boot-Konfiguration unverändert." >&2
-  exit 3
-fi
-
-if ! grep -q 'VERSION_CODENAME=bookworm' /etc/os-release; then
-  echo "Nur für Debian 12 (bookworm) vorgesehen. Boot-Konfiguration unverändert." >&2
-  exit 3
-fi
+printf 'Sicherung: %s\n' "$backup_dir"
 
 export DEBIAN_FRONTEND=noninteractive
 apt-get update
-apt-get install -y --no-install-recommends plymouth plymouth-themes python3-pil fonts-dejavu-core
-backup_dir="/var/lib/itomiscan/boot-backups/$(date -u +%Y%m%dT%H%M%SZ)-${BASHPID}"
-install -d -m 0700 "$backup_dir"
-cp -a /etc/default/grub "$backup_dir/grub.original"
-chmod 0600 "$backup_dir/grub.original"
-[[ ! -f /boot/grub/grub.cfg ]] || cp -a /boot/grub/grub.cfg "$backup_dir/grub.cfg.original"
-plymouth-set-default-theme > "$backup_dir/plymouth-theme.original" || true
+apt-get install -y --no-install-recommends \
+  plymouth plymouth-themes python3-pil fonts-dejavu-core
 
-echo "Backup angelegt: $backup_dir"
-# Set only the kernel command line used by GRUB. Never remove existing flags.
-python3 - <<'PY'
-from pathlib import Path
-import re
-path = Path('/etc/default/grub')
-text = path.read_text()
-pattern = re.compile(r'^(GRUB_CMDLINE_LINUX_DEFAULT=)"([^"]*)"$', re.MULTILINE)
-match = pattern.search(text)
-if not match:
-    raise SystemExit('GRUB_CMDLINE_LINUX_DEFAULT fehlt oder enthält ungeprüfte Syntax; nichts ändern.')
-flags = match.group(2).split()
-for arg in ('quiet', 'splash', 'loglevel=3', 'systemd.show_status=false', 'vt.global_cursor_default=0'):
-    if arg not in flags:
-        flags.append(arg)
-path.write_text(text[:match.start()] + match.group(1) + '"' + ' '.join(flags) + '"' + text[match.end():])
-PY
+# Produce the Plymouth files using the SAME constants as the Tk logo.
+# Images are prepared once during setup, not by the Atom N270 at boot.
+install -d -m 0755 "$theme_dir"
+(
+  cd "$ROOT"
+  python3 -m itomiscan.branding --output "$theme_dir"
+)
+for asset in logo-base.png scanline.png brand.png subtitle.png status.png detail.png; do
+  [[ -s "$theme_dir/$asset" ]] || {
+    echo "Splash-Grafik $asset wurde nicht erstellt; Abbruch vor GRUB-Änderung." >&2
+    exit 5
+  }
+done
 
-theme_dir=/usr/share/plymouth/themes/itomiscan
-install -d "$theme_dir"
-# Render the SAME icon geometry, colours, title and subtitle as gui/splash.py.
-# Images are prepared once during setup, never during boot.
-python3 - "$theme_dir" <<'PYIMAGE'
-from PIL import Image, ImageDraw, ImageFont
-from pathlib import Path
-import sys
-out = Path(sys.argv[1])
-bg = (16, 25, 39, 255)
-cyan = (66, 191, 234, 255)
-white = (241, 245, 251, 255)
-muted = (168, 186, 205, 255)
-fontpath = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
-regular = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
-# draw_logo(..., 84) from itomiscan/gui/home.py
-icon = Image.new("RGBA", (84, 84), bg)
-d = ImageDraw.Draw(icon)
-s = 84 / 72
-scale = lambda points: tuple(round(v*s) for v in points)
-d.rectangle(scale((1, 1, 71, 71)), fill=(7, 61, 129, 255))
-d.polygon(scale((23, 15, 44, 15, 52, 23, 52, 58, 23, 58)), fill=(255, 255, 255, 255))
-d.rectangle(scale((15, 36, 57, 40)), fill=(66, 191, 234, 255))
-for x,y,dx,dy in ((13,13,8,8),(59,13,-8,8),(13,59,8,-8),(59,59,-8,-8)):
-    d.line(scale((x,y+dy,x,y,x+dx,y)), fill=(66,191,234,255), width=max(3,round(4*s)))
-icon.save(out / "icon.png")
-def centered_text(filename, parts, size, bold=True):
-    font = ImageFont.truetype(fontpath if bold else regular, size)
-    widths = [ImageDraw.Draw(Image.new("RGBA",(1,1))).textbbox((0,0),t,font=font)[2] for t,_ in parts]
-    image = Image.new("RGBA",(max(1,sum(widths)),size+14),(0,0,0,0))
-    d = ImageDraw.Draw(image)
-    x = 0
-    for (label,color),width in zip(parts,widths):
-        d.text((x,0),label,font=font,fill=color)
-        x += width
-    image.save(out / filename)
-centered_text("brand.png",[("Itomi",white),("Scan",cyan)],30)
-centered_text("subtitle.png",[("Dokumentenscanner",muted)],13,False)
-centered_text("status.png",[("Scanner wird vorbereitet",white)],19)
-centered_text("detail.png",[("Systemstart …",muted)],12,False)
-# Same ring dimensions and colours as Tk startup spinner.
-ring = Image.new("RGBA",(150,150),(0,0,0,0))
-rd = ImageDraw.Draw(ring)
-rd.ellipse((21,21,129,129),outline=(52,71,94,255),width=11)
-# Tk draws from the top towards the left; Pillow measures clockwise.
-# Match the initial Tk spinner arc to avoid a visible jump at handover.
-rd.arc((21,21,129,129),start=180,end=265,fill=cyan,width=11)
-ring.save(out / "ring.png")
-PYIMAGE
 cat > "$theme_dir/itomiscan.plymouth" <<'THEME'
 [Plymouth Theme]
 Name=ItomiScan
-Description=ItomiScan early boot splash matching Tk kiosk
+Description=Boot screen using the same animated document logo as the Tk kiosk
 ModuleName=script
 
 [script]
 ImageDir=/usr/share/plymouth/themes/itomiscan
 ScriptFile=/usr/share/plymouth/themes/itomiscan/itomiscan.script
 THEME
+
 cat > "$theme_dir/itomiscan.script" <<'SCRIPT'
 Window.SetBackgroundTopColor(0.062745, 0.098039, 0.152941);
 Window.SetBackgroundBottomColor(0.062745, 0.098039, 0.152941);
-# Mirror the vertical stacking of StartupSplash on a 1024x768 panel.
-# Coordinates scale from screen centre, so smaller displays remain centred.
-icon = Image("icon.png");
-brand = Image("brand.png");
-subtitle = Image("subtitle.png");
-ring = Image("ring.png");
-status = Image("status.png");
-detail = Image("detail.png");
 cx = Window.GetWidth() / 2;
 top = (Window.GetHeight() - 768) / 2;
-icon_sprite = Sprite(icon);
-icon_sprite.SetX(cx - icon.GetWidth() / 2);
-icon_sprite.SetY(top + 29);
+logo = Image("logo-base.png");
+line = Image("scanline.png");
+brand = Image("brand.png");
+subtitle = Image("subtitle.png");
+status = Image("status.png");
+detail = Image("detail.png");
+logo_sprite = Sprite(logo);
+logo_sprite.SetX(cx - logo.GetWidth() / 2);
+logo_sprite.SetY(top + 141);
+line_sprite = Sprite(line);
+line_sprite.SetX(cx - logo.GetWidth() / 2 + 31);
+line_position = 36;
+line_sprite.SetY(top + 141 + line_position * 150 / 72);
 brand_sprite = Sprite(brand);
 brand_sprite.SetX(cx - brand.GetWidth() / 2);
-brand_sprite.SetY(top + 126);
+brand_sprite.SetY(top + 325);
 subtitle_sprite = Sprite(subtitle);
 subtitle_sprite.SetX(cx - subtitle.GetWidth() / 2);
-subtitle_sprite.SetY(top + 177);
-ring_sprite = Sprite(ring);
-ring_sprite.SetX(cx - ring.GetWidth() / 2);
-ring_sprite.SetY(top + 228);
+subtitle_sprite.SetY(top + 387);
 status_sprite = Sprite(status);
 status_sprite.SetX(cx - status.GetWidth() / 2);
-status_sprite.SetY(top + 410);
+status_sprite.SetY(top + 458);
 detail_sprite = Sprite(detail);
 detail_sprite.SetX(cx - detail.GetWidth() / 2);
-detail_sprite.SetY(top + 457);
-# Static ring during early boot; the Tk splash animates after Xorg starts.
-# Avoid unsupported Plymouth script APIs on Debian 12.
+detail_sprite.SetY(top + 506);
+line_direction = 1;
+frames = 0;
+fun refresh_callback () {
+    frames++;
+    if (frames % 3 == 0) {
+        line_position += line_direction * 2.5;
+        if (line_position >= 52) {
+            line_position = 52;
+            line_direction = -1;
+        }
+        if (line_position <= 20) {
+            line_position = 20;
+            line_direction = 1;
+        }
+        line_sprite.SetY(top + 141 + line_position * 150 / 72);
+    }
+}
+Plymouth.SetRefreshFunction(refresh_callback);
 SCRIPT
-# Hide the GRUB selection pause on this single-OS appliance.
-if grep -Eq '^GRUB_TIMEOUT_STYLE=' /etc/default/grub; then
-  sed -i -E 's/^GRUB_TIMEOUT_STYLE=.*/GRUB_TIMEOUT_STYLE=hidden/' /etc/default/grub
-else
-  printf '\nGRUB_TIMEOUT_STYLE=hidden\n' >> /etc/default/grub
-fi
-if grep -Eq '^GRUB_TIMEOUT=' /etc/default/grub; then
-  sed -i -E 's/^GRUB_TIMEOUT=.*/GRUB_TIMEOUT=0/' /etc/default/grub
-else
-  printf '\nGRUB_TIMEOUT=0\n' >> /etc/default/grub
-fi
+
+# Preserve existing flags, add only the known quiet splash defaults.
+python3 - <<'PY'
+from pathlib import Path
+import re
+path = Path("/etc/default/grub")
+source = path.read_text()
+pattern = re.compile(r'^(GRUB_CMDLINE_LINUX_DEFAULT=)"([^"]*)"$',
+                     re.MULTILINE)
+match = pattern.search(source)
+if match is None:
+    raise SystemExit("GRUB-Konfiguration unerwartet geändert; Abbruch.")
+flags = match.group(2).split()
+for flag in ("quiet", "splash", "loglevel=3", "systemd.show_status=false",
+             "vt.global_cursor_default=0"):
+    if flag not in flags:
+        flags.append(flag)
+source = (source[:match.start()] + match.group(1) + '"' +
+          " ".join(flags) + '"' + source[match.end():])
+for key, value in (("GRUB_TIMEOUT_STYLE", "hidden"), ("GRUB_TIMEOUT", "0")):
+    line = f"{key}={value}"
+    regexp = re.compile(rf"^{key}=.*$", re.MULTILINE)
+    source, count = regexp.subn(line, source)
+    if count == 0:
+        source += "\n" + line + "\n"
+path.write_text(source)
+PY
+
 plymouth-set-default-theme itomiscan
-echo 'Aktualisiere initramfs; dies kann auf dem Atom N270 einige Minuten dauern.'
 update-initramfs -u
 update-grub
-printf '\nItomiScan Boot-Splash eingerichtet. Backup: %s\n' "$backup_dir"
-printf 'Nach Neustart prüfen. BIOS/GRUB und kurze Konsolenübergänge können weiterhin sichtbar sein.\n'
-printf 'Wiederherstellung: gesicherte GRUB-Datei zurückkopieren, vorheriges Theme setzen, update-initramfs -u und update-grub ausführen.\n'
+printf '\nItomiScan-Boottheme aktualisiert; Neustart zur Prüfung nötig.\n'
+printf 'Sicherung für Wiederherstellung: %s\n' "$backup_dir"
+printf 'Hinweis: BIOS-Ausgaben und der Wechsel zu Xorg können kurz sichtbar bleiben.\n'
