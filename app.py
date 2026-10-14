@@ -19,6 +19,7 @@ from itomiscan.gui.home import HomeScreen
 from itomiscan.gui.pin import PinScreen
 from itomiscan.gui.screensaver import IdleScreen
 from itomiscan.storage.users import UserStore
+from itomiscan.storage.queue import DeliveryQueue
 
 from PIL import Image, ImageTk
 
@@ -128,6 +129,8 @@ class ItomiScan:
         self.device = initial_device
         self.options = list(initial_options or [])
         self.fields = []
+        self.pending_delivery = None
+        self.pending_export_path = None
         self.pages = []
         self.page_index = 0
         self.photo = None
@@ -140,6 +143,7 @@ class ItomiScan:
         self.format_var = tk.StringVar(value="PDF")
         self.profile_store = ProfileStore()
         self.users = UserStore(self.profile_store.path)
+        self.delivery_queue = DeliveryQueue(self.profile_store.path)
         self.current_user = None
         self.session_profile = None
         self.last_activity = time.monotonic()
@@ -172,7 +176,7 @@ class ItomiScan:
             self.root, self.profile_store, self.select_profile,
             self.show_scan, self.quick_scan, self.unavailable,
             self.shutdown, self.check_update, self.exit, self.status_var,
-            logout=self.logout,
+            logout=self.logout, deliver=self.choose_destination,
         )
         self.pin_screen = PinScreen(self.root, self.verify_pin)
         self.root.bind_all("<ButtonPress>", self.record_activity, add="+")
@@ -187,6 +191,7 @@ class ItomiScan:
             self.show_home()
         self.root.after(250, self.refresh_ip)
         self.root.after(2000, self.auth_tick)
+        self.root.after(6000, self.delivery_tick)
 
     def _style(self):
         theme = ttk.Style(self.root)
@@ -489,7 +494,7 @@ class ItomiScan:
         self.home.show()
 
     def show_scan(self):
-        if not self._allowed("scan"):
+        if not self._allowed(self._delivery_permission()):
             return
         if self.home:
             self.home.hide()
@@ -681,7 +686,7 @@ class ItomiScan:
     def start_scan(self):
         if self.busy or not self.device:
             return
-        if not self._allowed("scan"):
+        if not self._allowed(self._delivery_permission()):
             return
         if self.users.settings()["enabled"]:
             identity = self.users.get_user(self.current_user["id"])
@@ -750,6 +755,16 @@ class ItomiScan:
                 for scan in scans:
                     shutil.copy2(scan, target / scan.name)
                 path = target
+            if self.pending_delivery:
+                if output_format == "PDF":
+                    self.pending_export_path = path
+                else:
+                    self.pending_export_path = target / "Dokument-fuer-Versand.pdf"
+                    conversion = shell(
+                        ["img2pdf", *map(str, scans), "-o", str(self.pending_export_path)],
+                        timeout=180)
+                    if conversion.returncode != 0:
+                        raise RuntimeError("Versand-PDF: " + (conversion.stderr or conversion.stdout))
             warning = result.stderr.strip() if result.returncode else ""
             self.dispatch(lambda: self.scan_finished(scans, path, warning))
         except (OSError, RuntimeError, subprocess.TimeoutExpired) as exc:
@@ -766,10 +781,21 @@ class ItomiScan:
         self.path_label.configure(text="Gespeichert: " + str(path))
         self.show_page()
         self.status_var.set(str(len(images)) + " Bildseite(n) gescannt")
+        if self.pending_delivery is not None:
+            destination = self.pending_delivery
+            exported = self.pending_export_path
+            self.pending_delivery = None
+            self.pending_export_path = None
+            if exported is not None:
+                self.status_var.set("PDF gespeichert. Übergabe an Warteschlange …")
+                threading.Thread(target=self.queue_export,
+                                 args=(exported, destination), daemon=True).start()
         if warning:
             messagebox.showwarning("Scannerhinweis", warning[-600:], parent=self.root)
 
     def scan_failed(self, msg):
+        self.pending_delivery = None
+        self.pending_export_path = None
         self.busy = False
         self.scan_button.configure(state="normal")
         self.progress.stop()
