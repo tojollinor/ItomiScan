@@ -1473,7 +1473,10 @@ class ItomiScan:
         else:
             self.photo = None
             self.preview.configure(image="", text="Keine Seiten mehr vorhanden")
+            self.render_thumbnails()
             self.page_var.set("Keine Seiten")
+            # The document remains in review so the user can scan more pages;
+            # finalizing an empty document is explicitly blocked.
         self.status_var.set(str(len(self.pages)) + " Bildseite(n) verbleiben")
 
     def move_page(self, direction):
