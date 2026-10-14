@@ -567,6 +567,8 @@ class ItomiScan:
             self.review_pending = False
             self.pages = []
             self.review_button.pack_forget()
+            self.append_button.pack_forget()
+            self.thumbnail_strip.pack_forget()
             self.pending_delivery = None
             self.pending_print = None
         self.scan_view.place_forget()
@@ -1240,6 +1242,7 @@ class ItomiScan:
         else:
             self.photo = None
             self.preview.configure(image="", text="Keine Seiten mehr vorhanden")
+            self.render_thumbnails()
             self.page_var.set("Keine Seiten")
         self.status_var.set(str(len(candidates)) + " Leerseite(n) entfernt")
 
@@ -1346,6 +1349,7 @@ class ItomiScan:
         self.review_pending = False
         self.review_button.pack_forget()
         self.append_button.pack_forget()
+        self.thumbnail_strip.pack_forget()
         self.batch_settings = None
         self.status_var.set("Dokument abgeschlossen · " + str(len(self.pages)) + " Bildseiten")
         export_path = self.pending_export_path or self.output_path
@@ -1396,7 +1400,9 @@ class ItomiScan:
             widget.destroy()
         self.thumbnail_photos = []
         if not self.review_pending or not self.pages:
+            self.thumbnail_strip.pack_forget()
             return
+        self.thumbnail_strip.pack(fill="x", padx=17, pady=4)
         start = max(0, min(self.page_index - 2, len(self.pages) - 5))
         for index in range(start, min(len(self.pages), start + 5)):
             with Image.open(self.pages[index]) as source:
