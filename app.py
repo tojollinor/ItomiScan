@@ -1468,7 +1468,17 @@ class ItomiScan:
         if not messagebox.askyesno("Seite löschen", "Diese Seite aus dem Dokument entfernen?",
                                    parent=self.root):
             return
-        self.pages.pop(self.page_index)
+        removed = Path(self.pages.pop(self.page_index))
+        # Remove only this document's staged image, never unrelated files.
+        # The source is no longer referenced by the review and must not
+        # reappear in the output directory after finalizing.
+        if removed.is_file() and removed.parent == (
+                self.output_path.parent if self.output_path.suffix.lower() == ".pdf"
+                else self.output_path):
+            try:
+                removed.unlink()
+            except OSError as exc:
+                self.status_var.set("Seite entfernt; Datei konnte nicht gelöscht werden: " + str(exc))
         self.page_index = min(self.page_index, max(0, len(self.pages) - 1))
         if self.pages:
             self.show_page()
