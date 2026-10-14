@@ -25,6 +25,11 @@ def printers_page(saved_targets, installed, csrf, *, notice="", issue="", discov
                     'an CUPS zunächst als angenommen. Papierausgabe bitte '
                     'am Gerät kontrollieren.</p>')
         if exists:
+            content += ('<form method="post" action="/printers/default">' +
+                        token(csrf) +
+                        '<input type="hidden" name="target_id" value="' +
+                        e(entry["id"]) + '">' +
+                        '<button class="secondary">Als Standarddrucker festlegen</button></form>')
             content += ('<form method="post" action="/printers/test">' +
                         token(csrf) +
                         '<input type="hidden" name="target_id" value="' +
@@ -41,6 +46,11 @@ def printers_page(saved_targets, installed, csrf, *, notice="", issue="", discov
                         '<input type="hidden" name="target_id" value="' +
                         e(entry["id"]) + '">' +
                         '<button>In CUPS einrichten</button></form>')
+        content += ('<details><summary>Druckeradresse bearbeiten</summary>' +
+                    '<form method="post" action="/printers/save">' + token(csrf) +
+                    '<input type="hidden" name="name" value="' + e(name) + '">' +
+                    '<label>Neue Adresse</label><input name="address" required maxlength="350" value="' +
+                    e(entry["address"]) + '"><button>Änderung speichern</button></form></details>')
         content += ('<form method="post" action="/targets/delete">' +
                     token(csrf) +
                     '<input type="hidden" name="id" value="' +
