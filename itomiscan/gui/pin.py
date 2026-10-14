@@ -12,7 +12,10 @@ class PinScreen:
         self.active = False
         self.frame = tk.Frame(root, bg=BASE)
         self.frame.columnconfigure(0, weight=1)
+        # Grow the information row, keeping the actual keypad in the
+        # lower half of the 1024x768 touchscreen.
         self.frame.rowconfigure(2, weight=1)
+        self.frame.rowconfigure(3, minsize=330)
         top = tk.Frame(self.frame, bg=BASE)
         top.grid(row=0, column=0, pady=(28, 5))
         draw_logo(top, 56).pack(side="left", padx=13)
@@ -28,19 +31,19 @@ class PinScreen:
         self.notice = tk.StringVar(value="Persönliche PIN mit 4 bis 6 Ziffern")
         tk.Label(middle, textvariable=self.notice, bg=BASE, fg=MUTED,
                  font=("DejaVu Sans", 12), wraplength=700).pack(pady=(0, 12))
-        keypad = tk.Frame(middle, bg=BASE)
-        keypad.pack()
+        keypad = tk.Frame(self.frame, bg=BASE)
+        keypad.grid(row=3, column=0, sticky="n", pady=(0, 18))
         keys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "C", "0", "OK"]
         for i, key in enumerate(keys):
             row, column = divmod(i, 3)
             button = tk.Button(
                 keypad, text=key, command=lambda digit=key: self.press(digit),
-                font=("DejaVu Sans", 22, "bold"), bg=CYAN if key == "OK" else CARD,
+                font=("DejaVu Sans", 20, "bold"), bg=CYAN if key == "OK" else CARD,
                 fg=BASE if key == "OK" else FG,
                 activebackground="#54d5fa", relief="flat", borderwidth=0,
-                width=6, height=1, pady=9,
+                width=5, height=1, pady=5, cursor="none",
             )
-            button.grid(row=row, column=column, padx=9, pady=7, sticky="nsew")
+            button.grid(row=row, column=column, padx=8, pady=3, sticky="nsew")
         self.frame.bind_all("<BackSpace>", self.backspace, add="+")
 
     def backspace(self, _event=None):
