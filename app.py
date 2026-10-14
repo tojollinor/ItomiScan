@@ -1224,13 +1224,14 @@ class ItomiScan:
             else:
                 # Render ordered images to a staging directory first. Preserve
                 # original scan pages until the entire export is ready.
-                ordered = output / "_geordnet"
-                ordered.mkdir(exist_ok=True)
+                # Keep source pages as an audit/rollback copy; only reviewed
+                # pages appear in the separate final document directory.
+                ordered = output / "Fertiges-Dokument"
+                if ordered.exists():
+                    raise RuntimeError("Fertiges-Dokument existiert bereits; kein Überschreiben.")
+                ordered.mkdir()
                 for number, page in enumerate(pages, 1):
                     shutil.copy2(page, ordered / f"Seite-{number:04d}{Path(page).suffix}")
-                for new_page in ordered.iterdir():
-                    os.replace(new_page, output / new_page.name)
-                ordered.rmdir()
             if output.suffix.lower() != ".pdf" and (self.pending_delivery or self.pending_print):
                 pdf_path = output / "Dokument-fuer-Versand.pdf"
                 pdf = shell(["img2pdf", *map(str, pages), "-o", str(pdf_path)], timeout=180)
