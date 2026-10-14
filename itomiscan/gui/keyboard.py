@@ -19,20 +19,22 @@ def ask_touch(root, title, initial="", *, numeric=False, secret=False, max_lengt
     # Keep this keyboard as a normal, explicitly raised top-level window.
     screen_w = root.winfo_screenwidth()
     screen_h = root.winfo_screenheight()
-    width = min(1000, max(320, screen_w - 24))
-    height = min(690, max(260, screen_h - 24))
-    win.geometry(f"{width}x{height}+{(screen_w-width)//2}+{(screen_h-height)//2}")
+    # Keep the pop-up in the lower half so dialog context remains visible.
+    width = min(540 if numeric else 1000, max(320, screen_w - 24))
+    height = max(240, min(370, screen_h // 2))
+    win.geometry(f"{width}x{height}+{(screen_w-width)//2}+{screen_h-height}")
+    win.configure(cursor="none")
     # Build and map the complete keyboard before requesting a grab.
     # Grabbing an unmapped Toplevel can fail on X11/Tk.
     value = tk.StringVar(value=str(initial))
     shifted = tk.BooleanVar(value=False)
 
     tk.Label(win, text=title, bg=BG, fg=FG,
-             font=("DejaVu Sans", 21, "bold")).pack(pady=(14, 7))
+             font=("DejaVu Sans", 15, "bold")).pack(pady=(5, 2))
     entry = tk.Entry(win, textvariable=value, show="*" if secret else "",
-                     font=("DejaVu Sans", 23), justify="center",
+                     font=("DejaVu Sans", 18), justify="center",
                      bg="#ffffff", fg="#101927", insertbackground="#101927")
-    entry.pack(fill="x", padx=24, pady=(0, 12), ipady=8)
+    entry.pack(fill="x", padx=18, pady=(0, 4), ipady=3)
     board = tk.Frame(win, bg=BG)
     # The board is packed after the bottom action bar.
 
@@ -76,17 +78,16 @@ def ask_touch(root, title, initial="", *, numeric=False, secret=False, max_lengt
 
     # Reserve the confirmation bar before expanding the keyboard rows.
     # The N1800 panel is 1024x768: no keyboard action may be clipped.
-    compact = width < 900 or height < 620
     footer = tk.Frame(win, bg=BG)
-    footer.pack(side="bottom", fill="x", padx=20, pady=(4, 12))
-    board.pack(fill="both", expand=True, padx=12, pady=(0, 3))
+    footer.pack(side="bottom", fill="x", padx=14, pady=(2, 5))
+    board.pack(fill="both", expand=True, padx=7, pady=(0, 2))
 
     def key(parent, label, command, width=5, color=PANEL):
         return tk.Button(parent, text=label, command=command,
-                         font=("DejaVu Sans", 13 if compact else 16, "bold"),
+                         font=("DejaVu Sans", 14 if numeric else 12, "bold"),
                          bg=color, fg=FG, activebackground=BLUE,
                          activeforeground=FG, relief="flat", bd=0,
-                         width=width, padx=2, pady=4 if compact else 7,
+                         width=width, padx=1, pady=1, cursor="none",
                          takefocus=False)
 
     def render():
@@ -98,7 +99,7 @@ def ask_touch(root, title, initial="", *, numeric=False, secret=False, max_lengt
             rows = ("qwertzuiopü", "asdfghjklöä", "yxcvbnmß")
         for line in rows:
             row = tk.Frame(board, bg=BG)
-            row.pack(fill="both", expand=True, pady=2)
+            row.pack(fill="both", expand=True, pady=1)
             for ch in line:
                 label = ch.upper() if shifted.get() else ch
                 key(row, label, lambda c=label: put(c),
@@ -108,12 +109,12 @@ def ask_touch(root, title, initial="", *, numeric=False, secret=False, max_lengt
             # Network paths, URLs, e-mail addresses and passwords require
             # punctuation without a physical keyboard.
             symbols = tk.Frame(board, bg=BG)
-            symbols.pack(fill="both", expand=True, pady=2)
+            symbols.pack(fill="both", expand=True, pady=1)
             for symbol in ("@", ".", "/", ":", "_", "?", "&", "=", "+", "#", "%"):
                 key(symbols, symbol, lambda s=symbol: put(s), width=2).pack(
                     side="left", fill="both", expand=True, padx=1)
         tools = tk.Frame(board, bg=BG)
-        tools.pack(fill="x", pady=3)
+        tools.pack(fill="x", pady=1)
         if not numeric:
             def toggle():
                 shifted.set(not shifted.get())
