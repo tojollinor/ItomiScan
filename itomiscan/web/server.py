@@ -25,7 +25,9 @@ from urllib.parse import parse_qs, urlsplit
 from itomiscan.core.profiles import validate_profile
 from itomiscan.storage.config import ConfigError, ConfigStore
 from itomiscan.storage.users import PERMISSIONS, PinError, UserStore
-from itomiscan.web import pages, user_pages
+from itomiscan.web import pages, user_pages, delivery_pages
+from itomiscan.storage.queue import DeliveryQueue, QueueError
+from itomiscan.storage.secrets import SecretStore, SecretError
 
 
 MAX_BODY = 160 * 1024
@@ -138,6 +140,8 @@ class AdminServer(ThreadingHTTPServer):
         self.bind_ip = address[0]
         self.sessions = Sessions()
         self.users = UserStore(store.path)
+        self.queue = DeliveryQueue(store.path)
+        self.secrets = SecretStore(store.path)
         self.diagnostic = ""
 
 
@@ -244,7 +248,12 @@ class AdminHandler(BaseHTTPRequestHandler):
                     self.server.users.list_users(), self.server.users.settings(),
                     [p["name"] for p in profiles], csrf, notice)
             elif path == "/targets":
-                html = pages.targets_page(self.server.store.list_targets(), csrf, notice)
+                targets = self.server.store.list_targets()
+                flags = {item["id"]: bool(self.server.secrets.get(item["id"])) for item in targets}
+                html = delivery_pages.targets_page(targets, csrf, flags, notice)
+            elif path == "/jobs":
+                html = delivery_pages.jobs_page(self.server.queue.all(),
+                                                self.server.queue.summary(), csrf, notice)
             elif path == "/system":
                 html = pages.system_page(
                     inspect_system(self.server.store, self.server.bind_ip),
@@ -379,6 +388,29 @@ class AdminHandler(BaseHTTPRequestHandler):
             if path == "/targets/delete":
                 self.server.store.delete_target(int(form.get("id", "")))
                 return self._redirect("/targets?ok=Ziel%20entfernt")
+            if path == "/targets/secrets":
+                target_id = int(form.get("target_id", ""))
+                target = next((t for t in self.server.store.list_targets()
+                               if t["id"] == target_id), None)
+                if not target or target["kind"] not in ("paperless", "network", "email"):
+                    raise ValueError("Ungültiges Ziel für Zugangsdaten.")
+                if form.get("clear") == "yes":
+                    self.server.secrets.update(target_id, clear=True)
+                else:
+                    allowed = {"paperless": ("token",),
+                               "network": ("username", "password"),
+                               "email": ("username", "password", "sender")}[target["kind"]]
+                    values = {key: form[key] for key in allowed
+                              if form.get(key)}
+                    self.server.secrets.update(target_id, **values)
+                return self._redirect("/targets?ok=Zugangsdaten%20gespeichert")
+            if path == "/jobs/retry":
+                job_id = form.get("job_id", "")
+                if not isinstance(job_id, str) or len(job_id) != 32:
+                    raise ValueError("Ungültige Auftrags-ID.")
+                self.server.queue.retry(job_id,
+                    acknowledge_uncertain=form.get("reviewed") == "yes")
+                return self._redirect("/jobs?ok=Auftrag%20neu%20eingeplant")
             if path == "/system/settings":
                 self.server.store.set_settings({
                     "screensaver_minutes": int(form.get("screensaver_minutes", "")),
