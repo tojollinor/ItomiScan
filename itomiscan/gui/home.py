@@ -180,19 +180,45 @@ class HomeScreen:
         return dialog
 
     def show_destinations(self):
-        dialog = self._modal("Wohin möchtest du scannen?")
-        choices = [("Normal scannen", self.open_scan, "scan")]
-        for kind, title in (("paperless", "Paperless"), ("network", "Netzwerkordner"),
+        """Show scan targets as a full-screen kiosk page."""
+        page = tk.Frame(self.root, bg=BASE)
+        self.destination_page = page
+        page.place(x=0, y=0, relwidth=1, relheight=1)
+        page.lift()
+        header = tk.Frame(page, bg=BASE)
+        header.pack(fill="x", padx=28, pady=18)
+        draw_logo(header, 52).pack(side="left", padx=12)
+        tk.Label(header, text="Scanziel wählen", bg=BASE, fg=FG,
+                 font=("DejaVu Sans", 24, "bold")).pack(side="left")
+        grid = tk.Frame(page, bg=BASE)
+        grid.pack(fill="both", expand=True, padx=30, pady=12)
+        for col in range(2):
+            grid.grid_columnconfigure(col, weight=1)
+        for row in range(3):
+            grid.grid_rowconfigure(row, weight=1)
+        choices = [("Lokal speichern", self.open_scan, "scan")]
+        for kind, title in (("paperless", "Paperless"),
+                            ("network", "Netzwerkordner"),
                             ("email", "E-Mail"), ("usb", "USB")):
             if self.allowed is None or kind in self.allowed:
                 choices.append((title, lambda k=kind: self.deliver(k), kind))
-        for title, action, kind in choices:
+        for index, (title, action, kind) in enumerate(choices):
             def select(fn=action):
-                dialog.destroy()
+                page.destroy()
+                self.destination_page = None
                 fn()
-            self._button(dialog, title, select, bg=BLUE if kind == "scan" else CARD,
-                         font=16, pad_y=11).pack(fill="x", padx=28, pady=4)
-        self._button(dialog, "Zurück", dialog.destroy, font=13).pack(pady=9)
+            self._button(grid, title, select, bg=BLUE if kind == "scan" else CARD,
+                         font=17, pad_y=13).grid(row=index // 2,
+                         column=index % 2, sticky="nsew", padx=7, pady=7)
+        self._button(page, "← Zurück", self.close_destinations,
+                     font=13).pack(anchor="w", padx=35, pady=16)
+
+    def close_destinations(self):
+        page = getattr(self, "destination_page", None)
+        if page is not None:
+            page.destroy()
+            self.destination_page = None
+        self.show()
 
     def show_menu(self, shutdown, update, exit_app):
         dialog = self._modal("Menü")
