@@ -35,7 +35,7 @@ class HomeScreen:
 
     def __init__(self, root, profiles, select_profile, open_scan, quick_scan,
                  unavailable, shutdown, update, exit_app, status, logout=None,
-                 deliver=None):
+                 deliver=None, open_copy=None):
         self.root = root
         self.profiles = profiles
         self.select_profile = select_profile
@@ -43,6 +43,7 @@ class HomeScreen:
         self.quick_scan = quick_scan
         self.unavailable = unavailable
         self.deliver = deliver or (lambda _kind: None)
+        self.open_copy = open_copy or (lambda: self.unavailable('copy', 'Kopieren', 7))
         self.logout = logout
         self.allowed = None
         self.tiles = {}
@@ -89,8 +90,8 @@ class HomeScreen:
             ("scan", "SCAN", "Scannen", "PDF oder Bild speichern", True, self.open_scan),
             ("paperless", "ARCHIV", "Paperless", "PDF an Archiv senden", True,
              lambda: self.deliver("paperless")),
-            ("copy", "KOPIE", "Kopieren", "In Vorbereitung", False,
-             lambda: self.unavailable("copy", "Kopieren", 7)),
+            ("copy", "KOPIE", "Kopieren", "Netzwerkdrucker auswählen", True,
+             self.open_copy),
             ("network", "NETZ", "Netzwerkordner", "PDF ins Netzwerk", True,
              lambda: self.deliver("network")),
         )
