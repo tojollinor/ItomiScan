@@ -164,3 +164,16 @@ Code auf `develop/1.0.0` ergänzt:
 - [ ] Echte Prüfung von Mehrseiten-ADF, Duplex, Reihenfolge, Seitenersatz und PDF-Ausgabe auf dem N1800.
 
 **Stand:** Quellcodekorrekturen eingecheckt, keine lokale oder N1800-Ausführung bestätigt. Kein Release und keine Installation.
+
+
+## Restarbeiten: dritter Korrekturblock (Kopieren und CUPS)
+
+- [x] CUPS-Auftragsannahme einer eingerichteten Warteschlange per `lpstat -a` mit C-Locale auswerten.
+- [x] Kopieransicht bietet nur eingerichtete und auftragsannehmende Drucker als bereit an.
+- [x] Beim Start des Kopiervorgangs die Auftragsannahme erneut prüfen.
+- [x] Beim tatsächlichen PDF-Versand an CUPS die Auftragsannahme erneut prüfen.
+- [ ] N1800: CUPS-Status bei pausierter, offline und wieder aktivierter Warteschlange testen.
+- [ ] Druckertreiber/Filter: RAW/LPD/socket/USB benötigen einen passenden PDF-fähigen Filter oder druckerfertige Daten; unverändert offen.
+- [ ] CUPS-Auftragsannahme und physische Papierausgabe mit echten Druckern prüfen.
+
+**Keine Installation, kein Release.** Diese Änderungen lösen keine Druckertreiber- oder Gerätekompatibilitätsprobleme.
