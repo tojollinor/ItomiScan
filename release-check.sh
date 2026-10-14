@@ -25,7 +25,14 @@ if [[ -e .git ]]; then
 else
   echo "Kein Git-Repository. Quelle vor Einsatz prüfen." >&2
 fi
-/usr/bin/python3 -m compileall -q app.py itomiscan
+/usr/bin/python3 -B - <<'PY'
+import ast
+from pathlib import Path
+paths = [Path("app.py"), *Path("itomiscan").rglob("*.py")]
+for path in paths:
+    ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+print("Python-Syntax erfolgreich geprüft, ohne Dateien zu verändern.")
+PY
 bash -n install.sh setup-web.sh setup-delivery.sh setup-printing.sh setup-shutdown.sh
 echo "Hardware-Vorabcheck (ohne SANE-Scannerdetektion):"
 /usr/bin/python3 -m itomiscan.release_preflight --no-scanner || true
