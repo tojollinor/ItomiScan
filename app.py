@@ -989,14 +989,8 @@ class ItomiScan:
                 permanent = target / f"page-{number:04d}.{extension}"
                 shutil.copy2(scan, permanent)
                 saved.append(permanent)
-            if output_format == "PDF":
-                path = target / "Dokument.pdf"
-                self.dispatch(lambda: self.status_var.set("PDF wird erstellt …"))
-                pdf = shell(["img2pdf", *map(str, saved), "-o", str(path)], timeout=180)
-                if pdf.returncode:
-                    raise RuntimeError("PDF-Erstellung: " + (pdf.stderr or pdf.stdout))
-            else:
-                path = target
+            # A PDF is generated only after the user approves page edits.
+            path = target / "Dokument.pdf" if output_format == "PDF" else target
             # Do not prepare or enqueue any delivery before review approval.
             self.pending_export_path = None
             self.dispatch(lambda: self.scan_finished(saved, path, warning))
@@ -1228,13 +1222,12 @@ class ItomiScan:
                     raise RuntimeError(converted.stderr or "PDF-Erstellung fehlgeschlagen.")
                 os.replace(target, output)
             else:
+                # Render ordered images to a staging directory first. Preserve
+                # original scan pages until the entire export is ready.
                 ordered = output / "_geordnet"
                 ordered.mkdir(exist_ok=True)
                 for number, page in enumerate(pages, 1):
                     shutil.copy2(page, ordered / f"Seite-{number:04d}{Path(page).suffix}")
-                for previous in output.glob("page-*"):
-                    if previous.is_file():
-                        previous.unlink()
                 for new_page in ordered.iterdir():
                     os.replace(new_page, output / new_page.name)
                 ordered.rmdir()
