@@ -23,12 +23,14 @@ jobs:
           python-version: '3.11'
       - name: Compile Python sources
         run: python -m compileall -q app.py itomiscan tests
-      - name: Install runtime dependencies for headless tests
+      - name: Install GUI and image test dependencies
         run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends python3-tk xvfb xauth
           python -m pip install --upgrade pip
           python -m pip install Pillow
-      - name: Run headless regression tests
-        run: python -m unittest discover -s tests -p 'test_*.py' -v
+      - name: Run regression tests with virtual display
+        run: xvfb-run -a python -m unittest discover -s tests -p 'test_*.py' -v
       - name: Validate shell script syntax
         run: |
           bash -n setup-boot-splash.sh
