@@ -65,7 +65,7 @@ d = ImageDraw.Draw(icon)
 s = 84 / 72
 scale = lambda points: tuple(round(v*s) for v in points)
 d.rectangle(scale((1, 1, 71, 71)), fill=(7, 61, 129, 255))
-d.polygon(scale((23, 15, 44, 15, 52, 23, 52, 58, 23, 58)), fill=white)
+d.polygon(scale((23, 15, 44, 15, 52, 23, 52, 58, 23, 58)), fill=(255, 255, 255, 255))
 d.rectangle(scale((15, 36, 57, 40)), fill=(66, 191, 234, 255))
 for x,y,dx,dy in ((13,13,8,8),(59,13,-8,8),(13,59,8,-8),(59,59,-8,-8)):
     d.line(scale((x,y+dy,x,y,x+dx,y)), fill=(66,191,234,255), width=max(3,round(4*s)))
