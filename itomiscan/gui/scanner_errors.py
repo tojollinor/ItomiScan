@@ -37,14 +37,19 @@ def show_scanner_error(root, raw):
     win.title(title)
     win.configure(bg=BG, highlightbackground=WARN, highlightthickness=4)
     win.transient(root)
-    win.geometry("760x460")
+    screen_w = root.winfo_screenwidth()
+    screen_h = root.winfo_screenheight()
+    width = min(760, screen_w - 24)
+    height = min(460, screen_h - 24)
+    win.geometry(f"{width}x{height}+{(screen_w-width)//2}+{(screen_h-height)//2}")
+    win.lift()
     win.grab_set()
     tk.Label(win, text=title, bg=BG, fg=WARN,
              font=("DejaVu Sans", 25, "bold")).pack(pady=(28, 18))
-    tk.Label(win, text=explanation, bg=BG, fg=WHITE, wraplength=675,
+    tk.Label(win, text=explanation, bg=BG, fg=WHITE, wraplength=max(220, width - 85),
              font=("DejaVu Sans", 17), justify="center").pack(padx=24, pady=12)
     details = tk.Label(win, text=str(raw)[-800:], bg=PANEL, fg=WHITE,
-                       wraplength=675, font=("DejaVu Sans", 10), justify="left")
+                       wraplength=max(220, width - 85), font=("DejaVu Sans", 10), justify="left")
     def toggle():
         if details.winfo_manager():
             details.pack_forget()
