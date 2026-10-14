@@ -221,11 +221,13 @@ class ItomiScan:
     def _layout(self):
         header = tk.Frame(self.scan_view, bg=BASE, height=62)
         header.pack(fill="x", padx=20, pady=(10, 4))
-        tk.Label(header, text="▣  ItomiScan", bg=BASE, fg=FG,
+        tk.Label(header, text="Itomi", bg=BASE, fg=FG,
+                 font=("DejaVu Sans", 24, "bold")).pack(side="left")
+        tk.Label(header, text="Scan", bg=BASE, fg="#42bfea",
                  font=("DejaVu Sans", 24, "bold")).pack(side="left")
         tk.Label(header, textvariable=self.ip_var, bg=BASE, fg=MUTED,
                  font=("DejaVu Sans", 13)).pack(side="right", padx=8)
-        self.detail_shutdown = self._btn(header, "⏻ Ausschalten", self.shutdown)
+        self.detail_shutdown = self._btn(header, "Ausschalten", self.shutdown)
         self.detail_shutdown.pack(side="right", padx=(0, 8))
         self._btn(header, "← Startseite", self.show_home, width=12).pack(
             side="right", padx=(0, 10))
@@ -286,13 +288,12 @@ class ItomiScan:
         self.profile_save_button.pack(fill="x", padx=13, pady=(0, 8))
         footer = tk.Frame(self.scan_view, bg=BASE)
         footer.pack(fill="x", padx=18, pady=(5, 13))
-        self.detail_exit = self._btn(footer, "Beenden", self.exit)
+        self.detail_exit = self._btn(footer, "Menü", self.show_device_menu)
         self.detail_exit.pack(side="left")
-        self.detail_update = self._btn(footer, "↻  Update", self.check_update)
-        self.detail_update.pack(side="left", padx=8)
+        self.detail_update = self._btn(footer, "Updates", self.check_update)
         self.progress = ttk.Progressbar(footer, mode="indeterminate", length=90)
         self.progress.pack(side="left", padx=12)
-        self.scan_button = self._btn(footer, "▣  SCANNEN", self.start_scan, BLUE, width=15)
+        self.scan_button = self._btn(footer, "SCANNEN", self.start_scan, BLUE, width=15)
         self.scan_button.pack(side="right")
         tk.Label(footer, textvariable=self.status_var, bg=BASE, fg=MUTED,
                  font=("DejaVu Sans", 10), wraplength=360).pack(side="right", padx=16)
@@ -451,12 +452,33 @@ class ItomiScan:
             except tk.TclError:
                 pass
 
+    def show_device_menu(self):
+        if self.busy:
+            return
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Menü")
+        dialog.configure(bg=BASE)
+        dialog.transient(self.root)
+        dialog.geometry("600x430")
+        dialog.grab_set()
+        tk.Label(dialog, text="Menü", bg=BASE, fg=FG,
+                 font=("DejaVu Sans", 23, "bold")).pack(pady=22)
+        for label, permission, fn in (
+                ("Updates", "update", self.check_update),
+                ("Beenden", "exit", self.exit)):
+            if not self._allowed(permission, silent=True):
+                continue
+            def invoke(action=fn):
+                dialog.destroy()
+                action()
+            self._btn(dialog, label, invoke).pack(fill="x", padx=25, pady=8)
+        self._btn(dialog, "Schließen", dialog.destroy).pack(pady=10)
+
     def _detail_buttons(self):
         user = self.current_user if self.login_enabled else None
         access = set(user["permissions"]) if user else None
         for permission, button, side in (
             ("shutdown", self.detail_shutdown, "right"),
-            ("update", self.detail_update, "left"),
             ("exit", self.detail_exit, "left"),
         ):
             if access is None or permission in access:
@@ -986,7 +1008,7 @@ class ItomiScan:
                 args=(path, details["target_id"],
                       details["copies"], details["sides"]),
                 daemon=True).start()
-        if warning:
+        if warning and "Document feeder out of documents" not in warning:
             messagebox.showwarning("Scannerhinweis", warning[-600:], parent=self.root)
 
     def scan_failed(self, msg):
@@ -997,7 +1019,12 @@ class ItomiScan:
         self.scan_button.configure(state="normal")
         self.progress.stop()
         self.status_var.set("Scan fehlgeschlagen")
-        messagebox.showerror("Scannerfehler", msg[-800:], parent=self.root)
+        if "document feeder out of documents" in msg.lower():
+            messagebox.showinfo("Kein Dokument eingelegt",
+                                "Bitte lege ein Dokument in den Einzug und starte den Scanvorgang erneut.",
+                                parent=self.root)
+        else:
+            messagebox.showerror("Scannerfehler", msg[-800:], parent=self.root)
 
     def change_page(self, diff):
         if self.pages:
