@@ -49,6 +49,7 @@ def printers_page(saved_targets, installed, csrf, *, notice="", issue="", discov
         content += ('<details><summary>Druckeradresse bearbeiten</summary>' +
                     '<form method="post" action="/printers/edit">' + token(csrf) +
                     '<input type="hidden" name="target_id" value="' + e(entry["id"]) + '">' +
+                    '<p>Hinweis: Bei bereits eingerichteten CUPS-Druckern muss die geänderte Adresse anschließend erneut in CUPS übernommen werden.</p>' +
                     '<label>Neue Adresse</label><input name="address" required maxlength="350" value="' +
                     e(entry["address"]) + '"><button>Änderung speichern</button></form></details>')
         content += ('<form method="post" action="/targets/delete">' +
