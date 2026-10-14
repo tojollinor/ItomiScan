@@ -22,6 +22,8 @@ from itomiscan.gui.copy import CopyScreen
 from itomiscan.integrations.printing import list_queues, validate_copy_options, PrintError, default_printer, accepting_jobs
 from itomiscan.gui.pin import PinScreen
 from itomiscan.gui.screensaver import IdleScreen
+from itomiscan.gui.menu import DeviceMenu
+from itomiscan.gui.touch import install_touch_feedback
 from itomiscan.storage.users import UserStore
 from itomiscan.storage.queue import DeliveryQueue
 
@@ -123,7 +125,7 @@ class ItomiScan:
     def __init__(self, root, initial_device=None, initial_options=None):
         self.root = root
         self.root.title("ItomiScan")
-        self.root.configure(bg=BASE)
+        self.root.configure(bg=BASE, cursor="none")
         # Without a window manager Tk's -fullscreen hint may be ignored.
         # Size the kiosk window explicitly to the Xorg screen instead.
         self.root.overrideredirect(True)
@@ -182,6 +184,7 @@ class ItomiScan:
         else:
             # Preserve the original behavior for direct app.py invocations.
             self.root.after(200, self.load_scanner)
+        self.device_menu = DeviceMenu(self.root)
         self.home = HomeScreen(
             self.root, self.profile_store, self.select_profile,
             self.show_scan, self.quick_scan, self.unavailable,
@@ -189,7 +192,7 @@ class ItomiScan:
             logout=self.logout, deliver=self.choose_destination,
             open_copy=self.show_copy,
             destination_status=self.destination_status,
-            restart=self.restart,
+            restart=self.restart, open_menu=self.show_device_menu,
         )
         self.copy_screen = CopyScreen(self.root, self.available_printers,
                                       self.start_copy, self.show_home)
@@ -200,6 +203,7 @@ class ItomiScan:
         self.idle_screen = IdleScreen(
             self.root, lambda: self.busy or self.pin_screen.active,
             seconds=idle_minutes * 60)
+        self.touch_feedback = install_touch_feedback(self.root)
         if self.login_enabled:
             self.show_login()
         elif self.device and self.options:
@@ -236,7 +240,7 @@ class ItomiScan:
         return tk.Button(parent, text=title, command=command, font=("DejaVu Sans", 12, "bold"),
                          bg=color, fg=FG, activebackground=BLUE, activeforeground=FG,
                          relief="flat", bd=0, padx=15, pady=15,
-                         cursor="hand2", width=width)
+                         cursor="none", width=width)
 
     def _layout(self):
         # Reserve persistent controls before the expanding preview/options body.
@@ -342,7 +346,12 @@ class ItomiScan:
         self.profile_save_button = self._btn(
             left, "Profil speichern", self.save_profile, width=16)
         self.profile_save_button.pack(fill="x", padx=13, pady=(0, 8))
-        self._btn(footer, "⌂", self.show_home, width=3).pack(side="left", padx=(0, 8))
+        self.home_button = tk.Button(
+            footer, text="⌂", command=self.show_home,
+            font=("DejaVu Sans", 28, "bold"), bg=PANEL, fg=FG,
+            activebackground=BLUE, activeforeground=FG,
+            relief="flat", bd=0, padx=10, pady=4, width=2, cursor="none")
+        self.home_button.pack(side="left", padx=(0, 8))
         self.detail_exit = self._btn(footer, "Menü", self.show_device_menu)
         self.detail_exit.pack(side="left")
         self.detail_update = self._btn(footer, "Updates", self.check_update)
@@ -356,6 +365,8 @@ class ItomiScan:
 
     def on_front_scan_key(self, event):
         if self.pin_screen and self.pin_screen.active:
+            return "break"
+        if getattr(self, "device_menu", None) and self.device_menu.visible:
             return "break"
         if self.idle_screen and self.idle_screen.active:
             self.idle_screen.wake()
@@ -405,6 +416,7 @@ class ItomiScan:
     def show_login(self, message="Persönliche PIN mit 4 bis 6 Ziffern"):
         if self.busy:
             return
+        self.device_menu.hide()
         self.current_user = None
         self.session_profile = None
         if self.home:
@@ -512,6 +524,7 @@ class ItomiScan:
 
     def _center_dialog(self, dialog, width=600, height=430):
         """Position touch dialogs relative to the physical kiosk screen."""
+        dialog.configure(cursor="none")
         self.root.update_idletasks()
         screen_w = self.root.winfo_screenwidth()
         screen_h = self.root.winfo_screenheight()
@@ -623,32 +636,27 @@ class ItomiScan:
         self.status_var.set("Hardwaretestprofil vorbereitet, bitte Scan starten")
 
     def show_device_menu(self):
-        if self.busy:
+        """One identical full-screen menu for home and scan-detail contexts."""
+        if self.busy or self.pin_screen.active:
             return
-        dialog = tk.Toplevel(self.root)
-        dialog.title("Menü")
-        dialog.configure(bg=BASE)
-        dialog.transient(self.root)
-        self._center_dialog(dialog)
-        dialog.grab_set()
-        tk.Label(dialog, text="Menü", bg=BASE, fg=FG,
-                 font=("DejaVu Sans", 23, "bold")).pack(pady=18)
-        actions = (
+        options = (
             ("Updates", "update", self.check_update),
             ("Hardwarediagnose", "update", self.show_hardware_diagnostics),
             ("Neustarten", "shutdown", self.restart),
             ("Ausschalten", "shutdown", self.shutdown),
             ("Beenden", "exit", self.exit),
         )
-        for label, permission, fn in actions:
-            if not self._allowed(permission, silent=True):
-                continue
-            def invoke(action=fn):
-                dialog.destroy()
-                action()
-            self._btn(dialog, label, invoke).pack(fill="x", padx=32, pady=4)
-        self._btn(dialog, "Schließen", dialog.destroy).pack(
-            side="bottom", fill="x", padx=32, pady=14)
+        entries = [(label, fn) for label, permission, fn in options
+                   if self._allowed(permission, silent=True)]
+        # Any authenticated local user may preview the existing saver;
+        # activating it neither logs out nor bypasses the PIN gate.
+        entries.append(("Bildschirmschoner anzeigen", self.preview_screensaver))
+        self.device_menu.show(entries)
+
+    def preview_screensaver(self):
+        """Enter the actual idle screen immediately for visual/touch debugging."""
+        if not self.busy and not self.pin_screen.active:
+            self.idle_screen.show_now()
 
     def _detail_buttons(self):
         user = self.current_user if self.login_enabled else None
@@ -672,6 +680,7 @@ class ItomiScan:
     def show_home(self):
         if self.busy or not self.home:
             return
+        self.device_menu.hide()
         self.profile_store.reload()
         enabled = self.users.settings()["enabled"]
         if enabled and not self.current_user:
@@ -746,6 +755,7 @@ class ItomiScan:
     def show_scan(self):
         if not self._allowed(self._delivery_permission()):
             return
+        self.device_menu.hide()
         if self.home:
             self.home.hide()
         self._set_review_layout(self.review_pending)
@@ -861,6 +871,7 @@ class ItomiScan:
     def show_copy(self):
         if self.busy or not self._allowed("copy"):
             return
+        self.device_menu.hide()
         if not self.device:
             messagebox.showwarning("Scanner", "Scanner noch nicht bereit.",
                                    parent=self.root)
