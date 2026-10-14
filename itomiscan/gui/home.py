@@ -77,7 +77,8 @@ class HomeScreen:
 
     def __init__(self, root, profiles, select_profile, open_scan, quick_scan,
                  unavailable, shutdown, update, exit_app, status, logout=None,
-                 deliver=None, open_copy=None, destination_status=None, restart=None):
+                 deliver=None, open_copy=None, destination_status=None, restart=None,
+                 open_menu=None):
         self.root = root
         self.profiles = profiles
         self.select_profile = select_profile
@@ -89,6 +90,8 @@ class HomeScreen:
         self.open_copy = open_copy or (lambda: self.unavailable('copy', 'Kopieren', 7))
         self.restart = restart
         self.logout = logout
+        self.open_menu = open_menu
+        self._standalone_menu = None
         self.allowed = None
         self.tiles = {}
         self.controls = {}
@@ -166,7 +169,8 @@ class HomeScreen:
                      bg=BLUE, font=15, pad_y=12).pack(side="right", padx=12, pady=5)
 
         self.controls["menu"] = self._button(
-            bottom, "Menü", lambda: self.show_menu(shutdown, update, exit_app),
+            bottom, "Menü", open_menu or
+            (lambda: self.show_menu(shutdown, update, exit_app)),
             font=13, pad_y=9)
         self.controls["menu"].pack(side="left", padx=4)
         self.controls["shutdown"] = self._button(bottom, "Ausschalten", shutdown,
@@ -177,24 +181,6 @@ class HomeScreen:
             pad_y=7)
         self.controls["logout"].pack(side="right", padx=4)
         self.controls["logout"].pack_forget()
-
-    def _modal(self, title):
-        """Keep the menu fully visible and centred on the N1800 display."""
-        dialog = tk.Toplevel(self.root)
-        dialog.title(title)
-        dialog.configure(bg=BASE)
-        screen_w = self.root.winfo_screenwidth()
-        screen_h = self.root.winfo_screenheight()
-        width = min(600, max(320, screen_w - 40))
-        height = min(550, max(320, screen_h - 40))
-        dialog.geometry(
-            f"{width}x{height}+{max(0, (screen_w-width)//2)}+"
-            f"{max(0, (screen_h-height)//2)}")
-        dialog.lift()
-        dialog.grab_set()
-        tk.Label(dialog, text=title, bg=BASE, fg=FG,
-                 font=("DejaVu Sans", 23, "bold")).pack(pady=(24, 12))
-        return dialog
 
     def show_destinations(self):
         """Show scan targets as a full-screen kiosk page."""
@@ -250,24 +236,18 @@ class HomeScreen:
         self.show()
 
     def show_menu(self, shutdown, update, exit_app):
-        """Single device menu with power controls and Close always last."""
-        dialog = self._modal("Menü")
-        actions = (
-            ("Updates", "update", update),
-            ("Neustarten", "shutdown", self.restart),
-            ("Ausschalten", "shutdown", shutdown),
-            ("Beenden", "exit", exit_app),
-        )
-        for title, permission, action in actions:
-            if action is None or (self.allowed is not None and permission not in self.allowed):
-                continue
-            def select(fn=action):
-                dialog.destroy()
-                fn()
-            self._button(dialog, title, select, font=17, pad_y=13).pack(
-                fill="x", padx=28, pady=5)
-        self._button(dialog, "Schließen", dialog.destroy, font=15,
-                     pad_y=13).pack(side="bottom", fill="x", padx=28, pady=12)
+        """Fallback for standalone HomeScreen use; the app passes its shared menu."""
+        from itomiscan.gui.menu import DeviceMenu
+        if self._standalone_menu is None:
+            self._standalone_menu = DeviceMenu(self.root)
+        actions = (("Updates", "update", update),
+                   ("Neustarten", "shutdown", self.restart),
+                   ("Ausschalten", "shutdown", shutdown),
+                   ("Beenden", "exit", exit_app))
+        self._standalone_menu.show([
+            (label, fn) for label, permission, fn in actions
+            if fn is not None and (self.allowed is None or permission in self.allowed)
+        ])
 
     def _selected(self, _event=None):
         self.select_profile(self.selected_var.get())
@@ -305,6 +285,8 @@ class HomeScreen:
         self.frame.lift()
 
     def hide(self):
+        if self._standalone_menu is not None:
+            self._standalone_menu.hide()
         if self.destination_page is not None:
             self.destination_page.destroy()
             self.destination_page = None
