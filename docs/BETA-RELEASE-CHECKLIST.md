@@ -153,3 +153,14 @@ Code auf `develop/1.0.0` ergänzt:
 - [ ] Nahtloser Plymouth/Xorg-Übergang am N1800 prüfen; derzeit nur Design und Hintergrundübergang vorbereitet.
 
 **Keine Installation, kein Release und keine Änderung an main.** Die Checkboxen bezeichnen ausschließlich eingecheckte Codekorrekturen.
+
+
+## Restarbeiten: zweiter Korrekturblock (Dokumentenprüfung)
+
+- [x] Eingelesene Seiten eines zusätzlichen Scanbatches vor der Übernahme einzeln mit Pillow validieren.
+- [x] Bei Kopier- oder Validierungsfehlern neu angelegte Dateien des fehlgeschlagenen Batches entfernen, bestehende Dokumentseiten erhalten.
+- [x] Beim Löschen der letzten Seite auch die Thumbnail-Leiste zurücksetzen.
+- [ ] Fehlerfalltest: unterbrochener ADF-Batch, fehlerhafte Bilddatei, voller Datenträger.
+- [ ] Echte Prüfung von Mehrseiten-ADF, Duplex, Reihenfolge, Seitenersatz und PDF-Ausgabe auf dem N1800.
+
+**Stand:** Quellcodekorrekturen eingecheckt, keine lokale oder N1800-Ausführung bestätigt. Kein Release und keine Installation.
