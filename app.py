@@ -1020,6 +1020,112 @@ class ItomiScan:
         self.status_var.set("Scan fehlgeschlagen")
         show_scanner_error(self.root, msg)
 
+    def rotate_page(self):
+        if self.busy or not self.pages:
+            return
+        path = Path(self.pages[self.page_index])
+        try:
+            with Image.open(path) as source:
+                rotated = source.rotate(-90, expand=True)
+                temp = path.with_name(path.stem + "-rotated" + path.suffix)
+                rotated.save(temp)
+            os.replace(temp, path)
+            self.show_page()
+        except OSError as exc:
+            show_scanner_error(self.root, str(exc))
+
+    def delete_page(self):
+        if self.busy or not self.pages:
+            return
+        if not messagebox.askyesno("Seite löschen", "Diese Seite aus dem Dokument entfernen?",
+                                   parent=self.root):
+            return
+        self.pages.pop(self.page_index)
+        self.page_index = min(self.page_index, max(0, len(self.pages) - 1))
+        if self.pages:
+            self.show_page()
+        else:
+            self.photo = None
+            self.preview.configure(image="", text="Keine Seiten mehr vorhanden")
+            self.page_var.set("Keine Seiten")
+        self.status_var.set(str(len(self.pages)) + " Bildseite(n) verbleiben")
+
+    def move_page(self, direction):
+        if self.busy or not self.pages:
+            return
+        destination = self.page_index + direction
+        if not 0 <= destination < len(self.pages):
+            return
+        self.pages[self.page_index], self.pages[destination] = (
+            self.pages[destination], self.pages[self.page_index])
+        self.page_index = destination
+        self.show_page()
+
+    def finalize_scan(self):
+        if self.busy or not self.review_pending:
+            return
+        if not self.pages:
+            messagebox.showwarning("Keine Seiten", "Bitte zunächst Dokumentseiten scannen.",
+                                   parent=self.root)
+            return
+        self.busy = True
+        self.status_var.set("Dokument wird abgeschlossen …")
+        self.progress.start(10)
+        threading.Thread(target=self._finalize_worker, args=(list(self.pages),),
+                         daemon=True).start()
+
+    def _finalize_worker(self, pages):
+        try:
+            output = self.output_path
+            if output is None:
+                raise RuntimeError("Kein Speicherziel vorhanden.")
+            if output.suffix.lower() == ".pdf":
+                target = output.with_name("Dokument-neu.pdf")
+                converted = shell(["img2pdf", *map(str, pages), "-o", str(target)],
+                                  timeout=180)
+                if converted.returncode:
+                    raise RuntimeError(converted.stderr or "PDF-Erstellung fehlgeschlagen.")
+                os.replace(target, output)
+            else:
+                ordered = output / "_geordnet"
+                ordered.mkdir(exist_ok=True)
+                for number, page in enumerate(pages, 1):
+                    shutil.copy2(page, ordered / f"Seite-{number:04d}{Path(page).suffix}")
+                for previous in output.glob("page-*"):
+                    previous.unlink()
+                for new_page in ordered.iterdir():
+                    os.replace(new_page, output / new_page.name)
+                ordered.rmdir()
+            self.dispatch(self._finalize_complete)
+        except (OSError, RuntimeError, subprocess.TimeoutExpired) as exc:
+            error = str(exc)
+            self.dispatch(lambda: self._finalize_error(error))
+
+    def _finalize_error(self, error):
+        self.busy = False
+        self.progress.stop()
+        self.status_var.set("Dokument konnte nicht abgeschlossen werden")
+        show_scanner_error(self.root, error)
+
+    def _finalize_complete(self):
+        self.busy = False
+        self.progress.stop()
+        self.review_pending = False
+        self.review_button.pack_forget()
+        self.status_var.set("Dokument abgeschlossen · " + str(len(self.pages)) + " Bildseiten")
+        if self.pending_delivery is not None:
+            target_id = self.pending_delivery
+            self.pending_delivery = None
+            self.pending_export_path = None
+            threading.Thread(target=self.queue_export,
+                             args=(self.output_path, target_id), daemon=True).start()
+        if self.pending_print is not None:
+            details = self.pending_print
+            self.pending_print = None
+            threading.Thread(target=self.queue_export,
+                             args=(self.output_path, details["target_id"],
+                                   details["copies"], details["sides"]), daemon=True).start()
+
     def change_page(self, diff):
         if self.pages:
             self.page_index = max(0, min(len(self.pages) - 1, self.page_index + diff))
