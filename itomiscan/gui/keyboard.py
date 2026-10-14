@@ -44,6 +44,13 @@ def ask_touch(root, title, initial="", *, numeric=False, secret=False, max_lengt
         entry.insert(pos, char)
         entry.icursor(pos + len(char))
 
+    # Enforce the same length limit for a connected physical keyboard.
+    def limit_input(*_args):
+        current = value.get()
+        if len(current) > max_length:
+            value.set(current[:max_length])
+    value.trace_add("write", limit_input)
+
     def erase():
         pos = entry.index(tk.INSERT)
         if pos:
@@ -61,7 +68,6 @@ def ask_touch(root, title, initial="", *, numeric=False, secret=False, max_lengt
     compact = width < 900 or height < 620
     footer = tk.Frame(win, bg=BG)
     footer.pack(side="bottom", fill="x", padx=20, pady=(4, 12))
-    board.pack_forget()
     board.pack(fill="both", expand=True, padx=12, pady=(0, 3))
 
     def key(parent, label, command, width=5, color=PANEL):
