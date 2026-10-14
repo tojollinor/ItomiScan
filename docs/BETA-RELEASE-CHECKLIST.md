@@ -367,3 +367,24 @@ sudo bash "$HOME/ItomiScan/restore-boot-splash.sh" /var/lib/itomiscan/boot-backu
 
 Die Wiederherstellung benötigt ein funktionierendes Linux-Terminal bzw. einen alternativen Bootweg. GRUB-Wartezeit null erschwert die Rettung über das Bootmenü. **Vor Schritt 2 daher einen lokalen Wiederherstellungsweg sicherstellen.**
 
+
+
+## Abschließender Anforderungsabgleich (15.10.2026)
+
+**Umfang:** Alle bisher vereinbarten Scan-/Touch-/Bootfunktionen, ausgenommen die ausdrücklich zurückgestellten Druckertreiber und GUI-Updates.
+
+| Anforderung | Code-Status | Offene Gerätearbeit |
+| --- | --- | --- |
+| Große Startseite, Navigation, fixe Fußleisten, Scan-/Review-Modus | Eingecheckt | 1024×768-Anzeige/Touch prüfen |
+| SANE-Expertenoptionen, inklusive treiberspezifischer Flags | Eingecheckt; unbekannte SANE-Optionen werden mit ihrem Parameternamen angezeigt | Verfügbarkeit, Abhängigkeiten und reale Werte prüfen |
+| Experimentierprofil „Test / Alle Optionen“ | Eingecheckt; unterstützt erkannte Fähigkeiten, aktiviert kompatible Bildverbesserungen und bleibt bearbeitbar | SANE-Treiberfunktionen und Qualität testen |
+| Mehrseiten-ADF, weitere Seiten, Duplex, PDF/PNG | Eingecheckt | Reihenfolge, Scanqualität und Speichern prüfen |
+| Dokumentenprüfung: Drehen, Löschen, Sortieren, Nachscan, Leerseiten | Eingecheckt | Realen ADF und große Dokumente prüfen |
+| Touch-QWERTZ, URL-/E-Mail-Zeichen, Selektion/Löschen | Eingecheckt | Fokus, Platzbedarf und Touch testen |
+| Tk-Startbildschirm, Plymouth-Theme, GRUB ohne reguläre Wartezeit | Skripte und Darstellung eingecheckt | Plymouth getrennt per SSH einrichten; Übergang/Bootdauer messen |
+| Fehlermeldungen, Rückweg, Installations-Backups | Eingecheckt | Installation, Recovery und Fehlerfälle am Gerät prüfen |
+| Automatisierte Tests | Workflow und Regressionstests eingecheckt | Aktuellen erfolgreichen CI-Lauf nachweisen |
+
+**Wichtige Einschränkung:** „Alle Optionen“ bedeutet *alle von der SANE-Hilfe erkannten Geräteoptionen sichtbar*, nicht alle inkompatiblen Funktionen gleichzeitig aktiv. Die Erkennung ist an die vom Backend gelieferten Optionsabschnitte und unterstützten Flag-Syntax gebunden. Nicht alle Treiberkombinationen lassen sich ohne Gerätetest vorab garantieren.
+
+**Keine Freigabebehauptung:** Dieser Abgleich ist eine Quellcodekontrolle. Für die jüngsten Commits wurde hier noch kein erfolgreicher GitHub-Actions-Lauf nachgewiesen. Weder Stable-Release noch Hardwarefreigabe oder Installation erfolgten durch diesen Abgleich.
