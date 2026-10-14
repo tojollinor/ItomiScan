@@ -30,6 +30,11 @@ def printers_page(saved_targets, installed, csrf, *, notice="", issue="", discov
                         '<input type="hidden" name="target_id" value="' +
                         e(entry["id"]) + '">' +
                         '<button class="secondary">Als Standarddrucker festlegen</button></form>')
+            content += ('<form method="post" action="/printers/install">' +
+                        token(csrf) +
+                        '<input type="hidden" name="target_id" value="' +
+                        e(entry["id"]) + '">' +
+                        '<button class="secondary">Konfiguration in CUPS aktualisieren</button></form>')
             content += ('<form method="post" action="/printers/test">' +
                         token(csrf) +
                         '<input type="hidden" name="target_id" value="' +
