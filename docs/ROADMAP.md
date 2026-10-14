@@ -23,6 +23,8 @@ Stand: 13.10.2026. Planung mit **8 endlichen Blöcken**. Nach jedem Block stoppe
 
 **Block 5:** Optionale PIN-Benutzerverwaltung mit Benutzer-/Rechteformularen in der Webadministration, PIN-Ziffernfeld auf dem Gerät, persönlicher Profilzuweisung, gesalzen gehashten PINs, Fehlversuchsperre und Abmeldung nach Inaktivität. Funktionsberechtigungen werden unmittelbar vor den Aktionen geprüft. GitHub-Tests laufen, Geräteprüfung ausstehend.
 
-**Blöcke 6–8:** noch nicht umgesetzt. Release 1.0.0 erst nach ausdrücklicher Freigabe.
+**Block 6:** Dokumentenziele Paperless-HTTPS, SMB via smbclient, SMTP/TLS und USB sowie eine dauerhaft gesicherte PDF/SQLite-Warteschlange implementiert. Touch-Zielauswahl, verschlüsselt erreichbare Webverwaltung von Zugangsdaten, Auftragsstatus und manuelle Prüfung unsicherer Zustellungen vorhanden. Optionaler separater Nicht-root-Dienst für automatische Wiederholung, nicht auf N1800 installiert. CI/Offline-Tests bestanden; reale Netzwerk-/USB-Gerätetests offen. Originalscan bleibt lokal erhalten.
+
+**Blöcke 7–8:** noch nicht umgesetzt. Release 1.0.0 erst nach ausdrücklicher Endfreigabe.
 
 **Technische Randbedingungen:** Kein unnötiger RAM-/CPU-Verbrauch; bestehendes `app.py` und aktuelle SANE-Funktion nicht unnötig umbauen. GitHub-Commits sind Implementierungsnachweise, kein Beleg für Hardwaretests.
