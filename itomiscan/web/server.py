@@ -25,7 +25,10 @@ from urllib.parse import parse_qs, urlsplit
 from itomiscan.core.profiles import validate_profile
 from itomiscan.storage.config import ConfigError, ConfigStore
 from itomiscan.storage.users import PERMISSIONS, PinError, UserStore
-from itomiscan.web import pages, user_pages, delivery_pages
+from itomiscan.web import pages, user_pages, delivery_pages, printing_pages
+from itomiscan.integrations.printing import (
+    PrintError, list_queues, install_queue, uninstall_queue, test_page,
+)
 from itomiscan.storage.queue import DeliveryQueue, QueueError
 from itomiscan.storage.secrets import SecretStore, SecretError
 
@@ -251,6 +254,16 @@ class AdminHandler(BaseHTTPRequestHandler):
                 targets = self.server.store.list_targets()
                 flags = {item["id"]: bool(self.server.secrets.get(item["id"])) for item in targets}
                 html = delivery_pages.targets_page(targets, csrf, flags, notice)
+            elif path == "/printers":
+                try:
+                    cups = list_queues()
+                    issue = ""
+                except PrintError as exc:
+                    cups, issue = [], str(exc)
+                targets = [x for x in self.server.store.list_targets()
+                           if x["kind"] == "printer"]
+                html = printing_pages.printers_page(
+                    targets, cups, csrf, notice=notice, issue=issue)
             elif path == "/jobs":
                 html = delivery_pages.jobs_page(self.server.queue.all(),
                                                 self.server.queue.summary(), csrf, notice)
@@ -388,6 +401,25 @@ class AdminHandler(BaseHTTPRequestHandler):
             if path == "/targets/delete":
                 self.server.store.delete_target(int(form.get("id", "")))
                 return self._redirect("/targets?ok=Ziel%20entfernt")
+            if path == "/printers/save":
+                self.server.store.save_target({
+                    "kind": "printer", "name": form.get("name", ""),
+                    "address": form.get("address", "")})
+                return self._redirect("/printers?ok=Druckerziel%20gespeichert")
+            if path in ("/printers/install", "/printers/test", "/printers/uninstall"):
+                target_id = int(form.get("target_id", ""))
+                target = next((x for x in self.server.store.list_targets()
+                               if x["id"] == target_id and x["kind"] == "printer"), None)
+                if not target:
+                    raise ValueError("Der Drucker ist nicht mehr als Ziel registriert.")
+                if path == "/printers/install":
+                    install_queue(target["name"], target["address"])
+                    return self._redirect("/printers?ok=Drucker%20eingerichtet")
+                if path == "/printers/test":
+                    test_page(target["name"])
+                    return self._redirect("/printers?ok=CUPS%20hat%20Testauftrag%20angenommen")
+                uninstall_queue(target["name"])
+                return self._redirect("/printers?ok=CUPS%20Zuordnung%20entfernt")
             if path == "/targets/secrets":
                 target_id = int(form.get("target_id", ""))
                 target = next((t for t in self.server.store.list_targets()
