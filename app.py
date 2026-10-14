@@ -16,6 +16,8 @@ from tkinter import messagebox, simpledialog, ttk
 
 from itomiscan.core.profiles import ProfileError, ProfileStore
 from itomiscan.gui.home import HomeScreen
+from itomiscan.gui.copy import CopyScreen
+from itomiscan.integrations.printing import list_queues, validate_copy_options, PrintError
 from itomiscan.gui.pin import PinScreen
 from itomiscan.gui.screensaver import IdleScreen
 from itomiscan.storage.users import UserStore
@@ -131,6 +133,7 @@ class ItomiScan:
         self.fields = []
         self.pending_delivery = None
         self.pending_export_path = None
+        self.pending_print = None
         self.pages = []
         self.page_index = 0
         self.photo = None
@@ -177,7 +180,10 @@ class ItomiScan:
             self.show_scan, self.quick_scan, self.unavailable,
             self.shutdown, self.check_update, self.exit, self.status_var,
             logout=self.logout, deliver=self.choose_destination,
+            open_copy=self.show_copy,
         )
+        self.copy_screen = CopyScreen(self.root, self.available_printers,
+                                      self.start_copy, self.show_home)
         self.pin_screen = PinScreen(self.root, self.verify_pin)
         self.root.bind_all("<ButtonPress>", self.record_activity, add="+")
         self.root.bind_all("<KeyPress>", self.record_activity, add="+")
@@ -301,7 +307,10 @@ class ItomiScan:
             return
         if self.busy or not self.device:
             return
-        self.start_scan()
+        if self.copy_screen and self.copy_screen.visible:
+            self.copy_screen.start()
+        else:
+            self.start_scan()
         return "break"
 
     def record_activity(self, _event=None):
@@ -340,6 +349,8 @@ class ItomiScan:
         self.session_profile = None
         if self.home:
             self.home.hide()
+        if self.copy_screen:
+            self.copy_screen.hide()
         self.scan_view.place_forget()
         if self.idle_screen:
             self.idle_screen.wake()
