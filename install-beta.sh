@@ -61,6 +61,14 @@ BACKUP="$USER_HOME/ItomiScan-backup-$(date -u +%Y%m%dT%H%M%SZ)"
 cp -a "$PROJECT" "$BACKUP"
 info "Sicherung: $BACKUP"
 cp -a "$WORK/source/." "$PROJECT/"
+# Record installed beta revision for the kiosk update checker.
+ARCHIVE_SHA="$(curl -fsSL --retry 2 --connect-timeout 15 --max-time 30 \
+  -H 'Accept: application/vnd.github+json' \
+  'https://api.github.com/repos/tojollinor/ItomiScan/commits/develop/1.0.0' \
+  | python3 -c 'import json,sys; print(json.load(sys.stdin)["sha"])' || true)"
+if [[ "$ARCHIVE_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+  printf '%s\n' "$ARCHIVE_SHA" > "$PROJECT/.itomiscan-beta-commit"
+fi
 chown -R "$USER_NAME:$(id -gn "$USER_NAME")" "$PROJECT"
 ok "Beta aus Archiv installiert, alte Dateien und Konfiguration gesichert."
 
@@ -75,7 +83,7 @@ if ! grep -q '# ITOMISCAN_KIOSK_START' "$PROFILE" 2>/dev/null; then
 
 # ITOMISCAN_KIOSK_START
 if [ -z "$DISPLAY" ] && [ "$(tty)" = "/dev/tty1" ]; then
-  startx "$HOME/ItomiScan/start-kiosk.sh" -- :0 vt1
+  exec startx "$HOME/ItomiScan/start-kiosk.sh" -- :0 vt1 >/dev/null 2>&1
 fi
 KIOSK
  chown "$USER_NAME:$(id -gn "$USER_NAME")" "$PROFILE"
