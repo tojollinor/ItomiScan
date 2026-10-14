@@ -2,12 +2,14 @@
 import tkinter as tk
 from tkinter import ttk
 
-BASE = "#101927"
+from itomiscan import branding
+
+BASE = branding.BG
 CARD = "#192738"
 CARD_HOVER = "#24405b"
 FG = "#f1f5fb"
 MUTED = "#a8bacd"
-CYAN = "#42bfea"
+CYAN = branding.CYAN
 BLUE = "#397edb"
 
 
@@ -15,16 +17,17 @@ def draw_logo(parent, size=68):
     """Solid two-colour N1800-friendly rendition of the approved scan icon."""
     canvas = tk.Canvas(parent, width=size, height=size,
                        bg=BASE, bd=0, highlightthickness=0)
-    factor = size / 72
-    def scaled(coords):
-        return tuple(round(v * factor) for v in coords)
-    canvas.create_rectangle(*scaled((1, 1, 71, 71)), fill="#073d81",
-                            outline="")
-    canvas.create_polygon(*scaled((23, 15, 44, 15, 52, 23, 52, 58, 23, 58)),
+    factor = size / branding.LOGO_UNITS
+    scaled = lambda coords: branding.scaled(coords, size)
+    canvas.create_rectangle(*scaled((1, 1, 71, 71)),
+                            fill=branding.BLUE, outline="")
+    canvas.create_polygon(*scaled(branding.DOCUMENT),
                           fill="white", outline="")
-    canvas.create_rectangle(*scaled((15, 36, 57, 40)), fill=CYAN, outline="", tags="scanline")
-    for x, y, dx, dy in ((13, 13, 8, 8), (59, 13, -8, 8),
-                         (13, 59, 8, -8), (59, 59, -8, -8)):
+    canvas.create_rectangle(
+        *scaled((branding.LINE_LEFT, branding.LINE_START,
+                 branding.LINE_RIGHT, branding.LINE_START + branding.LINE_HEIGHT)),
+        fill=CYAN, outline="", tags="scanline")
+    for x, y, dx, dy in branding.CORNERS:
         canvas.create_line(*scaled((x, y + dy, x, y, x + dx, y)),
                            fill=CYAN, width=max(3, round(4 * factor)))
     return canvas
@@ -47,8 +50,8 @@ def set_logo_busy(canvas, busy):
             canvas.coords("scanline", *canvas._itomi_original)
         return
     canvas._itomi_original = original
-    factor = float(canvas.cget("width")) / 72
-    position = [36.0]
+    factor = float(canvas.cget("width")) / branding.LOGO_UNITS
+    position = [float(branding.LINE_START)]
     direction = [1.0]
 
     def frame():
@@ -57,12 +60,13 @@ def set_logo_busy(canvas, busy):
                 canvas._itomi_generation != generation):
             return
         position[0] += direction[0] * 2.5
-        if position[0] >= 52:
-            position[0], direction[0] = 52, -1
-        elif position[0] <= 20:
-            position[0], direction[0] = 20, 1
-        canvas.coords("scanline", 15 * factor, position[0] * factor,
-                      57 * factor, (position[0] + 4) * factor)
+        if position[0] >= branding.LINE_MAX:
+            position[0], direction[0] = branding.LINE_MAX, -1
+        elif position[0] <= branding.LINE_MIN:
+            position[0], direction[0] = branding.LINE_MIN, 1
+        canvas.coords("scanline", branding.LINE_LEFT * factor,
+                      position[0] * factor, branding.LINE_RIGHT * factor,
+                      (position[0] + branding.LINE_HEIGHT) * factor)
         canvas.after(90, frame)
 
     frame()
