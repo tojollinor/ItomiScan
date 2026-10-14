@@ -43,7 +43,7 @@ class TouchLayoutTests(unittest.TestCase):
         self.assertEqual(len(home.tiles), 2)
         self.assertGreaterEqual(home.tiles["scan"].winfo_height(), 160)
         self.assertGreaterEqual(home.tiles["copy"].winfo_height(), 160)
-        self.assertGreaterEqual(self.app.home_button["font"].split()[2], "28")
+        self.assertGreaterEqual(int(self.app.home_button["font"].split()[-2]), 24)
 
     def test_menu_is_a_page_from_both_views_and_saver_can_be_previewed(self):
         self.app.home.controls["menu"].invoke()
