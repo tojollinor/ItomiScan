@@ -55,3 +55,7 @@ Der Zustell-Worker aus Block 6 (`itomiscan-delivery.service`) muss zur automatis
 GitHub Actions prüft Python- und Shell-Syntax, die CUPS-Kommandos mit Mocks, ungültige Queue-/IPP-Daten, Kopienzahl und Duplex, Verhalten bei nicht installierten Queues, Zustellunterbrechung/Neustart (Status `review`), SQLite-Migration, PIN-Rechte einschließlich Copy-only-Konto, Fronttastenrouting sowie CSRF-geschützte Druckerverwaltung im Browser.
 
 Ein echter IPP-Drucker und das Fujitsu-N1800-Touchdisplay sind noch nicht praktisch getestet. Block 8/8 umfasst Integrationstests, RAM- und Fehlerverhalten, Spool- und Konfigurationsbackup samt Rollback, aktualisierten Installer und 1.0.0-Release **nur nach ausdrücklicher Endfreigabe**.
+
+## Block 8: Übergabe und Abnahme
+
+Auch CUPS-Aufträge befinden sich in der vollständigen Sicherung. Ein als `done` markierter Job bedeutet nur CUPS-Annahme. Bei unklarem Status `review` muss vor einer erneuten Ausgabe überprüft werden, ob schon gedruckt wurde. Netzwerkeinrichtung, echter Ausdruck und Duplex-Reihenfolge müssen am Gerät geprüft werden. Release-Gates: `docs/RELEASE-READINESS-1.0.0.md`.
