@@ -22,7 +22,7 @@ jobs:
       - name: Python syntax
         run: /usr/bin/python3 -m compileall -q app.py itomiscan tests
       - name: Shell syntax
-        run: bash -n install.sh setup-shutdown.sh setup-boot-splash.sh setup-web.sh setup-delivery.sh setup-printing.sh
+        run: bash -n install.sh setup-shutdown.sh setup-boot-splash.sh setup-web.sh setup-delivery.sh setup-printing.sh release-check.sh
       - name: Offline configuration, startup and package tests
         run: |
           /usr/bin/python3 -m unittest discover -s tests -p test_profiles.py -v
