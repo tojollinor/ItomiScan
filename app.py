@@ -1339,43 +1339,80 @@ class ItomiScan:
             self.status_var.set("Vorschaufehler: " + str(exc))
 
     def check_update(self):
+        """Display update preferences; installation stays SSH-only for now."""
         if self.busy or not self._allowed("update"):
             return
-        self.status_var.set("GitHub wird geprüft …")
-        threading.Thread(target=self.update_worker, args=(False,), daemon=True).start()
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Updates")
+        dialog.configure(bg=BASE)
+        dialog.transient(self.root)
+        self._center_dialog(dialog, 620, 410)
+        dialog.grab_set()
+        tk.Label(dialog, text="ItomiScan Updates", bg=BASE, fg=FG,
+                 font=("DejaVu Sans", 22, "bold")).pack(pady=(22, 10))
+        installed = Path(__file__).resolve().parent / ".itomiscan-beta-commit"
+        revision = installed.read_text().strip()[:10] if installed.exists() else "unbekannt"
+        tk.Label(dialog, text="Installierter Stand: " + revision, bg=BASE, fg=MUTED,
+                 font=("DejaVu Sans", 12)).pack(pady=4)
+        include_beta = tk.BooleanVar(value=True)
+        tk.Checkbutton(dialog, text="Beta-Releases einschließen",
+                       variable=include_beta, bg=BASE, fg=FG,
+                       selectcolor=PANEL, activebackground=BASE,
+                       activeforeground=FG, font=("DejaVu Sans", 13),
+                       padx=12, pady=12).pack(pady=8)
+        result = tk.StringVar(value="Noch nicht geprüft.")
+        tk.Label(dialog, textvariable=result, bg=BASE, fg=MUTED,
+                 wraplength=530, justify="center",
+                 font=("DejaVu Sans", 11)).pack(pady=8)
+        def start_check():
+            result.set("Suche nach Updates …")
+            self.update_worker(include_beta.get(), result)
+        self._btn(dialog, "Auf Updates prüfen", start_check, BLUE).pack(
+            fill="x", padx=35, pady=7)
+        self._btn(dialog, "Schließen", dialog.destroy).pack(
+            side="bottom", fill="x", padx=35, pady=12)
 
-    def update_worker(self, apply):
-        """Check the beta archive revision without requiring a Git checkout."""
-        import json
-        import urllib.request
-        try:
-            endpoint = ("https://api.github.com/repos/tojollinor/ItomiScan/"
-                        "commits/develop/1.0.0")
-            request = urllib.request.Request(
-                endpoint, headers={"User-Agent": "ItomiScan-Beta-Updater",
-                                   "Accept": "application/vnd.github+json"})
-            with urllib.request.urlopen(request, timeout=20) as response:
-                remote = json.load(response)["sha"]
-            installed = Path(__file__).resolve().parent / ".itomiscan-beta-commit"
-            local = installed.read_text().strip() if installed.exists() else ""
-            if local == remote:
-                self.dispatch(lambda: self.status_var.set("ItomiScan Beta ist aktuell"))
-            else:
-                def show_update():
-                    self.status_var.set("Neue Beta-Version verfügbar")
-                    messagebox.showinfo(
-                        "Beta-Update verfügbar",
-                        "Eine neue Beta-Version ist auf GitHub verfügbar. "
-                        "Zur sicheren Installation bitte den curl-Beta-Installer "
-                        "über SSH als root ausführen. "
-                        "Ein automatisches Systemupdate direkt aus dem Kiosk "
-                        "ist noch nicht freigegeben.",
-                        parent=self.root)
-                self.dispatch(show_update)
-        except (OSError, ValueError, KeyError) as exc:
-            message = str(exc)
-            self.dispatch(lambda: messagebox.showerror(
-                "Update-Prüfung", message, parent=self.root))
+    def update_worker(self, include_beta, result_var=None):
+        """Read GitHub revision only; do not execute privileged installers in Tk."""
+        def publish(message):
+            def apply():
+                if result_var is not None:
+                    try:
+                        result_var.set(message)
+                    except tk.TclError:
+                        pass
+                self.status_var.set(message)
+            self.dispatch(apply)
+
+        def worker():
+            import json
+            import urllib.request
+            try:
+                if include_beta:
+                    endpoint = ("https://api.github.com/repos/tojollinor/ItomiScan/"
+                                "commits/develop/1.0.0")
+                    request = urllib.request.Request(
+                        endpoint, headers={"User-Agent": "ItomiScan-Beta-Updater",
+                                           "Accept": "application/vnd.github+json"})
+                    with urllib.request.urlopen(request, timeout=20) as response:
+                        remote = json.load(response)["sha"]
+                    installed = Path(__file__).resolve().parent / ".itomiscan-beta-commit"
+                    local = installed.read_text().strip() if installed.exists() else ""
+                    publish("Beta ist aktuell." if local == remote else
+                            "Neue Beta verfügbar. Installation vorerst über SSH/curl.")
+                else:
+                    endpoint = ("https://api.github.com/repos/tojollinor/ItomiScan/"
+                                "releases/latest")
+                    request = urllib.request.Request(
+                        endpoint, headers={"User-Agent": "ItomiScan-Updater",
+                                           "Accept": "application/vnd.github+json"})
+                    with urllib.request.urlopen(request, timeout=20) as response:
+                        release = json.load(response)
+                    publish("Stabile Version verfügbar: " + release.get("tag_name", "?") +
+                            ". Installation vorerst über SSH/curl.")
+            except Exception as exc:
+                publish("Updateprüfung fehlgeschlagen: " + str(exc))
+        threading.Thread(target=worker, daemon=True).start()
 
     def shutdown(self):
         if not self._allowed("shutdown"):
