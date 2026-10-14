@@ -73,7 +73,7 @@ class HomeScreen:
 
     def __init__(self, root, profiles, select_profile, open_scan, quick_scan,
                  unavailable, shutdown, update, exit_app, status, logout=None,
-                 deliver=None, open_copy=None):
+                 deliver=None, open_copy=None, destination_status=None):
         self.root = root
         self.profiles = profiles
         self.select_profile = select_profile
@@ -81,6 +81,7 @@ class HomeScreen:
         self.quick_scan = quick_scan
         self.unavailable = unavailable
         self.deliver = deliver or (lambda _kind: None)
+        self.destination_status = destination_status or (lambda _kind: "Konfiguration prüfen")
         self.open_copy = open_copy or (lambda: self.unavailable('copy', 'Kopieren', 7))
         self.logout = logout
         self.allowed = None
@@ -207,9 +208,15 @@ class HomeScreen:
                 page.destroy()
                 self.destination_page = None
                 fn()
-            self._button(grid, title, select, bg=BLUE if kind == "scan" else CARD,
-                         font=17, pad_y=13).grid(row=index // 2,
-                         column=index % 2, sticky="nsew", padx=7, pady=7)
+            card = tk.Frame(grid, bg=CARD)
+            card.grid(row=index // 2, column=index % 2, sticky="nsew",
+                      padx=7, pady=7)
+            self._button(card, title, select, bg=BLUE if kind == "scan" else CARD,
+                         font=17, pad_y=13).pack(fill="both", expand=True, padx=4)
+            state = ("Lokal verfügbar" if kind == "scan"
+                     else self.destination_status(kind))
+            tk.Label(card, text=state, bg=CARD, fg=MUTED,
+                     font=("DejaVu Sans", 11)).pack(pady=(0, 10))
         self._button(page, "← Zurück", self.close_destinations,
                      font=13).pack(anchor="w", padx=35, pady=16)
 
