@@ -59,9 +59,6 @@ class QueueTests(unittest.TestCase):
         state = next(x["status"] for x in self.queue.all() if x["id"] == second)
         self.assertEqual(state, "review")
 
-    def fail(self, message):
-        self.fail(message)
-
     def test_file_is_spooled_and_retained_after_success(self):
         ident = self.create()
         source_hash = hashlib.sha256(self.pdf.read_bytes()).hexdigest()
