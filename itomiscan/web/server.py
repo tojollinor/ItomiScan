@@ -435,7 +435,15 @@ class AdminHandler(BaseHTTPRequestHandler):
                     "address": form.get("address", "")})
                 return self._redirect("/targets?ok=Ziel%20gespeichert")
             if path == "/targets/delete":
-                self.server.store.delete_target(int(form.get("id", "")))
+                target_id = int(form.get("id", ""))
+                target = next((t for t in self.server.store.list_targets()
+                               if t["id"] == target_id), None)
+                if not target:
+                    raise ValueError("Ziel existiert nicht.")
+                if target["kind"] == "printer" and target["name"] in list_queues():
+                    raise ValueError("Drucker zuerst aus CUPS entfernen, "
+                                     "danach gespeichertes Ziel löschen.")
+                self.server.store.delete_target(target_id)
                 return self._redirect("/targets?ok=Ziel%20entfernt")
             if path == "/printers/save":
                 name = form.get("name", "")
