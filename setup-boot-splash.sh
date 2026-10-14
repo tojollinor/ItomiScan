@@ -19,11 +19,6 @@ fi
 export DEBIAN_FRONTEND=noninteractive
 apt-get update
 apt-get install -y --no-install-recommends plymouth plymouth-themes python3-pil fonts-dejavu-core
-if ! plymouth-set-default-theme --list | grep -Eq '^[[:space:]]*spinner[[:space:]]*$'; then
-  echo "Plymouth-Spinner-Theme fehlt. Boot-Konfiguration unverändert." >&2
-  exit 3
-fi
-
 backup_dir="/var/lib/itomiscan/boot-backups/$(date -u +%Y%m%dT%H%M%SZ)"
 install -d -m 0700 "$backup_dir"
 cp -a /etc/default/grub "$backup_dir/grub.original"
@@ -55,10 +50,16 @@ import sys
 im = Image.new("RGBA", (520, 160), (0, 0, 0, 0))
 draw = ImageDraw.Draw(im)
 font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 62)
-text = "ItomiScan"
-bbox = draw.textbbox((0, 0), text, font=font)
-draw.text(((520 - (bbox[2] - bbox[0])) / 2, 32), text, font=font, fill=(241, 245, 251, 255))
+left, right = "Itomi", "Scan"
+w1 = draw.textbbox((0, 0), left, font=font)[2]
+w2 = draw.textbbox((0, 0), right, font=font)[2]
+x = (520 - w1 - w2) / 2
+draw.text((x, 32), left, font=font, fill=(241, 245, 251, 255))
+draw.text((x + w1, 32), right, font=font, fill=(66, 191, 234, 255))
 im.save(sys.argv[1])
+ring = Image.new("RGBA", (84, 84), (0, 0, 0, 0))
+ImageDraw.Draw(ring).arc((10, 10, 74, 74), 15, 315, fill=(66, 191, 234, 255), width=9)
+ring.save(str(sys.argv[1]).replace("itomiscan.png", "ring.png"))
 PYIMAGE
 cat > "$theme_dir/itomiscan.plymouth" <<'THEME'
 [Plymouth Theme]
@@ -77,6 +78,10 @@ logo = Image("itomiscan.png");
 sprite = Sprite(logo);
 sprite.SetX((Window.GetWidth() - logo.GetWidth()) / 2);
 sprite.SetY((Window.GetHeight() - logo.GetHeight()) / 2);
+ring = Image("ring.png");
+ring_sprite = Sprite(ring);
+ring_sprite.SetX((Window.GetWidth() - ring.GetWidth()) / 2);
+ring_sprite.SetY((Window.GetHeight() - ring.GetHeight()) / 2 + 125);
 SCRIPT
 plymouth-set-default-theme itomiscan
 update-initramfs -u
