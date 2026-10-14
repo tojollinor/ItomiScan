@@ -35,6 +35,8 @@ jobs:
           /usr/bin/python3 -m unittest discover -s tests -p test_startup.py -v
           /usr/bin/python3 -m unittest discover -s tests -p test_scaffold.py -v
       - name: Touchscreen smoke tests in isolated X process
-        run: xvfb-run -a /usr/bin/python3 -m unittest discover -s tests -p test_gui_smoke.py -v
+        run: |
+          xvfb-run -a /usr/bin/python3 -m unittest discover -s tests -p test_touch_ui.py -v
+          xvfb-run -a /usr/bin/python3 -m unittest discover -s tests -p test_gui_smoke.py -v
       - name: Web administration security tests in separate process
         run: /usr/bin/python3 -m unittest discover -s tests -p test_web.py -v
