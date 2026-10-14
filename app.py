@@ -1146,6 +1146,11 @@ class ItomiScan:
         if self.pages != snapshot:
             return
         remove = set(candidates)
+        if len(remove) == len(self.pages):
+            messagebox.showwarning("Alle Seiten leer",
+                                   "Es würden alle Dokumentseiten entfernt. Bitte Seiten einzeln prüfen.",
+                                   parent=self.root)
+            return
         self.pages = [page for index, page in enumerate(self.pages) if index not in remove]
         self.page_index = min(self.page_index, max(0, len(self.pages) - 1))
         if self.pages:
