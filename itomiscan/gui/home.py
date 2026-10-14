@@ -125,7 +125,7 @@ class HomeScreen:
 
         # Compact primary actions; leave breathing room on the 1024x768 panel.
         tiles = tk.Frame(self.frame, bg=BASE)
-        tiles.pack(fill="x", padx=85, pady=(28, 20))
+        tiles.pack(fill="x", padx=100, pady=(22, 16))
         for i in range(2):
             tiles.grid_columnconfigure(i, weight=1, uniform="actions")
         actions = (
@@ -136,8 +136,8 @@ class HomeScreen:
             card = tk.Frame(tiles, bg=CARD, bd=0)
             card.grid(row=0, column=index, padx=8, pady=8, sticky="ew")
             self.tiles[permission] = card
-            self._button(card, title, command, bg=CARD, font=21,
-                         pad_y=16).pack(fill="x", padx=10, pady=(10, 0))
+            self._button(card, title, command, bg=CARD, font=19,
+                         pad_y=12).pack(fill="x", padx=10, pady=(8, 0))
             tk.Label(card, text=subtitle, bg=CARD, fg=MUTED,
                      font=("DejaVu Sans", 11)).pack(pady=(0, 12))
 
