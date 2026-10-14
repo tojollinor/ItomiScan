@@ -241,3 +241,16 @@ Nächste Blöcke: 2/6 Splashscreen/Tastatur, 3/6 Scanablauf, 4/6 Dokumentenüber
 - [ ] Automatisierte GUI-Integrationstests und GitHub Actions-Ergebnis prüfen; die obigen Änderungen sind bislang Codeänderungen ohne Geräteabnahme.
 
 **Keine Installation, kein Release.** Nächster Block 4/6: Dokumentenübersicht und Seitenbearbeitung.
+
+
+## Neuer sechsfacher Arbeitsplan: Block 4/6 Dokumentenübersicht
+
+- [x] Bereits vorhandene Schnellaktionen im Code geprüft: Seitennavigation, drehen, löschen, verschieben, erneut scannen, Leerseiten prüfen, weitere Seiten scannen, Dokument übernehmen.
+- [x] Bestätigte Leerseiten werden auch aus dem temporären Dokumentordner entfernt; Fehler beim Dateilöschen werden gemeldet.
+- [x] Nach Löschen der letzten Seite kann der Benutzer weitere Seiten in dasselbe noch offene Dokument scannen.
+- [x] Drehen validiert die neue Bilddatei vor dem Ersetzen und bereinigt die temporäre Drehdatei bei Fehlern.
+- [ ] Echte Touch-Abnahme auf 1024×768: Übersicht, alle Schnellaktionen, Seitenreihenfolge und Seitenauswahl.
+- [ ] Nachträgliches Ersetzen einer Seite, Leerseitenerkennung mit hellen Originalen und PDF-Reihenfolge praktisch prüfen.
+- [ ] Automatisierte Regressionstests laufen lassen und Ergebnisse protokollieren.
+
+**Keine Installation, kein Release.** Nächster Block 5/6: Updates und Systemstart.
