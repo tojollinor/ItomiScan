@@ -268,3 +268,17 @@ Nächste Blöcke: 2/6 Splashscreen/Tastatur, 3/6 Scanablauf, 4/6 Dokumentenüber
 - [ ] Installer- und Syntaxprüfungen tatsächlich ausführen und dokumentieren.
 
 **Keine Installation, kein Release.** Nächster Block 6/6: Regressionstests und Releasevorbereitung. Die GUI-Updateinstallation bleibt als offener Freigabeblocker dokumentiert.
+
+
+## Neuer sechsfacher Arbeitsplan: Block 6/6 Regression und Freigabe (14.10.2026)
+
+- [x] Neue headless Regressionstests in `tests/test_review_workflow.py` eingecheckt: erneuter Batch nach letzter Löschung, ursprüngliche Scaneinstellungen, fehlgeschlagener Zusatzscan, bestätigte/abgelehnte Leerseitenbereinigung.
+- [x] Vorhandenen GitHub-Actions-Workflow geprüft: `compileall`, Shell-Syntaxcheck und `unittest discover` sind konfiguriert.
+- [x] Commitstatus und zugehörige Workflow-Läufe für `e28f313f2b27c67be337e796d79af090e2e54013` abgefragt; keine Statuschecks und keine zugeordneten Läufe zurückgegeben. **Nicht als erfolgreich getestet werten.**
+- [ ] GitHub-Actions-Lauf tatsächlich erfolgreich abschließen und Protokolle prüfen.
+- [ ] Sicheres GUI-Update mit eingeschränktem privilegiertem Helfer, Integritätsprüfung und getestetem Rollback fertigstellen; gegenwärtig nur Updateprüfung.
+- [ ] Hardwareabnahme N1800: Touch, Splash, Scan/ADF/Duplex, Dokumentenübersicht, PDF, Zustellung, Neustart/Ausschalten.
+- [ ] Installations- und Boot-Rollback mit realem Gerät prüfen, bevor GRUB_TIMEOUT=0 aktiviert wird.
+- [ ] Nach Gerätetest und Freigabe: Beta-Release erstellen. `main` bleibt bis dahin unangetastet.
+
+**Entwicklungsblöcke 1 bis 6 dokumentiert; Release weiterhin gesperrt.** Kein Installer wurde ausgeführt, kein Bootparameter geändert und kein Release erstellt.
