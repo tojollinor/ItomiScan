@@ -1446,7 +1446,22 @@ class ItomiScan:
                                    "Es würden alle Dokumentseiten entfernt. Bitte Seiten einzeln prüfen.",
                                    parent=self.root)
             return
-        self.pages = [page for index, page in enumerate(self.pages) if index not in remove]
+        removed_pages = [Path(page) for index, page in enumerate(self.pages)
+                         if index in remove]
+        self.pages = [page for index, page in enumerate(self.pages)
+                      if index not in remove]
+        # Remove only staged image files belonging to this document. Do not
+        # leave rejected pages behind in the working directory.
+        document_dir = (self.output_path.parent
+                        if self.output_path.suffix.lower() == ".pdf"
+                        else self.output_path)
+        cleanup_errors = 0
+        for page in removed_pages:
+            if page.parent == document_dir and page.is_file():
+                try:
+                    page.unlink()
+                except OSError:
+                    cleanup_errors += 1
         self.page_index = min(self.page_index, max(0, len(self.pages) - 1))
         if self.pages:
             self.show_page()
@@ -1455,7 +1470,10 @@ class ItomiScan:
             self.preview.configure(image="", text="Keine Seiten mehr vorhanden")
             self.render_thumbnails()
             self.page_var.set("Keine Seiten")
-        self.status_var.set(str(len(candidates)) + " Leerseite(n) entfernt")
+        self.status_var.set(
+            str(len(candidates)) + " Leerseite(n) entfernt"
+            + (f" · {cleanup_errors} Datei(en) konnten nicht gelöscht werden"
+               if cleanup_errors else ""))
 
     def rotate_page(self):
         if self.busy or not self.pages:
