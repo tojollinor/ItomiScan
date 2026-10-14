@@ -1,6 +1,6 @@
 # ItomiScan 1.0.0: Architekturvertrag
 
-**Status 14.10.2026:** Blöcke 1–5 auf `develop/1.0.0` implementiert. Block 5: optionale PIN-Verwaltung und persönliche Berechtigungen. Automatisierte Datenbank-/GUI-/HTTP-Tests; reale N1800-/LAN-Abnahme noch offen. Zielintegrationen folgen in Blöcken 6–7.
+**Status 14.10.2026:** Blöcke 1–6 auf `develop/1.0.0` implementiert. Block 6 ergänzt dauerhafte PDF-Aufträge und Paperless-/SMB-/SMTP-/USB-Ziele. Automatisierte Tests bestanden; N1800-/LAN-Abnahme noch ausstehend. CUPS folgt Block 7.
 
 ## Plattform und vorhandener Code
 
@@ -12,10 +12,10 @@
 ## Zielmodule (zunächst nur Paketstruktur)
 
 - `itomiscan/core/`: Geräteerkennung, Scanjobs, Zustandsmaschine, zuverlässige Scan-/Exportlogik; später zentrale Dienstschnittstelle.
-- `itomiscan/gui/`: Touchoberfläche und Splash sowie PIN-Tastatur mit Benutzerwechsel und zeitgesteuerter Sperre vorhanden. Auftragsansicht und Zielintegrationen folgen.
+- `itomiscan/gui/`: Touchoberfläche, Splash, PIN-Gate sowie Zielauswahl für Paperless/SMB und E-Mail/USB; Zustellaufträge werden im Web verwaltet.
 - `itomiscan/web/`: kleiner unabhängiger, ausdrücklich aktivierbarer HTTPS-Webdienst mit Anmeldung, Profilen, Zieladressen, Status und Sicherung; kein Browser auf dem Gerät.
 - `itomiscan/storage/`: SQLite für Profile, Einstellungen, Zieladressen, Administratorhash und PIN-Benutzer samt Berechtigungen vorhanden. Auftragsspeicher und Warteschlange folgen.
-- `itomiscan/integrations/`: Paperless-API, CUPS, SMB/Netzwerkziele, E-Mail und USB-Ziele.
+- `itomiscan/integrations/`: Paperless-HTTPS, SMB per smbclient, SMTP/TLS und USB-Ablage implementiert, dazu separater Nicht-root-Zustellworker. CUPS folgt Block 7.
 
 Kein Paket startet beim Import automatisch Hardware, Netzwerkserver oder Hintergrundthreads. Komponenten werden erst in späteren Blöcken schrittweise an den bestehenden Einstiegspunkt angeschlossen. Nicht alle Dienste müssen permanent laufen.
 
@@ -24,7 +24,7 @@ Kein Paket startet beim Import automatisch Hardware, Netzwerkserver oder Hinterg
 - Lokale GUI bleibt ohne Root-Rechte. Privilegierte Aktionen über gezielte und geprüfte Rechte, niemals generelle sudo-Freigabe.
 - GUI, Scandienst und Webadministration logisch trennen; ein Scanjob wird zentral verwaltet, nicht durch parallele unabhängige Scanaufrufe.
 - Gemeinsame SQLite-Konfiguration unter `~/.config/itomiscan/itomiscan.db` (Datei 0600, Elternverzeichnis 0700). Bestehende `profiles.json` wird beim ersten Start übernommen und bleibt unverändert erhalten.
-- Dateien für noch nicht zugestellte Aufträge bleiben lokal erhalten, bis das Ziel den Eingang bestätigt. Wiederholung muss doppelte Übertragungen möglichst vermeiden.
+- Aufträge werden als unveränderte Originalscans unter ~/Scans und als SHA-256-verifizierte PDF-Kopie unter ~/.config/itomiscan/spool/ gehalten. SQLite speichert Versuche/Zustellstatus; eindeutig fehlgeschlagene Zustellungen können erneut versucht werden, bei unklarer Paperless-/E-Mail-/SMB-Übertragung muss manuell geprüft werden. Paperless bestätigt zunächst nur die Annahme zur Verarbeitung, nicht die fertige Archivierung.
 - Der Webdienst bindet standardmäßig nur an 127.0.0.1, im LAN nur nach passwortgeschützter Erstkonfiguration über SSH und mit HTTPS-Zertifikat. Anmeldung ausschließlich per Passwort ohne Benutzername. PBKDF2, Sitzungsablauf, HttpOnly-/SameSite-Cookies, CSRF, Rate-Limits und Host-/Origin-Kontrolle implementiert.
 - Optionale PIN-Anmeldung seit Block 5: Ausgeschaltet = Startseite sofort; eingeschaltet = PIN-Ziffernfeld mit individueller Rechte- und Profilzuweisung. Eindeutige 4–6-stellige PINs werden gesalzen gehasht gespeichert, fünf Fehlversuche verursachen drei Minuten globale PIN-Sperre; automatische Abmeldung nach 1–60 Minuten. Berechtigungen werden bei jeder sensiblen Aktion gegen die SQLite-Datenbank geprüft und persönliche Profile vor dem Scan erneut angewendet. Details unter `docs/USERS.md`.
 - Sicherung ohne Admin-Hash, Sitzungen und Ziel-Zugangsdaten. In Block 4 werden nur Zieladressen gespeichert, noch keine API-/SMB-/SMTP-Passwörter. Webdienst ohne Root-Rechte. Details `docs/WEB-ADMIN.md`.
@@ -39,7 +39,7 @@ Kein Paket startet beim Import automatisch Hardware, Netzwerkserver oder Hinterg
 
 ## Oberflächen- und Zielprinzipien
 
-- Vier große Hauptaktionen auf der neuen Startseite: Scannen (funktionsfähig) sowie Paperless, Kopieren, Netzwerkordner (**noch nicht verfügbar**, Platzhalter mit verständlicher Meldung). Weitere Funktionen folgen blockweise.
+- Vier große Hauptaktionen: lokales Scannen, Paperless und Netzwerkordner mit PDF-Auftragsanlage, sowie Kopieren (noch Platzhalter bis Block 7). E-Mail/USB über weitere Touch-Zielauswahl. Die Zustellung erfordert einen gesondert gestarteten Worker; kein automatischer Dienst auf bestehendem Gerät.
 - Vereinfachtes, kontrastreiches Scan-Symbol als flache Canvas-Zeichnung im GUI und Splash, an das vereinbarte minimalistische Logo angelehnt; ohne hochauflösende Bildressourcen für das ältere Display.
 - Lokales Scannen öffnet die beibehaltene SANE-Detailmaske mit bestehender PDF-/PNG-Vorschau und Navigation. Bereits bisher gespeicherte Scans bleiben gespeichert; nachträgliches Editieren und eine zielbezogene Freigabe-/Sendevorschau folgen später.
 - Erweiterte Netz- und Integrationskonfiguration im Web; alltägliche Optionen am Scanner.
