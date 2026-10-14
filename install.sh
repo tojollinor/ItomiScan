@@ -34,8 +34,18 @@ if [[ ! -d "$PROJECT/.git" ]]; then
   runuser -u "$USER_NAME" -- git clone \
     https://github.com/tojollinor/ItomiScan.git "$PROJECT"
 fi
-# Prevent kiosk autostart from being enabled with syntactically invalid code.
-/usr/bin/python3 -m py_compile "$PROJECT/app.py"
+# Prevent kiosk autostart with broken modules.
+# Existing checkouts must already be stable main; beta deployment is opt-in.
+CURRENT_BRANCH="$(runuser -u "$USER_NAME" -- git -C "$PROJECT" branch --show-current)"
+if [[ "$CURRENT_BRANCH" != "main" ]]; then
+  echo "Abbruch: vorhandene Installation ist nicht main; manuelle Entwicklungs-/Rollback-Installation erforderlich." >&2
+  exit 4
+fi
+if [[ -n "$(runuser -u "$USER_NAME" -- git -C "$PROJECT" status --porcelain)" ]]; then
+  echo "Abbruch: lokale Änderungen vorhanden. Vor Installation sichern." >&2
+  exit 4
+fi
+/usr/bin/python3 -m compileall -q "$PROJECT/app.py" "$PROJECT/itomiscan"
 # Grant the GUI only the single root command needed by "Ausschalten".
 bash "$PROJECT/setup-shutdown.sh" "$USER_NAME"
 chmod +x "$PROJECT/start-kiosk.sh"
