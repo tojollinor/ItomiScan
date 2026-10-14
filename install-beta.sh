@@ -67,8 +67,8 @@ ok "Beta aus Archiv installiert, alte Dateien und Konfiguration gesichert."
 step "Kiosk und Scannerrechte"
 bash "$PROJECT/setup-shutdown.sh" "$USER_NAME"
 chmod +x "$PROJECT/start-kiosk.sh"
-runuser -u "$USER_NAME" -- git -C "$PROJECT" config core.filemode false
-getent group scanner >/dev/null && usermod -aG scanner "$USER_NAME"
+if [[ -d "$PROJECT/.git" ]]; then runuser -u "$USER_NAME" -- git -C "$PROJECT" config core.filemode false; fi
+if getent group scanner >/dev/null; then usermod -aG scanner "$USER_NAME"; fi
 PROFILE="$USER_HOME/.profile"; [[ -f "$USER_HOME/.bash_profile" ]] && PROFILE="$USER_HOME/.bash_profile"
 if ! grep -q '# ITOMISCAN_KIOSK_START' "$PROFILE" 2>/dev/null; then
  cat >>"$PROFILE" <<'KIOSK'
@@ -112,7 +112,7 @@ check "CUPS ist aktiv" systemctl is-active --quiet cups.service
 check "Webdienst ist aktiv" systemctl is-active --quiet itomiscan-web.service
 check "Zustelldienst ist aktiv" systemctl is-active --quiet itomiscan-delivery.service
 check "HTTPS-Port 8443 lauscht" bash -c 'exec 3<>/dev/tcp/'"$LAN_IP"'/8443'
-if scanimage -L 2>&1 | grep -qi 'device'; then ok "SANE erkennt mindestens einen Scanner."; else echo "[WARNUNG] SANE erkennt aktuell keinen Scanner. Hardware/USB pruefen."; fi
+if timeout 35s runuser -u "$USER_NAME" -- scanimage -L 2>&1 | grep -qi 'device'; then ok "SANE erkennt mindestens einen Scanner."; else echo "[WARNUNG] SANE erkennt aktuell keinen Scanner. Hardware/USB pruefen."; fi
 [[ $FAILURES -eq 0 ]] || fail "$FAILURES kritische Funktionstest(s) fehlgeschlagen. Details: $LOG"
 
 echo
@@ -122,6 +122,6 @@ echo "[OK] Benutzer: $USER_NAME"
 echo "[OK] Branch: develop/1.0.0"
 echo "[OK] Webadmin: https://$LAN_IP:8443"
 echo "[OK] Log: $LOG"
-echo "[INFO] Plymouth wird aus Sicherheitsgründen nur separat nach Prüfung eingerichtet."
+echo "[INFO] Plymouth wird separat nach Prüfung eingerichtet. Boot-Konfiguration unverändert."
 echo "[INFO] Naechster Schritt: Neustart und anschliessend Bootanalyse."
 echo "=============================================="
