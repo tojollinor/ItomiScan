@@ -18,6 +18,7 @@ class CopyScreen:
         self.back = back
         self.frame = tk.Frame(root, bg=BASE)
         self.selected_id = None
+        self.printer_page = 0
         self.copies = 1
         self.scan_source = "ADF Front"
         self.print_sides = "one-sided"
@@ -136,7 +137,10 @@ class CopyScreen:
         grid.pack(fill="x")
         for col in range(2):
             grid.grid_columnconfigure(col, weight=1, uniform="copyprinters")
-        for i, target in enumerate(entries[:6]):
+        pages = max(1, (len(entries) + 5) // 6)
+        self.printer_page = max(0, min(self.printer_page, pages - 1))
+        start = self.printer_page * 6
+        for i, target in enumerate(entries[start:start + 6]):
             state = "normal" if target["ready"] else "disabled"
             mark = "✓  " if self.selected_id == target["id"] else ""
             note = "" if target["ready"] else " (nicht in CUPS)"
@@ -148,6 +152,19 @@ class CopyScreen:
             button.configure(state=state)
             button.grid(row=i//2, column=i%2, sticky="nsew",
                         padx=5, pady=4)
+        if pages > 1:
+            paging = tk.Frame(self.display_printers, bg=BASE)
+            paging.pack(pady=3)
+            self._button(paging, "◀", lambda: self._page_step(-1),
+                         size=11).pack(side="left", padx=8)
+            tk.Label(paging, text=f"Seite {self.printer_page + 1} / {pages}",
+                     bg=BASE, fg=FG, font=("DejaVu Sans", 12)).pack(side="left")
+            self._button(paging, "▶", lambda: self._page_step(1),
+                         size=11).pack(side="left", padx=8)
+
+    def _page_step(self, delta):
+        self.printer_page += delta
+        self._render_printers(self._last_targets)
 
     def show(self):
         try:
@@ -156,6 +173,10 @@ class CopyScreen:
             targets = []
         if self.selected_id not in [p["id"] for p in targets if p["ready"]]:
             self.selected_id = next((p["id"] for p in targets if p["ready"]), None)
+        if self.selected_id is not None:
+            self.printer_page = next(
+                (i // 6 for i, p in enumerate(targets)
+                 if p["id"] == self.selected_id), 0)
         self._render_printers(targets)
         self.message.set(
             "PDF wird lokal gesichert und über CUPS gedruckt. "
