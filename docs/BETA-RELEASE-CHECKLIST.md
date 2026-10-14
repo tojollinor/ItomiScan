@@ -104,3 +104,25 @@ Der Test zeigt nur Basissystem- und Dienststatus. Für Scanner, Drucker und Boot
 ### Wiederherstellung
 
 Der Installer legt vor dem Überschreiben eine Sicherung `~/ItomiScan-backup-<Zeitstempel>` an. Die automatische Wiederherstellung ist nicht implementiert. Vor einer Rückkopie Dienste stoppen und die betroffene Konfiguration sichern. Boot-Rollback ausschließlich mit dem durch `setup-boot-splash.sh` angelegten Sicherungsordner über `restore-boot-splash.sh` und physischem Rettungszugang testen. Ein fehlerfreier Plymouth-Xorg-Übergang wird nicht behauptet.
+
+## Block 3/4: Ziele und Drucker (Entwicklungsstand)
+
+Code auf `develop/1.0.0` ergänzt:
+
+- [x] Vollbild-Scanziele: lokal, Paperless, Netzwerkordner, E-Mail und USB
+- [x] Sichtbarer Status für eingerichtete und nicht eingerichtete Ziele
+- [x] Eigene Vollbild-Hinweisseite bei nicht konfiguriertem Ziel
+- [x] Zielauswahl mit Seitenwechsel für mehr als fünf Einträge
+- [x] Kopieransicht mit CUPS-Warteschlangen und bevorzugtem Standarddrucker
+- [x] Webadministration: Drucker suchen, manuell per IP/Hostname und Protokoll erfassen
+- [x] IPP/IPPS, RAW 9100, LPD/LPR sowie erweiterte USB-Adresse unterstützt
+- [x] Druckerziel anhand stabiler ID bearbeiten, CUPS-Konfiguration aktualisieren
+- [x] Drucker als Standard festlegen, Testauftrag senden, Zuordnung entfernen
+- [x] Schutz gegen das versehentliche Verwaisen einer installierten CUPS-Warteschlange
+- [x] Zusätzliche isolierte Regressionstests für Druckeradresse, Bearbeitung und Webrouten angelegt
+- [ ] Tests tatsächlich ausführen und protokollieren
+- [ ] N1800: Drucker suchen, hinzufügen, ändern, löschen und Standardwahl testen
+- [ ] N1800: IPP/IPPS-Druckauftrag physisch prüfen; RAW/LPD/USB nur mit passendem Treiber/Format
+- [ ] N1800: mindestens ein reales Zustellziel einschließlich Fehler- und Wiederholungsfall testen
+
+**Hinweis:** CUPS bestätigt nur die Auftragsannahme, nicht die physische Ausgabe. Zielstatus \"eingerichtet\" bestätigt nur einen gespeicherten Eintrag, keine erfolgreiche Verbindung. Druckertreiber und die benötigten Druckdatenformate bleiben geräteabhängig. Kein Release vor erfolgreicher Geräteabnahme.
