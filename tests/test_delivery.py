@@ -42,6 +42,26 @@ class QueueTests(unittest.TestCase):
     def create(self, kind="usb"):
         return self.queue.enqueue(self.pdf, self.targets[kind])
 
+    def test_removed_or_changed_target_never_sends_to_stale_destination(self):
+        original = self.create("usb")
+        self.db.delete_target(self.targets["usb"])
+        self.assertIsNone(self.queue.process_once(lambda *_: self.fail("must not send")))
+        self.assertEqual(self.queue.all()[0]["status"], "failed")
+        self.assertTrue(self.pdf.exists())
+
+        self.db.save_target({"kind":"paperless","name":"Archiv2",
+                             "address":"https://one.example.org"})
+        target = next(x for x in self.db.list_targets() if x["name"]=="Archiv2")
+        second = self.queue.enqueue(self.pdf, target["id"])
+        self.db.save_target({"kind":"paperless","name":"Archiv2",
+                             "address":"https://two.example.org"})
+        self.assertIsNone(self.queue.process_once(lambda *_: self.fail("must not send")))
+        state = next(x["status"] for x in self.queue.all() if x["id"] == second)
+        self.assertEqual(state, "review")
+
+    def fail(self, message):
+        self.fail(message)
+
     def test_file_is_spooled_and_retained_after_success(self):
         ident = self.create()
         source_hash = hashlib.sha256(self.pdf.read_bytes()).hexdigest()
