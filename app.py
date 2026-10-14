@@ -705,9 +705,10 @@ class ItomiScan:
             self.pending_delivery = None
             self.pending_export_path = None
 
-    def queue_export(self, path, target_id):
+    def queue_export(self, path, target_id, copies=1, sides="one-sided"):
         try:
-            job_id = self.delivery_queue.enqueue(path, target_id)
+            job_id = self.delivery_queue.enqueue(
+                path, target_id, copies=copies, sides=sides)
             self.dispatch(lambda: self.status_var.set(
                 "Zustellung vorgemerkt · Auftrag " + job_id[:8]))
         except (OSError, ValueError) as exc:
@@ -852,7 +853,14 @@ class ItomiScan:
         if self.idle_screen and self.idle_screen.active:
             self.idle_screen.wake()
             return
-        if self.home and self.home.visible:
+        if self.pending_print is not None:
+            self.show_scan()
+            # Always create a printable PDF, regardless of the user's PNG preset.
+            self.format_var.set("PDF")
+            for option, variable in self.fields:
+                if option["flag"] == "--source" and not option["inactive"]:
+                    variable.set(self.pending_print["scan_source"])
+        elif self.home and self.home.visible:
             self.show_scan()
         try:
             settings = self.chosen_args()
@@ -937,12 +945,23 @@ class ItomiScan:
                 self.status_var.set("PDF gespeichert. Übergabe an Warteschlange …")
                 threading.Thread(target=self.queue_export,
                                  args=(exported, destination), daemon=True).start()
+        if self.pending_print is not None:
+            details = self.pending_print
+            self.pending_print = None
+            # The spool makes the copy persistent even if CUPS is offline.
+            self.status_var.set("Kopie gescannt. Druckauftrag wird gesichert …")
+            threading.Thread(
+                target=self.queue_export,
+                args=(path, details["target_id"],
+                      details["copies"], details["sides"]),
+                daemon=True).start()
         if warning:
             messagebox.showwarning("Scannerhinweis", warning[-600:], parent=self.root)
 
     def scan_failed(self, msg):
         self.pending_delivery = None
         self.pending_export_path = None
+        self.pending_print = None
         self.busy = False
         self.scan_button.configure(state="normal")
         self.progress.stop()
