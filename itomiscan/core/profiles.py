@@ -45,8 +45,6 @@ def experiment_settings(options):
         elif flag == "--resolution":
             if opt.get("kind") == "enum" and "300" in choices:
                 selected[flag] = "300"
-            elif opt.get("kind") == "number":
-                selected[flag] = "300"
         elif flag in EXPERIMENT_ENABLE and opt.get("kind") == "bool" and "yes" in choices:
             selected[flag] = "yes"
     return selected
