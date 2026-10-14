@@ -34,13 +34,15 @@ class HomeScreen:
     """No remote actions here: unavailable destinations are explicitly labelled."""
 
     def __init__(self, root, profiles, select_profile, open_scan, quick_scan,
-                 unavailable, shutdown, update, exit_app, status, logout=None):
+                 unavailable, shutdown, update, exit_app, status, logout=None,
+                 deliver=None):
         self.root = root
         self.profiles = profiles
         self.select_profile = select_profile
         self.open_scan = open_scan
         self.quick_scan = quick_scan
         self.unavailable = unavailable
+        self.deliver = deliver or (lambda _kind: None)
         self.logout = logout
         self.allowed = None
         self.tiles = {}
@@ -85,12 +87,12 @@ class HomeScreen:
             tiles.grid_rowconfigure(i, weight=1, uniform="actions")
         actions = (
             ("scan", "SCAN", "Scannen", "PDF oder Bild speichern", True, self.open_scan),
-            ("paperless", "ARCHIV", "Paperless", "In Vorbereitung", False,
-             lambda: self.unavailable("paperless", "Paperless", 6)),
+            ("paperless", "ARCHIV", "Paperless", "PDF an Archiv senden", True,
+             lambda: self.deliver("paperless")),
             ("copy", "KOPIE", "Kopieren", "In Vorbereitung", False,
              lambda: self.unavailable("copy", "Kopieren", 7)),
-            ("network", "NETZ", "Netzwerkordner", "In Vorbereitung", False,
-             lambda: self.unavailable("network", "Netzwerkordner", 6)),
+            ("network", "NETZ", "Netzwerkordner", "PDF ins Netzwerk", True,
+             lambda: self.deliver("network")),
         )
         for index, (permission, short, title, subtitle, enabled, command) in enumerate(actions):
             row, column = divmod(index, 2)
@@ -122,6 +124,9 @@ class HomeScreen:
         bottom = tk.Frame(self.frame, bg=BASE)
         self.controls["footer"] = bottom
         bottom.pack(fill="x", padx=31, pady=(0, 18))
+        self.controls["other"] = self._button(
+            bottom, "E-Mail / USB", lambda: self.deliver("other"), font=11, pad_y=7)
+        self.controls["other"].pack(side="left", padx=4)
         self.controls["exit"] = self._button(bottom, "Beenden", exit_app, font=11,
                                              pad_y=7)
         self.controls["exit"].pack(side="left", padx=4)
@@ -159,7 +164,11 @@ class HomeScreen:
             self.controls["logout"].pack(side="right", padx=4)
         else:
             self.controls["logout"].pack_forget()
-        if self.allowed is not None and "scan" not in self.allowed:
+        if self.allowed is not None and not ({"email", "usb"} & self.allowed):
+            self.controls["other"].pack_forget()
+        else:
+            self.controls["other"].pack(side="left", padx=4)
+        if self.allowed is not None and not ({"scan", "paperless", "network", "email", "usb"} & self.allowed):
             self.controls["profile_bar"].pack_forget()
         else:
             self.controls["profile_bar"].pack(fill="x", padx=37, pady=(2, 12),
