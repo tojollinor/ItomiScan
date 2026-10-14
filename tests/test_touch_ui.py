@@ -65,6 +65,16 @@ class TouchLayoutTests(unittest.TestCase):
         self.assertFalse(self.app.idle_screen.show_now())
         self.assertFalse(self.app.idle_screen.active)
 
+    def test_pin_keypad_sits_below_midline(self):
+        pin = self.app.pin_screen
+        pin.show()
+        self.root.update_idletasks()
+        keypad = pin.frame.grid_slaves(row=3, column=0)[0]
+        self.assertGreaterEqual(
+            keypad.winfo_rooty(),
+            self.root.winfo_rooty() + self.root.winfo_height() // 2)
+        pin.hide()
+
     def test_keyboard_windows_fit_bottom_half(self):
         for numeric in (False, True):
             dimensions = []
