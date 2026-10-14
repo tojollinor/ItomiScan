@@ -984,21 +984,16 @@ class ItomiScan:
                 for scan in scans:
                     shutil.copy2(scan, target / scan.name)
                 path = target
-            if self.pending_delivery:
-                if output_format == "PDF":
-                    self.pending_export_path = path
-                else:
-                    self.pending_export_path = target / "Dokument-fuer-Versand.pdf"
-                    conversion = shell(
-                        ["img2pdf", *map(str, scans), "-o", str(self.pending_export_path)],
-                        timeout=180)
-                    if conversion.returncode != 0:
-                        raise RuntimeError("Versand-PDF: " + (conversion.stderr or conversion.stdout))
+            # Do not prepare or enqueue any delivery before review approval.
+            self.pending_export_path = None
             warning = result.stderr.strip() if result.returncode else ""
+            if result.returncode != 0:
+                title, _ = classify_scanner_error(warning)
+                if title not in ("Kein Dokument eingelegt",) or scans:
+                    raise RuntimeError(warning or "Scan wurde unvollständig beendet.")
             if warning and classify_scanner_error(warning)[0] in (
                     "Scan unvollständig", "Möglicher Doppeleinzug", "Papierstau erkannt"):
-                self.dispatch(lambda: self.scan_failed(warning))
-                return
+                raise RuntimeError(warning)
             self.dispatch(lambda: self.scan_finished(scans, path, warning))
         except (OSError, RuntimeError, subprocess.TimeoutExpired) as exc:
             msg = str(exc)
