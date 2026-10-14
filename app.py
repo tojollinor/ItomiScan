@@ -142,6 +142,7 @@ class ItomiScan:
         self.batch_settings = None
         self.page_index = 0
         self.photo = None
+        self.thumbnail_photos = []
         self.tempdir = None
         self.output_path = None
         self.preview_size = (570, 470)
@@ -278,6 +279,8 @@ class ItomiScan:
                                 bg="#eef2f7", fg="#45566c",
                                 font=("DejaVu Sans", 16), justify="center")
         self.preview.pack(fill="both", expand=True, padx=17, pady=8)
+        self.thumbnail_strip = tk.Frame(right, bg=PANEL)
+        self.thumbnail_strip.pack(fill="x", padx=17, pady=4)
         nav = tk.Frame(right, bg=PANEL)
         nav.pack(pady=8)
         self._btn(nav, "◀  Zurück", lambda: self.change_page(-1)).pack(side="left", padx=9)
@@ -1383,8 +1386,34 @@ class ItomiScan:
             self.photo = ImageTk.PhotoImage(image)
             self.preview.configure(image=self.photo, text="")
             self.page_var.set(f"Seite {self.page_index + 1} / {len(self.pages)}")
+            self.render_thumbnails()
         except (OSError, ValueError) as exc:
             self.status_var.set("Vorschaufehler: " + str(exc))
+
+    def render_thumbnails(self):
+        """Only decode nearby thumbnails to keep memory use low."""
+        for widget in self.thumbnail_strip.winfo_children():
+            widget.destroy()
+        self.thumbnail_photos = []
+        if not self.review_pending or not self.pages:
+            return
+        start = max(0, min(self.page_index - 2, len(self.pages) - 5))
+        for index in range(start, min(len(self.pages), start + 5)):
+            with Image.open(self.pages[index]) as source:
+                if source.format == "JPEG":
+                    source.draft("RGB", (80, 100))
+                source.thumbnail((70, 90), Image.Resampling.BILINEAR)
+                photo = ImageTk.PhotoImage(source.convert("RGB"))
+            self.thumbnail_photos.append(photo)
+            tk.Button(self.thumbnail_strip, image=photo, text=str(index + 1),
+                      compound="top", bg=BLUE if index == self.page_index else PANEL,
+                      fg=FG, command=lambda i=index: self.select_page(i)
+                      ).pack(side="left", expand=True, padx=2)
+
+    def select_page(self, index):
+        if not self.busy and 0 <= index < len(self.pages):
+            self.page_index = index
+            self.show_page()
 
     def check_update(self):
         """Display update preferences; installation stays SSH-only for now."""
