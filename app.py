@@ -15,6 +15,7 @@ import tkinter as tk
 from tkinter import messagebox, simpledialog, ttk
 
 from itomiscan.core.profiles import ProfileError, ProfileStore
+from itomiscan.gui.keyboard import ask_touch
 from itomiscan.gui.home import HomeScreen
 from itomiscan.gui.copy import CopyScreen
 from itomiscan.integrations.printing import list_queues, validate_copy_options, PrintError
@@ -247,7 +248,9 @@ class ItomiScan:
         holder.pack(fill="both", expand=True, padx=(9, 3), pady=(0, 10))
         self.canvas = tk.Canvas(holder, bg=PANEL, bd=0, highlightthickness=0)
         self.canvas.pack(side="left", fill="both", expand=True)
-        sb = ttk.Scrollbar(holder, orient="vertical", command=self.canvas.yview)
+        sb = tk.Scrollbar(holder, orient="vertical", command=self.canvas.yview,
+                          width=34, bg="#42bfea", activebackground="#397edb",
+                          troughcolor="#263b53", bd=0, highlightthickness=0)
         sb.pack(side="right", fill="y")
         self.canvas.configure(yscrollcommand=sb.set)
         self.option_frame = tk.Frame(self.canvas, bg=PANEL)
@@ -561,9 +564,7 @@ class ItomiScan:
                 parent=self.root)
             return
         current = self.profile_store.selected
-        name = simpledialog.askstring(
-            "Scanprofil speichern", "Profilname (max. 32 Zeichen):",
-            initialvalue=current, parent=self.root)
+        name = ask_touch(self.root, "Scanprofil speichern", initial=current, max_length=32)
         if name is None:
             return
         flags = {opt["flag"]: variable.get().strip() for opt, variable in self.fields
@@ -795,6 +796,9 @@ class ItomiScan:
                                        width=30)
             else:
                 control = ttk.Entry(row, textvariable=variable, width=30)
+                if not opt["inactive"]:
+                    control.bind("<Button-1>",
+                                 lambda _event, v=variable, o=opt: self._edit_touch_option(v, o))
             if opt["inactive"]:
                 control.configure(state="disabled")
             control.pack(fill="x", padx=3)
@@ -802,6 +806,16 @@ class ItomiScan:
         if not self.fields:
             tk.Label(self.option_frame, text="Keine Optionen erkannt",
                      bg=PANEL, fg=FG).pack(pady=20)
+
+    def _edit_touch_option(self, variable, option):
+        if self.busy:
+            return "break"
+        name = LABELS.get(option["flag"], option["flag"])
+        value = ask_touch(self.root, name, initial=variable.get(),
+                          numeric=option["kind"] == "number", max_length=120)
+        if value is not None:
+            variable.set(value.replace(",", ".") if option["kind"] == "number" else value)
+        return "break"
 
     def chosen_args(self):
         args = []
