@@ -15,7 +15,7 @@ from pathlib import Path
 from urllib.parse import urlsplit
 
 SETTINGS = {"screensaver_minutes": (1, 60), "device_label": (0, 48)}
-TARGET_KINDS = {"paperless", "printer", "network", "email"}
+TARGET_KINDS = {"paperless", "printer", "network", "email", "usb"}
 SCHEMA_VERSION = 1
 MIN_PASSWORD_LENGTH = 10
 PBKDF2_ITERATIONS = 260000
@@ -45,10 +45,11 @@ def validate_target(data):
         "printer": {"ipp", "ipps", "http", "https"},
         "network": {"smb"},
         "email": {"smtp", "smtps"},
+        "usb": {"usb"},
     }
     if parsed.scheme.lower() not in schemes[kind] or not parsed.hostname:
         raise ConfigError("Ungültige Adresse für " + kind + ".")
-    if parsed.username or parsed.password or "@" in parsed.netloc:
+    if parsed.username or parsed.password or "@" in parsed.netloc or parsed.query or parsed.fragment:
         raise ConfigError("Keine Kennwörter oder Benutzernamen in Zieladressen speichern.")
     try:
         port = parsed.port
@@ -56,6 +57,15 @@ def validate_target(data):
         raise ConfigError("Ungültiger Netzwerkport.") from exc
     if port is not None and not 1 <= port <= 65535:
         raise ConfigError("Ungültiger Netzwerkport.")
+    if kind == "paperless" and parsed.scheme != "https":
+        raise ConfigError("Paperless benötigt HTTPS.")
+    if kind == "usb":
+        import re
+        if parsed.port is not None or not re.fullmatch(r"[A-Za-z0-9._-]{1,64}", parsed.netloc):
+            raise ConfigError("Ungültiger USB-Datenträger.")
+        parts = [s for s in parsed.path.split("/") if s]
+        if any(not re.fullmatch(r"[A-Za-z0-9._-]{1,64}", s) or s in (".", "..") for s in parts):
+            raise ConfigError("Ungültiger USB-Unterordner.")
     return {"kind": kind, "name": name.strip(), "address": address.strip()}
 
 
