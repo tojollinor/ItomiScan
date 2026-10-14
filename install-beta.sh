@@ -125,7 +125,8 @@ check "Python importiert ItomiScan" runuser -u "$USER_NAME" -- /usr/bin/env PYTH
 check "CUPS ist aktiv" systemctl is-active --quiet cups.service
 check "Webdienst ist aktiv" systemctl is-active --quiet itomiscan-web.service
 check "Zustelldienst ist aktiv" systemctl is-active --quiet itomiscan-delivery.service
-check "HTTPS-Port 8443 lauscht" bash -c 'exec 3<>/dev/tcp/'"$LAN_IP"'/8443'
+# Check local listener independently of DHCP address assignment at early boot.
+check "HTTPS-Port 8443 lauscht lokal" bash -c 'exec 3<>/dev/tcp/127.0.0.1/8443'
 if timeout 35s runuser -u "$USER_NAME" -- scanimage -L 2>&1 | grep -Eq "^device .+ is a "; then ok "SANE erkennt mindestens einen Scanner."; else echo "[WARNUNG] SANE erkennt aktuell keinen Scanner. Hardware/USB pruefen."; fi
 [[ $FAILURES -eq 0 ]] || fail "$FAILURES kritische Funktionstest(s) fehlgeschlagen. Details: $LOG"
 
