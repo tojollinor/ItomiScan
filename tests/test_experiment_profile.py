@@ -8,6 +8,19 @@ from itomiscan.storage.config import ConfigStore
 
 
 class ExperimentProfileTests(unittest.TestCase):
+    def test_unknown_backend_specific_sane_options_are_visible(self):
+        from unittest.mock import patch
+        from types import SimpleNamespace
+        from app import read_options
+        output = ("  Standard:\n"
+                  "    --source ADF Front|ADF Duplex [ADF Duplex]\n"
+                  "  Advanced:\n"
+                  "    --vendor-special no|yes [no]\n")
+        with patch("app.shell", return_value=SimpleNamespace(returncode=0,
+                                                               stdout=output, stderr="")):
+            options = read_options("fujitsu:test")
+        self.assertIn("--vendor-special", [opt["flag"] for opt in options])
+
     def test_only_active_supported_features_are_enabled(self):
         options = [
             {"flag": "--source", "choices": ["ADF Front", "ADF Duplex"], "inactive": False},
