@@ -74,3 +74,33 @@ Die Checkboxen für Codeänderungen sind **keine** Testfreigabe. Neustart ist we
 - [ ] N1800: Scanziele und Berechtigungen, Zustellwarteschlange sowie Kopierablauf prüfen
 
 **Einschränkung:** Für socket/RAW, LPD und USB verwendet die derzeitige CUPS-Installation eine RAW-Warteschlange. Diese nimmt nur druckerfertige Daten entgegen; ein PDF wird dadurch nicht automatisch in eine für den Drucker verständliche Sprache umgewandelt. Ein geeigneter Druckertreiber bzw. CUPS-Filter ist für zuverlässigen Ausdruck erforderlich. IPP Everywhere funktioniert nur bei kompatiblen Geräten. Ohne diesen Nachweis gilt die Mehrprotokoll-Druckunterstützung noch nicht als praktisch abgenommen. Keine Behauptung, dass alle Brother-Modelle treiberlos unterstützt werden.
+
+
+## Block 4/4: System, Prüfungen und Release-Entscheidung (14.10.2026)
+
+- [x] Bestehende Installer-, Boot- und Wiederherstellungsskripte gegen die Freigabekriterien geprüft.
+- [x] Installationsprüfung für LAN-HTTPS-Verfügbarkeit präzisiert: Netzwerk-Bindungsprobleme werden als Warnung ausgegeben, nicht als falsch positives Komplettversagen des Installers.
+- [x] GitHub Actions Workflow `.github/workflows/beta-checks.yml` für Python-Syntax, Shell-Syntax und Unittests eingecheckt.
+- [x] Lesendes N1800-Diagnoseskript `scripts/n1800-acceptance.sh` eingecheckt. Es scannt, druckt, startet neu und ändert keine Systemkonfiguration.
+- [ ] GitHub Actions erfolgreich gelaufen und Protokoll eingesehen.
+- [ ] Echte N1800-Geräteabnahme der offenen Punkte aus Block 1, 2 und 3.
+- [ ] GRUB/Plymouth mit Rettungsweg praktisch getestet.
+- [ ] Wiederholte Installation und Wiederherstellung der Sicherung auf N1800 geprüft.
+- [ ] Druck und Zustellung praktisch bestätigt.
+- [ ] Freigabe als GitHub Beta Release nach erfolgreicher Abnahme.
+
+**Freigabeentscheidung:** NICHT FREIGEGEBEN. Ein GitHub Release wird nicht als fertig ausgegeben, solange die Tests und Gerätetests fehlen. Das laufende Entwicklungsergebnis liegt weiterhin auf `develop/1.0.0`. Insbesondere der dokumentierte Restumfang der Scanoberfläche aus Block 1 muss vor einer Beta-Freigabe abgearbeitet werden.
+
+### Lesender Gerätetest
+
+Als normaler Benutzer nach der Installation:
+
+```bash
+bash ~/ItomiScan/scripts/n1800-acceptance.sh
+```
+
+Der Test zeigt nur Basissystem- und Dienststatus. Für Scanner, Drucker und Boot ist eine zusätzliche manuelle Abnahme nötig. Bei nicht erreichbarem HTTPS-Dienst: `journalctl -u itomiscan-web.service -n 80 --no-pager`.
+
+### Wiederherstellung
+
+Der Installer legt vor dem Überschreiben eine Sicherung `~/ItomiScan-backup-<Zeitstempel>` an. Die automatische Wiederherstellung ist nicht implementiert. Vor einer Rückkopie Dienste stoppen und die betroffene Konfiguration sichern. Boot-Rollback ausschließlich mit dem durch `setup-boot-splash.sh` angelegten Sicherungsordner über `restore-boot-splash.sh` und physischem Rettungszugang testen. Ein fehlerfreier Plymouth-Xorg-Übergang wird nicht behauptet.
