@@ -216,3 +216,16 @@ Code auf `develop/1.0.0` ergänzt:
 - [ ] Menü und Startseite visuell auf vollständige Anforderungsübereinstimmung abnehmen.
 
 Nächste Blöcke: 2/6 Splashscreen/Tastatur, 3/6 Scanablauf, 4/6 Dokumentenübersicht, 5/6 Updates/Systemstart, 6/6 Tests/Releasevorbereitung. Nach jedem Block Halt für Nutzerfreigabe. Druckertreiber zurückgestellt. Keine Installation und kein Release.
+
+
+## Neuer sechsfacher Arbeitsplan: Block 2/6 Splashscreen und Tastatur
+
+- [x] Bildschirmtastatur: Modal-Grab erst nach vollständigem Aufbau und Sichtbarkeit des Tk-Fensters; Fokus anschließend auf Eingabefeld.
+- [x] Tk-Splash: Akzentfarbe an das Startseitenlogo angepasst.
+- [x] Plymouth-Splash: Akzentfarbe an Tk-Splash und Startseitenlogo angepasst.
+- [x] Fehler beim Aufbau der Hauptoberfläche: Splash bleibt mit Diagnose und erneutem Versuch sichtbar, statt in eine unbehandelte Tk-Ausnahme zu laufen.
+- [ ] Gerätetest: Tastatur öffnet ohne schwarzen/leeren Bildschirm; Texteingabe, Shift, Löschen, Abbrechen und Übernehmen funktionieren.
+- [ ] Gerätetest: Plymouth/Tk-Übergang und Auflösung 1024×768 prüfen. Ein Grafikmoduswechsel kann weiter sichtbar bleiben.
+- [ ] Gerätetest: absichtlich fehlende Scannererkennung und Fehler beim Aufbau der Hauptoberfläche kontrolliert durchspielen.
+
+**Keine Geräteinstallation und keine Releasefreigabe.** Nächster Block 3/6: Scanablauf.
