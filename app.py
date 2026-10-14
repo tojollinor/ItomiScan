@@ -291,14 +291,19 @@ class ItomiScan:
         self._btn(nav, "Weiter  ▶", lambda: self.change_page(1)).pack(side="left", padx=9)
         edit = tk.Frame(right, bg=PANEL)
         edit.pack(fill="x", padx=14, pady=(0, 6))
-        for label, callback in (
-                ("Erneut scannen", self.rescan_page),
-                ("Drehen", self.rotate_page),
-                ("Löschen", self.delete_page),
-                ("Leere Seiten prüfen", self.remove_blank_pages),
-                ("← Seite", lambda: self.move_page(-1)),
-                ("Seite →", lambda: self.move_page(1))):
-            self._btn(edit, label, callback).pack(side="left", expand=True, fill="x", padx=3)
+        actions = (
+            ("Erneut scannen", self.rescan_page),
+            ("Drehen", self.rotate_page),
+            ("Löschen", self.delete_page),
+            ("Leere Seiten prüfen", self.remove_blank_pages),
+            ("← Seite", lambda: self.move_page(-1)),
+            ("Seite →", lambda: self.move_page(1)),
+        )
+        for index, (label, callback) in enumerate(actions):
+            self._btn(edit, label, callback).grid(
+                row=index // 3, column=index % 3, sticky="ew", padx=3, pady=3)
+        for column in range(3):
+            edit.grid_columnconfigure(column, weight=1)
         self.review_button = self._btn(right, "Fertig · Dokument übernehmen", self.finalize_scan, BLUE)
         self.review_button.pack(fill="x", padx=18, pady=(0, 8))
         self.review_button.pack_forget()
@@ -1376,8 +1381,6 @@ class ItomiScan:
         if self.pending_print is not None:
             details = self.pending_print
             self.pending_print = None
-            export_path = self.pending_export_path or self.output_path
-            self.pending_export_path = None
             threading.Thread(target=self.queue_export,
                              args=(export_path, details["target_id"],
                                    details["copies"], details["sides"]), daemon=True).start()
