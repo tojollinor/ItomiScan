@@ -177,3 +177,17 @@ Code auf `develop/1.0.0` ergänzt:
 - [ ] CUPS-Auftragsannahme und physische Papierausgabe mit echten Druckern prüfen.
 
 **Keine Installation, kein Release.** Diese Änderungen lösen keine Druckertreiber- oder Gerätekompatibilitätsprobleme.
+
+
+## Nacharbeit Block 4: Update und Start (14.10.2026)
+
+- [x] Installationsarchiv auf den vor dem Download ermittelten Commit fixiert; Versionsdatei verwendet genau diesen Commit.
+- [x] Tk-Startanzeige: Diagnose bei erneutem Start mit korrekter `place_forget()`-Methode ausblenden.
+- [x] Plymouth-Icon: weißes Dokumentelement an die Tk-Logozeichnung angeglichen.
+- [ ] Installer auf Debian 12 i386 im Gerätetest ausführen und Archiv-/Versionsidentität kontrollieren.
+- [ ] Xorg/Plymouth-Übergang am echten 1024×768-N1800 prüfen. Gleiche Gestaltung bedeutet **nicht** automatisch einen unterbrechungsfreien Wechsel des Grafikmodus.
+- [ ] Boot-Rollback testen, bevor GRUB_TIMEOUT=0 aktiviert wird.
+- [ ] Update-Installation aus der GUI ist weiterhin **nicht** implementiert; nur Prüfung verfügbar. Privilegierte Installation bleibt separat und erfordert Freigabe.
+- [ ] Vor einer Beta-Freigabe offene Treiber-, Scan- und UI-Tests vollständig durchführen.
+
+**Wichtig:** Keine Installation, kein GitHub-Release, keine Änderung an `main`. Eingecheckte Änderungen sind keine Gerätetests.
