@@ -88,7 +88,7 @@ class StartupSplash:
         self.title.set("Scanner wird vorbereitet")
         self.info.set("Erneuter Versuch …")
         self.buttons.place_forget()
-        self.detail_label.pack_forget()
+        self.detail_label.place_forget()
         self.details_visible = False
 
     def toggle_details(self):
