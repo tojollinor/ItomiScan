@@ -22,6 +22,36 @@ DEFAULT_PROFILES = (
 )
 
 
+
+# Enable independent image enhancements, not contradictory device settings.
+# The complete set of recognized SANE controls stays editable in the GUI.
+EXPERIMENT_ENABLE = frozenset((
+    "--swdeskew", "--swdespeck", "--swcrop", "--overscan", "--lowmemory",
+))
+
+
+def experiment_settings(options):
+    """Choose only advertised, active capabilities for a diagnostic preset."""
+    selected = {}
+    for opt in options:
+        flag = opt.get("flag")
+        if opt.get("inactive") or not flag:
+            continue
+        choices = opt.get("choices") or ()
+        if flag == "--mode" and "Color" in choices:
+            selected[flag] = "Color"
+        elif flag == "--source" and "ADF Duplex" in choices:
+            selected[flag] = "ADF Duplex"
+        elif flag == "--resolution":
+            if opt.get("kind") == "enum" and "300" in choices:
+                selected[flag] = "300"
+            elif opt.get("kind") == "number":
+                selected[flag] = "300"
+        elif flag in EXPERIMENT_ENABLE and opt.get("kind") == "bool" and "yes" in choices:
+            selected[flag] = "yes"
+    return selected
+
+
 class ProfileError(ValueError):
     pass
 
