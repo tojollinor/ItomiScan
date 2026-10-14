@@ -994,6 +994,10 @@ class ItomiScan:
                     if conversion.returncode != 0:
                         raise RuntimeError("Versand-PDF: " + (conversion.stderr or conversion.stdout))
             warning = result.stderr.strip() if result.returncode else ""
+            if warning and classify_scanner_error(warning)[0] in (
+                    "Scan unvollständig", "Möglicher Doppeleinzug", "Papierstau erkannt"):
+                self.dispatch(lambda: self.scan_failed(warning))
+                return
             self.dispatch(lambda: self.scan_finished(scans, path, warning))
         except (OSError, RuntimeError, subprocess.TimeoutExpired) as exc:
             msg = str(exc)
@@ -1014,7 +1018,7 @@ class ItomiScan:
             self.review_button.pack(fill="x", padx=18, pady=(0, 8))
         if warning:
             title, _ = classify_scanner_error(warning)
-            if title == "Papierstau erkannt" or title == "Scannerfehler":
+            if title != "Kein Dokument eingelegt":
                 show_scanner_error(self.root, warning)
 
     def scan_failed(self, msg):
