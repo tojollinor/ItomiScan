@@ -3,11 +3,28 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from itomiscan.core.profiles import DEFAULT_PROFILES, validate_profile
+from itomiscan.core.profiles import DEFAULT_PROFILES, validate_profile, experiment_settings
 from itomiscan.storage.config import ConfigStore
 
 
 class ExperimentProfileTests(unittest.TestCase):
+    def test_only_active_supported_features_are_enabled(self):
+        options = [
+            {"flag": "--source", "choices": ["ADF Front", "ADF Duplex"], "inactive": False},
+            {"flag": "--mode", "choices": ["Gray", "Color"], "inactive": False},
+            {"flag": "--swdeskew", "kind": "bool", "choices": ["no", "yes"], "inactive": False},
+            {"flag": "--swcrop", "kind": "bool", "choices": ["no", "yes"], "inactive": True},
+            {"flag": "--df-action", "kind": "enum", "choices": ["Stop", "Continue"], "inactive": False},
+            {"flag": "--resolution", "kind": "number", "choices": [], "inactive": False},
+        ]
+        settings = experiment_settings(options)
+        self.assertEqual(settings["--source"], "ADF Duplex")
+        self.assertEqual(settings["--mode"], "Color")
+        self.assertEqual(settings["--swdeskew"], "yes")
+        self.assertNotIn("--swcrop", settings)
+        self.assertNotIn("--df-action", settings)
+        self.assertNotIn("--resolution", settings)
+
     def test_default_is_valid_and_not_selected(self):
         preset = next(p for p in DEFAULT_PROFILES if p["name"] == "Test / Alle Optionen")
         self.assertEqual(validate_profile(preset)["name"], "Test / Alle Optionen")
