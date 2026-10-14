@@ -19,7 +19,7 @@ from itomiscan.gui.keyboard import ask_touch
 from itomiscan.gui.scanner_errors import show_scanner_error, classify_scanner_error
 from itomiscan.gui.home import HomeScreen, draw_logo, set_logo_busy
 from itomiscan.gui.copy import CopyScreen
-from itomiscan.integrations.printing import list_queues, validate_copy_options, PrintError
+from itomiscan.integrations.printing import list_queues, validate_copy_options, PrintError, default_printer
 from itomiscan.gui.pin import PinScreen
 from itomiscan.gui.screensaver import IdleScreen
 from itomiscan.storage.users import UserStore
@@ -804,9 +804,11 @@ class ItomiScan:
             installed = set(list_queues())
         except PrintError:
             installed = set()
+        preferred = default_printer() if installed else None
         return [
             {"id": entry["id"], "name": entry["name"],
-             "ready": entry["name"] in installed}
+             "ready": entry["name"] in installed,
+             "default": entry["name"] == preferred}
             for entry in self.delivery_queue.db.list_targets()
             if entry["kind"] == "printer"
         ]
