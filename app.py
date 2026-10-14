@@ -139,6 +139,7 @@ class ItomiScan:
         self.pages = []
         self.review_pending = False
         self.appending_pages = False
+        self.batch_settings = None
         self.page_index = 0
         self.photo = None
         self.tempdir = None
@@ -983,6 +984,7 @@ class ItomiScan:
         except ValueError as exc:
             messagebox.showerror("Scanoption", str(exc), parent=self.root)
             return
+        self.batch_settings = (list(settings), scan_mode, self.format_var.get())
         self.busy = True
         self.scan_button.configure(state="disabled")
         self.progress.start(10)
@@ -1006,6 +1008,10 @@ class ItomiScan:
             return
         scan_mode = next((v.get().strip() for opt, v in self.fields
                           if opt["flag"] == "--mode" and not opt["inactive"]), "")
+        if self.batch_settings is not None:
+            settings, scan_mode, output_format = self.batch_settings
+        else:
+            output_format = self.format_var.get()
         self.appending_pages = True
         self.busy = True
         self.scan_button.configure(state="disabled")
@@ -1015,7 +1021,7 @@ class ItomiScan:
             self.tempdir.cleanup()
         self.tempdir = tempfile.TemporaryDirectory(prefix="itomiscan-append-")
         threading.Thread(target=self.scan_worker,
-                         args=(settings, self.format_var.get(), scan_mode),
+                         args=(settings, output_format, scan_mode),
                          daemon=True).start()
 
     def scan_worker(self, settings, output_format, scan_mode):
@@ -1093,10 +1099,12 @@ class ItomiScan:
                 show_scanner_error(self.root, warning)
 
     def scan_failed(self, msg):
+        was_appending = self.appending_pages
         self.appending_pages = False
-        self.pending_delivery = None
-        self.pending_export_path = None
-        self.pending_print = None
+        if not was_appending:
+            self.pending_delivery = None
+            self.pending_export_path = None
+            self.pending_print = None
         self.busy = False
         self.scan_button.configure(state="normal")
         self.progress.stop()
@@ -1335,6 +1343,7 @@ class ItomiScan:
         self.review_pending = False
         self.review_button.pack_forget()
         self.append_button.pack_forget()
+        self.batch_settings = None
         self.status_var.set("Dokument abgeschlossen · " + str(len(self.pages)) + " Bildseiten")
         export_path = self.pending_export_path or self.output_path
         self.pending_export_path = None
