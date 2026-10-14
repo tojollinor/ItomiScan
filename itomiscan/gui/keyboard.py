@@ -22,9 +22,8 @@ def ask_touch(root, title, initial="", *, numeric=False, secret=False, max_lengt
     width = min(1000, max(320, screen_w - 24))
     height = min(690, max(260, screen_h - 24))
     win.geometry(f"{width}x{height}+{(screen_w-width)//2}+{(screen_h-height)//2}")
-    win.update_idletasks()
-    win.lift()
-    win.grab_set()
+    # Build and map the complete keyboard before requesting a grab.
+    # Grabbing an unmapped Toplevel can fail on X11/Tk.
     value = tk.StringVar(value=str(initial))
     shifted = tk.BooleanVar(value=False)
 
@@ -100,7 +99,10 @@ def ask_touch(root, title, initial="", *, numeric=False, secret=False, max_lengt
     win.protocol("WM_DELETE_WINDOW", cancel)
     win.bind("<Return>", lambda _e: confirm())
     win.bind("<Escape>", lambda _e: cancel())
+    win.update_idletasks()
+    win.wait_visibility()
     win.lift()
-    entry.focus_force()
+    win.grab_set()
+    entry.focus_set()
     root.wait_window(win)
     return result["value"]
