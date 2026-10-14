@@ -285,6 +285,28 @@ class WebAdminTests(unittest.TestCase):
         self.assertEqual(self.req("POST", "/printers/test", {
             "csrf": self.csrf, "target_id": "99999"})[0], 400)
 
+    def test_printer_manual_ip_setup_and_address_edit(self):
+        self.login()
+        self.assertEqual(self.req("POST", "/printers/save", {
+            "csrf": self.csrf, "name": "LaserTest", "protocol": "socket",
+            "host": "192.168.1.22", "address": ""})[0], 303)
+        rows = [x for x in self.server.store.list_targets()
+                if x["kind"] == "printer" and x["name"] == "LaserTest"]
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["address"], "socket://192.168.1.22:9100")
+        target_id = rows[0]["id"]
+        self.assertEqual(self.req("POST", "/printers/edit", {
+            "csrf": self.csrf, "target_id": str(target_id),
+            "address": "ipps://laser.lan/ipp/print"})[0], 303)
+        rows = [x for x in self.server.store.list_targets()
+                if x["kind"] == "printer" and x["name"] == "LaserTest"]
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["id"], target_id)
+        self.assertEqual(rows[0]["address"], "ipps://laser.lan/ipp/print")
+        self.assertEqual(self.req("POST", "/printers/edit", {
+            "csrf": self.csrf, "target_id": "999999",
+            "address": "ipp://laser.lan/ipp/print"})[0], 400)
+
     def test_logout_clears_session(self):
         self.login()
         code, hdrs, _ = self.req("POST","/logout",{"csrf":self.csrf})
