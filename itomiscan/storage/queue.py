@@ -151,6 +151,16 @@ class DeliveryQueue:
                 ORDER BY retry_at, created_at LIMIT 1""", (self.clock(),)).fetchone()
             if row is None:
                 return None
+            target = db.execute("SELECT kind,address FROM targets WHERE id=?",
+                                (row["target_id"],)).fetchone()
+            if target is None or target["kind"] != row["kind"]:
+                db.execute("UPDATE delivery_jobs SET status=?,last_error=? WHERE id=?",
+                           ("failed", "Ziel entfernt, keine Zustellung.", row["id"]))
+                return None
+            if target["address"] != row["target_address"]:
+                db.execute("UPDATE delivery_jobs SET status=?,last_error=? WHERE id=?",
+                           ("review", "Zieladresse geaendert, zuerst pruefen.", row["id"]))
+                return None
             db.execute("""UPDATE delivery_jobs SET status='sending',
                 attempts=attempts+1, leased_until=? WHERE id=?""",
                        (self.clock() + LEASE_SECONDS, row["id"]))
