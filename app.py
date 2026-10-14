@@ -1481,15 +1481,21 @@ class ItomiScan:
         if self.busy or not self.pages:
             return
         path = Path(self.pages[self.page_index])
+        temp = path.with_name(path.stem + "-rotated" + path.suffix)
         try:
             with Image.open(path) as source:
                 rotated = source.rotate(-90, expand=True)
-                temp = path.with_name(path.stem + "-rotated" + path.suffix)
                 rotated.save(temp)
+                rotated.close()
+            # Replace the original only after the rotated file is complete.
+            with Image.open(temp) as check_image:
+                check_image.verify()
             os.replace(temp, path)
             self.show_page()
-        except OSError as exc:
+        except (OSError, ValueError) as exc:
             show_scanner_error(self.root, str(exc))
+        finally:
+            temp.unlink(missing_ok=True)
 
     def delete_page(self):
         if self.busy or not self.pages:
