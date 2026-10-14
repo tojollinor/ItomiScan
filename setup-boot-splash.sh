@@ -18,7 +18,7 @@ fi
 
 export DEBIAN_FRONTEND=noninteractive
 apt-get update
-apt-get install -y --no-install-recommends plymouth plymouth-themes
+apt-get install -y --no-install-recommends plymouth plymouth-themes python3-pil fonts-dejavu-core
 if ! plymouth-set-default-theme --list | grep -Eq '^[[:space:]]*spinner[[:space:]]*$'; then
   echo "Plymouth-Spinner-Theme fehlt. Boot-Konfiguration unverändert." >&2
   exit 3
@@ -47,7 +47,38 @@ for arg in ('quiet', 'splash'):
 path.write_text(text[:match.start()] + match.group(1) + '"' + ' '.join(flags) + '"' + text[match.end():])
 PY
 
-plymouth-set-default-theme spinner
+theme_dir=/usr/share/plymouth/themes/itomiscan
+install -d "$theme_dir"
+python3 - "$theme_dir/itomiscan.png" <<'PYIMAGE'
+from PIL import Image, ImageDraw, ImageFont
+import sys
+im = Image.new("RGBA", (520, 160), (0, 0, 0, 0))
+draw = ImageDraw.Draw(im)
+font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 62)
+text = "ItomiScan"
+bbox = draw.textbbox((0, 0), text, font=font)
+draw.text(((520 - (bbox[2] - bbox[0])) / 2, 32), text, font=font, fill=(241, 245, 251, 255))
+im.save(sys.argv[1])
+PYIMAGE
+cat > "$theme_dir/itomiscan.plymouth" <<'THEME'
+[Plymouth Theme]
+Name=ItomiScan
+Description=ItomiScan early boot splash
+ModuleName=script
+
+[script]
+ImageDir=/usr/share/plymouth/themes/itomiscan
+ScriptFile=/usr/share/plymouth/themes/itomiscan/itomiscan.script
+THEME
+cat > "$theme_dir/itomiscan.script" <<'SCRIPT'
+Window.SetBackgroundTopColor(0.063, 0.098, 0.153);
+Window.SetBackgroundBottomColor(0.063, 0.098, 0.153);
+logo = Image("itomiscan.png");
+sprite = Sprite(logo);
+sprite.SetX((Window.GetWidth() - logo.GetWidth()) / 2);
+sprite.SetY((Window.GetHeight() - logo.GetHeight()) / 2);
+SCRIPT
+plymouth-set-default-theme itomiscan
 update-initramfs -u
 update-grub
 printf '\nItomiScan Boot-Splash eingerichtet. Backup: %s\n' "$backup_dir"
