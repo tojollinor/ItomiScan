@@ -404,6 +404,8 @@ class ItomiScan:
     def _clear_previous_scan(self):
         """Prevent next user from seeing previous user's scan preview."""
         self.pages = []
+        self.review_pending = False
+        self.review_button.pack_forget()
         self.page_index = 0
         self.photo = None
         self.output_path = None
@@ -883,6 +885,11 @@ class ItomiScan:
     def start_scan(self):
         if self.busy or not self.device:
             return
+        if self.review_pending:
+            messagebox.showinfo("Dokument prüfen",
+                                "Bitte das vorherige Dokument erst mit Fertig abschließen.",
+                                parent=self.root)
+            return
         if not self._allowed(self._delivery_permission()):
             return
         if self.users.settings()["enabled"]:
@@ -1007,7 +1014,7 @@ class ItomiScan:
             self.review_button.pack(fill="x", padx=18, pady=(0, 8))
         if warning:
             title, _ = classify_scanner_error(warning)
-            if title == "Scannerfehler":
+            if title == "Papierstau erkannt" or title == "Scannerfehler":
                 show_scanner_error(self.root, warning)
 
     def scan_failed(self, msg):
@@ -1096,6 +1103,12 @@ class ItomiScan:
                 for new_page in ordered.iterdir():
                     os.replace(new_page, output / new_page.name)
                 ordered.rmdir()
+            if output.suffix.lower() != ".pdf" and (self.pending_delivery or self.pending_print):
+                pdf_path = output / "Dokument-fuer-Versand.pdf"
+                pdf = shell(["img2pdf", *map(str, pages), "-o", str(pdf_path)], timeout=180)
+                if pdf.returncode:
+                    raise RuntimeError(pdf.stderr or "Versand-PDF fehlgeschlagen.")
+                self.pending_export_path = pdf_path
             self.dispatch(self._finalize_complete)
         except (OSError, RuntimeError, subprocess.TimeoutExpired) as exc:
             error = str(exc)
@@ -1116,14 +1129,17 @@ class ItomiScan:
         if self.pending_delivery is not None:
             target_id = self.pending_delivery
             self.pending_delivery = None
+            export_path = self.pending_export_path or self.output_path
             self.pending_export_path = None
             threading.Thread(target=self.queue_export,
-                             args=(self.output_path, target_id), daemon=True).start()
+                             args=(export_path, target_id), daemon=True).start()
         if self.pending_print is not None:
             details = self.pending_print
             self.pending_print = None
+            export_path = self.pending_export_path or self.output_path
+            self.pending_export_path = None
             threading.Thread(target=self.queue_export,
-                             args=(self.output_path, details["target_id"],
+                             args=(export_path, details["target_id"],
                                    details["copies"], details["sides"]), daemon=True).start()
 
     def change_page(self, diff):
