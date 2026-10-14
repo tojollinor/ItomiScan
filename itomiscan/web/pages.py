@@ -42,7 +42,7 @@ def layout(title, body, *, active="", csrf="", notice="", error="", logged=True)
     navigation = ""
     if logged:
         links = (("/", "Übersicht"), ("/profiles", "Scanprofile"),
-                 ("/users", "Benutzer"), ("/targets", "Zielsysteme"), ("/jobs", "Aufträge"), ("/system", "System"),
+                 ("/users", "Benutzer"), ("/targets", "Zielsysteme"), ("/printers", "Drucker"), ("/jobs", "Aufträge"), ("/system", "System"),
                  ("/backups", "Sicherung"))
         navigation = "<nav>" + "".join(
             f'<a class="{("active" if url == active else "")}" href="{url}">{e(label)}</a>'
