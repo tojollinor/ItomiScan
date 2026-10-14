@@ -4,6 +4,7 @@ Never expose archives from the web server. Shut down the delivery worker and
 kiosk before taking a snapshot. PDFs are stored without recompression to keep
 CPU and memory use low on the 1-GiB ScanSnap N1800.
 """
+import fcntl
 import hashlib
 import json
 import os
@@ -74,6 +75,30 @@ def source_files(home, conf, snapshot):
 
 
 def create_backup(output, *, home=None, config_dir=None):
+    """Refuse concurrent workers; hold the lock until archive publication."""
+    conf = Path(config_dir or Path(home or Path.home()) / ".config" / "itomiscan")
+    if not conf.is_dir():
+        raise BackupError("Konfigurationsverzeichnis fehlt.")
+    lock_file = conf / ".delivery-worker.lock"
+    if lock_file.is_symlink():
+        raise BackupError("Unsichere Worker-Sperrdatei.")
+    flags = os.O_CREAT | os.O_RDWR
+    if hasattr(os, "O_NOFOLLOW"):
+        flags |= os.O_NOFOLLOW
+    fd = os.open(lock_file, flags, 0o600)
+    try:
+        if not stat.S_ISREG(os.fstat(fd).st_mode):
+            raise BackupError("Ungültige Worker-Sperrdatei.")
+        try:
+            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError as exc:
+            raise BackupError("Zustelldienst läuft. Vor Backup beenden.") from exc
+        return _create_backup(output, home=home, config_dir=config_dir)
+    finally:
+        os.close(fd)
+
+
+def _create_backup(output, *, home=None, config_dir=None):
     home = Path(home or Path.home()).expanduser().absolute()
     conf = Path(config_dir or home / ".config" / "itomiscan").absolute()
     output = Path(output).expanduser().absolute()
