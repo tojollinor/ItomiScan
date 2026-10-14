@@ -19,7 +19,7 @@ fi
 export DEBIAN_FRONTEND=noninteractive
 apt-get update
 apt-get install -y --no-install-recommends plymouth plymouth-themes python3-pil fonts-dejavu-core
-backup_dir="/var/lib/itomiscan/boot-backups/$(date -u +%Y%m%dT%H%M%SZ)-$"
+backup_dir="/var/lib/itomiscan/boot-backups/$(date -u +%Y%m%dT%H%M%SZ)-${BASHPID}"
 install -d -m 0700 "$backup_dir"
 cp -a /etc/default/grub "$backup_dir/grub.original"
 chmod 0600 "$backup_dir/grub.original"
