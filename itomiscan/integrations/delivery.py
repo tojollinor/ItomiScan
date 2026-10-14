@@ -139,9 +139,17 @@ def deliver_paperless(job, path, credentials):
         conn.send(ending)
         request_bytes += len(ending)
         response = conn.getresponse()
-        body = response.read(250)  # keep only a short non-secret task receipt
+        body = response.read(250)  # Paperless returns a consumption-task UUID
         if 200 <= response.status < 300:
-            return "Paperless angenommen (HTTP " + str(response.status) + ")"
+            import json
+            try:
+                receipt = json.loads(body.decode("utf-8"))
+                task_id = receipt if isinstance(receipt, str) else ""
+            except (ValueError, UnicodeError):
+                task_id = ""
+            if isinstance(task_id, str) and re.fullmatch(r"[a-fA-F0-9-]{32,40}", task_id):
+                return "Paperless-Verarbeitung gestartet; Task " + task_id
+            return "Paperless-Verarbeitung gestartet (HTTP " + str(response.status) + ")"
         if response.status in (401, 403, 404, 413, 415, 422):
             raise DeliveryError("Paperless HTTP " + str(response.status),
                                 permanent=True)
