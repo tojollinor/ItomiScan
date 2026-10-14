@@ -63,3 +63,7 @@ Ein vorhandenes SMB-Ziel benötigt zusätzlich eine installierte `smbclient`-Bin
 - Reale SMTP-, SMB-, USB- und Paperless-Geräteabnahme sowie CPU-/RAM-Messung auf Atom N270/1 GiB **ausstehend**.
 - SMS, OCR, automatische Paperless-Tags, Papierkorbleerung und dauerhaftes Mount-Management sind nicht Teil dieses Blocks.
 - Block 7/8: CUPS-Drucker und Kopierfunktion auf dem Entwicklungszweig implementiert (siehe `docs/PRINTING.md`). Nächster Block 8/8: Integrations-/Gerätetest, Installer, Daten-/Rollback-Sicherung und Release nur nach ausdrücklicher Endfreigabe.
+
+## Block 8: Sicherung und Speicherreserve
+
+Der Zustellworker verwendet eine exklusive Sperre, um doppelte Workerprozesse und gleichzeitige Offline-Backups auszuschließen. Die PDF-Spool-Erstellung prüft eine freie SSD-Reserve. Das vollständige Offline-Backup enthält Spool-Aufträge, Scanoriginale, SQLite und Integrationstokens. Manuelle Zielabnahme und tatsächlicher Wiederanlauf auf dem N1800 stehen aus. **Erfolgreiche Dateien werden weiterhin nicht automatisch gelöscht.** Weitere Einzelheiten: `docs/RELEASE-READINESS-1.0.0.md`.
