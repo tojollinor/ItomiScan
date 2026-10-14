@@ -205,6 +205,8 @@ def submit_pdf(name, pdf, *, copies=1, sides="one-sided"):
         raise PrintError("Gültige gesicherte PDF-Datei fehlt.", permanent=True)
     if not is_configured(name):
         raise PrintError("Drucker nicht in CUPS eingerichtet.", permanent=True)
+    if not accepting_jobs(name):
+        raise PrintError("Drucker nimmt aktuell keine neuen Aufträge an.")
     cmd = ["lp", "-d", name, "-n", str(copies), "-o", "sides=" + sides, str(pdf)]
     if not shutil.which("lp"):
         raise PrintError("CUPS-Client lp fehlt.", permanent=True)
