@@ -22,6 +22,7 @@ apt-get install -y --no-install-recommends plymouth plymouth-themes python3-pil 
 backup_dir="/var/lib/itomiscan/boot-backups/$(date -u +%Y%m%dT%H%M%SZ)-$"
 install -d -m 0700 "$backup_dir"
 cp -a /etc/default/grub "$backup_dir/grub.original"
+chmod 0600 "$backup_dir/grub.original"
 [[ ! -f /boot/grub/grub.cfg ]] || cp -a /boot/grub/grub.cfg "$backup_dir/grub.cfg.original"
 plymouth-set-default-theme > "$backup_dir/plymouth-theme.original" || true
 
@@ -85,6 +86,11 @@ ring_sprite.SetX((Window.GetWidth() - ring.GetWidth()) / 2);
 ring_sprite.SetY((Window.GetHeight() - ring.GetHeight()) / 2 + 125);
 SCRIPT
 # Hide the GRUB selection pause on this single-OS appliance.
+if grep -Eq '^GRUB_TIMEOUT_STYLE=' /etc/default/grub; then
+  sed -i -E 's/^GRUB_TIMEOUT_STYLE=.*/GRUB_TIMEOUT_STYLE=hidden/' /etc/default/grub
+else
+  printf '\nGRUB_TIMEOUT_STYLE=hidden\n' >> /etc/default/grub
+fi
 if grep -Eq '^GRUB_TIMEOUT=' /etc/default/grub; then
   sed -i -E 's/^GRUB_TIMEOUT=.*/GRUB_TIMEOUT=0/' /etc/default/grub
 else
