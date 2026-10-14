@@ -17,7 +17,7 @@ from tkinter import messagebox, simpledialog, ttk
 from itomiscan.core.profiles import ProfileError, ProfileStore
 from itomiscan.gui.keyboard import ask_touch
 from itomiscan.gui.scanner_errors import show_scanner_error, classify_scanner_error
-from itomiscan.gui.home import HomeScreen
+from itomiscan.gui.home import HomeScreen, draw_logo, set_logo_busy
 from itomiscan.gui.copy import CopyScreen
 from itomiscan.integrations.printing import list_queues, validate_copy_options, PrintError
 from itomiscan.gui.pin import PinScreen
@@ -204,6 +204,18 @@ class ItomiScan:
         self.root.after(250, self.refresh_ip)
         self.root.after(2000, self.auth_tick)
         self.root.after(6000, self.delivery_tick)
+        self.root.after(300, self._refresh_busy_logos)
+
+    def _refresh_busy_logos(self):
+        """Small kiosk-safe status watcher; animates no frames while idle."""
+        try:
+            active = bool(self.busy)
+            set_logo_busy(self.scan_logo, active)
+            if self.home:
+                set_logo_busy(self.home.logo, active)
+            self.root.after(300, self._refresh_busy_logos)
+        except tk.TclError:
+            pass
 
     def _style(self):
         theme = ttk.Style(self.root)
@@ -226,6 +238,8 @@ class ItomiScan:
     def _layout(self):
         header = tk.Frame(self.scan_view, bg=BASE, height=62)
         header.pack(fill="x", padx=20, pady=(10, 4))
+        self.scan_logo = draw_logo(header, 52)
+        self.scan_logo.pack(side="left", padx=(0, 10))
         tk.Label(header, text="Itomi", bg=BASE, fg=FG,
                  font=("DejaVu Sans", 24, "bold")).pack(side="left")
         tk.Label(header, text="Scan", bg=BASE, fg="#42bfea",
