@@ -125,7 +125,7 @@ class CopyScreen:
         for child in self.display_printers.winfo_children():
             child.destroy()
         self._last_targets = entries
-        tk.Label(self.display_printers, text="Netzwerkdrucker",
+        tk.Label(self.display_printers, text="Verfügbare Drucker",
                  bg=BASE, fg=FG, font=("DejaVu Sans", 16, "bold")
                  ).pack(anchor="w", pady=(0, 6))
         if not entries:
@@ -144,6 +144,8 @@ class CopyScreen:
         for i, target in enumerate(entries[start:start + 6]):
             state = "normal" if target["ready"] else "disabled"
             mark = "✓  " if self.selected_id == target["id"] else ""
+            if target.get("default"):
+                mark += "★  "
             note = "" if target["ready"] else " (nicht in CUPS)"
             button = self._button(
                 grid, mark + target["name"] + note,
@@ -173,7 +175,10 @@ class CopyScreen:
         except (OSError, ValueError):
             targets = []
         if self.selected_id not in [p["id"] for p in targets if p["ready"]]:
-            self.selected_id = next((p["id"] for p in targets if p["ready"]), None)
+            self.selected_id = next((p["id"] for p in targets
+                                     if p["ready"] and p.get("default")), None)
+            if self.selected_id is None:
+                self.selected_id = next((p["id"] for p in targets if p["ready"]), None)
         if self.selected_id is not None:
             self.printer_page = next(
                 (i // 6 for i, p in enumerate(targets)
