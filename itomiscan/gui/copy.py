@@ -6,7 +6,7 @@ again in the application and delivery worker.
 """
 import tkinter as tk
 
-from itomiscan.gui.home import BASE, CARD, CYAN, FG, MUTED, BLUE
+from itomiscan.gui.home import BASE, CARD, CYAN, FG, MUTED, BLUE, draw_logo
 from itomiscan.integrations.printing import SIDES, MAX_COPIES
 
 
@@ -40,6 +40,7 @@ class CopyScreen:
         bar = tk.Frame(self.frame, bg=BASE)
         bar.pack(fill="x", padx=29, pady=(19, 8))
         self._button(bar, "← Zurück", self.back, size=13).pack(side="left")
+        draw_logo(bar, 48).pack(side="left", padx=(16, 0))
         tk.Label(bar, text="Kopieren", font=("DejaVu Sans", 27, "bold"),
                  bg=BASE, fg=FG).pack(side="left", padx=25)
         tk.Label(bar, text="ItomiScan", font=("DejaVu Sans", 15, "bold"),
@@ -129,7 +130,7 @@ class CopyScreen:
                  ).pack(anchor="w", pady=(0, 6))
         if not entries:
             tk.Label(self.display_printers,
-                     text="Noch kein Drucker eingerichtet. Webadministration öffnen.",
+                     text="Noch kein Drucker eingerichtet. Bitte in der Webadministration unter „Drucker hinzufügen“ einrichten.",
                      bg=CARD, fg=FG, font=("DejaVu Sans", 12),
                      pady=19).pack(fill="x")
             return
