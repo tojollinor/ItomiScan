@@ -102,6 +102,10 @@ class HomeScreen:
                          padx=12, pady=pad_y, cursor="hand2", width=width)
 
     def _build(self, shutdown, update, exit_app, status):
+        # Reserve the persistent bottom actions before the flexible content.
+        bottom = tk.Frame(self.frame, bg=BASE)
+        self.controls["footer"] = bottom
+        bottom.pack(side="bottom", fill="x", padx=31, pady=(0, 18))
         header = tk.Frame(self.frame, bg=BASE)
         header.pack(fill="x", padx=28, pady=(18, 6))
         self.logo = draw_logo(header, 64)
@@ -155,9 +159,6 @@ class HomeScreen:
         self._button(profiles, "Jetzt scannen", self.quick_scan,
                      bg=BLUE, font=15, pad_y=12).pack(side="right", padx=12, pady=5)
 
-        bottom = tk.Frame(self.frame, bg=BASE)
-        self.controls["footer"] = bottom
-        bottom.pack(fill="x", padx=31, pady=(0, 18))
         self.controls["menu"] = self._button(
             bottom, "Menü", lambda: self.show_menu(shutdown, update, exit_app),
             font=13, pad_y=9)
@@ -198,6 +199,9 @@ class HomeScreen:
         self.destination_page = page
         page.place(x=0, y=0, relwidth=1, relheight=1)
         page.lift()
+        # Back navigation must remain visible regardless of destination count.
+        self._button(page, "← Zurück", self.close_destinations,
+                     font=13).pack(side="bottom", anchor="w", padx=35, pady=16)
         header = tk.Frame(page, bg=BASE)
         header.pack(fill="x", padx=28, pady=18)
         draw_logo(header, 52).pack(side="left", padx=12)
@@ -231,8 +235,6 @@ class HomeScreen:
                      else self.destination_status(kind))
             tk.Label(card, text=state, bg=CARD, fg=MUTED,
                      font=("DejaVu Sans", 11)).pack(pady=(0, 10))
-        self._button(page, "← Zurück", self.close_destinations,
-                     font=13).pack(anchor="w", padx=35, pady=16)
 
     def close_destinations(self):
         page = getattr(self, "destination_page", None)
