@@ -1235,7 +1235,8 @@ class ItomiScan:
                 for number, page in enumerate(pages, 1):
                     shutil.copy2(page, ordered / f"Seite-{number:04d}{Path(page).suffix}")
                 for previous in output.glob("page-*"):
-                    previous.unlink()
+                    if previous.is_file():
+                        previous.unlink()
                 for new_page in ordered.iterdir():
                     os.replace(new_page, output / new_page.name)
                 ordered.rmdir()
