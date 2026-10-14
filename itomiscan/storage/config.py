@@ -185,6 +185,19 @@ class ConfigStore:
             db.execute("INSERT OR IGNORE INTO settings (key,value) VALUES (?,?)",
                        ("device_label", json.dumps("ItomiScan")))
         os.chmod(self.path, 0o600)
+        self.ensure_experiment_profile()
+
+    def ensure_experiment_profile(self):
+        """Add the opt-in test preset to existing installations without changing selection."""
+        from itomiscan.core.profiles import DEFAULT_PROFILES, validate_profile
+        profile = validate_profile(next(p for p in DEFAULT_PROFILES
+                                        if p["name"] == "Test / Alle Optionen"))
+        with self._connection(write=True) as db:
+            existing = db.execute("SELECT 1 FROM profiles WHERE name=?", (profile["name"],)).fetchone()
+            count = db.execute("SELECT COUNT(*) FROM profiles").fetchone()[0]
+            if not existing and count < 30:
+                db.execute("INSERT INTO profiles(name,data) VALUES (?,?)",
+                           (profile["name"], json.dumps(profile, ensure_ascii=False)))
 
     def list_profiles(self):
         with self._connection() as db:
