@@ -21,7 +21,7 @@
 
 **Zugangsdatenschutz:** `~/.config/itomiscan/integrations-secrets.json` (nur Scannerbenutzer, 0600). Verschlüsselte Übertragung im Web (Block 4). Diese Datei ist **nicht** in den üblichen JSON-Backups enthalten, ebenso wenig Passwörter oder PIN-Hashes. Für einen vollständigen gesicherten Restore inklusive Secrets muss in Block 8 ein ausdrücklich autorisiertes Verfahren eingerichtet werden.
 
-**Zielanlage im Browser:** Menü `Zielsysteme` zum Anlegen von Typ und Adresse, anschließend das jeweilige API-Token / Benutzerkonto / Passwort oder SMTP-Absender in der separaten Zugangsdaten-Maske speichern. Leere Felder erhalten bestehende Werte; ausdrückliches `Zugangsdaten entfernen` löscht sie. Das Entfernen eines Zieles löscht vorhandene Scanaufträge nicht automatisch. `Drucker` bleibt noch nicht nutzbar bis Block 7.
+**Zielanlage im Browser:** Menü `Zielsysteme` zum Anlegen von Typ und Adresse, anschließend das jeweilige API-Token / Benutzerkonto / Passwort oder SMTP-Absender in der separaten Zugangsdaten-Maske speichern. Leere Felder erhalten bestehende Werte; ausdrückliches `Zugangsdaten entfernen` löscht sie. Das Entfernen eines Zieles löscht vorhandene Scanaufträge nicht automatisch. Seit Block 7 können zusätzlich IPP-Everywhere-Drucker registriert und gescannte Kopien über die gemeinsame Warteschlange gedruckt werden.
 
 ## Zustellstatus und Fehlerfälle
 
@@ -62,4 +62,4 @@ Ein vorhandenes SMB-Ziel benötigt zusätzlich eine installierte `smbclient`-Bin
 - Paperless: HTTP-Anfrage und Task-ID im Mock-Test geprüft, keine realen API-Zugangsdaten oder Verbindungen.
 - Reale SMTP-, SMB-, USB- und Paperless-Geräteabnahme sowie CPU-/RAM-Messung auf Atom N270/1 GiB **ausstehend**.
 - SMS, OCR, automatische Paperless-Tags, Papierkorbleerung und dauerhaftes Mount-Management sind nicht Teil dieses Blocks.
-- Nächster Block 7/8: Netzwerkdrucker über CUPS und Kopierfunktion. Block 8/8: Integrations-/Gerätetest, Installer, Daten-/Rollback-Sicherung und Release nur nach ausdrücklicher Endfreigabe.
+- Block 7/8: CUPS-Drucker und Kopierfunktion auf dem Entwicklungszweig implementiert (siehe `docs/PRINTING.md`). Nächster Block 8/8: Integrations-/Gerätetest, Installer, Daten-/Rollback-Sicherung und Release nur nach ausdrücklicher Endfreigabe.
