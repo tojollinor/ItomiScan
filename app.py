@@ -495,6 +495,39 @@ class ItomiScan:
         dialog.lift()
         dialog.focus_force()
 
+    def confirm_discard_document(self):
+        """Touch-friendly, centered confirmation for unfinished scan sessions."""
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Dokumentbearbeitung abbrechen?")
+        dialog.configure(bg=BASE)
+        dialog.transient(self.root)
+        self._center_dialog(dialog, 660, 330)
+        result = {"discard": False}
+        tk.Label(dialog, text="Dokumentbearbeitung abbrechen?",
+                 bg=BASE, fg=FG, font=("DejaVu Sans", 20, "bold"),
+                 wraplength=600).pack(padx=20, pady=(24, 12))
+        tk.Label(dialog,
+                 text="Das Dokument ist noch nicht fertig. Die bereits gescannten "
+                      "Originalseiten bleiben lokal gespeichert.",
+                 bg=BASE, fg=MUTED, font=("DejaVu Sans", 12),
+                 wraplength=570, justify="center").pack(padx=24, pady=(0, 18))
+        buttons = tk.Frame(dialog, bg=BASE)
+        buttons.pack(fill="x", side="bottom", padx=24, pady=24)
+
+        def finish(discard):
+            result["discard"] = discard
+            dialog.destroy()
+
+        self._btn(buttons, "Weiter bearbeiten", lambda: finish(False)).pack(
+            side="left", fill="x", expand=True, padx=(0, 8))
+        self._btn(buttons, "Verwerfen", lambda: finish(True)).pack(
+            side="left", fill="x", expand=True, padx=(8, 0))
+        dialog.protocol("WM_DELETE_WINDOW", lambda: finish(False))
+        dialog.bind("<Escape>", lambda _event: finish(False))
+        dialog.grab_set()
+        self.root.wait_window(dialog)
+        return result["discard"]
+
     def restart(self):
         if not self._allowed("shutdown") or self.busy:
             return
@@ -567,14 +600,12 @@ class ItomiScan:
                 self.show_login("Benutzerkonto nicht mehr aktiv.")
                 return
             self.current_user = user
-        if self.review_pending and not messagebox.askyesno(
-                "Dokumentbearbeitung abbrechen",
-                "Das Dokument ist noch nicht fertiggestellt. Wirklich zu Home wechseln? "
-                "Die bereits erfassten Originalseiten bleiben lokal gespeichert.",
-                parent=self.root):
+        if self.review_pending and not self.confirm_discard_document():
             return
         if self.review_pending:
             self.review_pending = False
+            self.appending_pages = False
+            self.batch_settings = None
             self.pages = []
             self.review_button.pack_forget()
             self.append_button.pack_forget()
