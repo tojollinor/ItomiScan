@@ -106,6 +106,29 @@ class TouchGuiTests(unittest.TestCase):
         self.assertFalse(self.app.pin_screen.active)
         self.assertTrue(self.app.home.visible)
 
+    def test_network_target_enqueues_selected_delivery_intent(self):
+        self.app.delivery_queue.db.save_target({
+            "kind":"usb", "name":"ScanStick", "address":"usb://SCANUSB/Scans"})
+        target = next(t for t in self.app.delivery_queue.db.list_targets()
+                      if t["kind"]=="usb")
+        calls = []
+        def fake_scan():
+            calls.append(self.app.pending_delivery)
+            self.app.busy = True
+        self.app.start_scan = fake_scan
+        self.app.start_target_scan(target["id"])
+        self.assertEqual(calls, [target["id"]])
+        self.assertEqual(self.app._delivery_permission(), "usb")
+        self.assertTrue(self.app.busy)
+
+    def test_account_with_usb_right_cannot_start_local_scan(self):
+        self.enable_pin(permissions=("usb",), profiles=("Dokument",))
+        self.unlock()
+        self.assertFalse(self.app._allowed("scan", silent=True))
+        self.assertTrue(self.app._allowed("usb", silent=True))
+        self.assertFalse(self.app.home.tiles["scan"].winfo_manager())
+        self.assertTrue(self.app.home.controls["other"].winfo_manager())
+
     def test_home_and_detail_toggle(self):
         self.assertTrue(self.app.home.visible)
         self.app.show_scan()
