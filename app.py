@@ -483,6 +483,8 @@ class ItomiScan:
                 return
             self.current_user = user
         self.scan_view.place_forget()
+        if self.copy_screen:
+            self.copy_screen.hide()
         if self.pin_screen:
             self.pin_screen.hide()
         if user:
@@ -595,7 +597,62 @@ class ItomiScan:
         self.apply_profile(profile)
         self.start_scan()
 
+    def available_printers(self):
+        """Only installed CUPS queues are considered ready for printing."""
+        try:
+            installed = set(list_queues())
+        except PrintError:
+            installed = set()
+        return [
+            {"id": entry["id"], "name": entry["name"],
+             "ready": entry["name"] in installed}
+            for entry in self.delivery_queue.db.list_targets()
+            if entry["kind"] == "printer"
+        ]
+
+    def show_copy(self):
+        if self.busy or not self._allowed("copy"):
+            return
+        if not self.device:
+            messagebox.showwarning("Scanner", "Scanner noch nicht bereit.",
+                                   parent=self.root)
+            return
+        if self.home:
+            self.home.hide()
+        self.scan_view.place_forget()
+        self.copy_screen.show()
+
+    def start_copy(self, printer_id, copies, sides, scan_source):
+        if self.busy or not self._allowed("copy"):
+            return
+        try:
+            validate_copy_options(copies, sides)
+            if scan_source not in ("ADF Front", "ADF Duplex"):
+                raise PrintError("Ungültiger Vorlageneinzug.", permanent=True)
+            target = next((x for x in self.delivery_queue.db.list_targets()
+                           if x["id"] == printer_id and x["kind"] == "printer"), None)
+            if not target or target["name"] not in list_queues():
+                raise PrintError("Drucker nicht in CUPS eingerichtet.", permanent=True)
+            supported = next((
+                opt["choices"] for opt in self.options
+                if opt["flag"] == "--source" and not opt["inactive"]), ())
+            if scan_source not in supported:
+                raise PrintError("Der Scanner unterstützt diesen Einzug nicht.",
+                                 permanent=True)
+        except (PrintError, OSError) as exc:
+            messagebox.showerror("Kopieren", str(exc), parent=self.root)
+            return
+        self.pending_print = {
+            "target_id": printer_id, "copies": copies, "sides": sides,
+            "scan_source": scan_source}
+        self.copy_screen.hide()
+        self.start_scan()
+        if not self.busy:
+            self.pending_print = None
+
     def _delivery_permission(self):
+        if self.pending_print is not None:
+            return "copy"
         if self.pending_delivery is None:
             return "scan"
         target = next((item for item in self.delivery_queue.db.list_targets()
