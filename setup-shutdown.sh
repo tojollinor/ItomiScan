@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Configure a narrowly scoped poweroff privilege for the ItomiScan kiosk user.
+# Configure narrowly scoped poweroff and reboot privileges for the kiosk user.
 # Run as root. Optionally pass the existing non-root kiosk user name.
 set -euo pipefail
 
@@ -38,11 +38,11 @@ install -d -m 0755 /etc/sudoers.d
 RULE="/etc/sudoers.d/itomiscan-poweroff"
 TEMP="$(mktemp /etc/sudoers.d/.itomiscan-poweroff.XXXXXX)"
 trap 'rm -f "$TEMP"' EXIT
-printf '%s ALL=(root) NOPASSWD: /usr/bin/systemctl poweroff\n' "$USER_NAME" >"$TEMP"
+printf '%s ALL=(root) NOPASSWD: /usr/bin/systemctl poweroff, /usr/bin/systemctl reboot\n' "$USER_NAME" >"$TEMP"
 chmod 0440 "$TEMP"
 visudo -cf "$TEMP" >/dev/null
 install -o root -g root -m 0440 "$TEMP" "$RULE"
 visudo -cf "$RULE" >/dev/null
 
 echo "Ausschalten eingerichtet fuer $USER_NAME."
-echo "Erlaubt ist nur: sudo -n /usr/bin/systemctl poweroff"
+echo "Erlaubt: sudo -n /usr/bin/systemctl poweroff oder reboot"
