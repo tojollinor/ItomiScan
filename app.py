@@ -1732,10 +1732,19 @@ class ItomiScan:
                                            "Accept": "application/vnd.github+json"})
                     with urllib.request.urlopen(request, timeout=20) as response:
                         remote = json.load(response)["sha"]
+                    if not isinstance(remote, str) or len(remote) != 40 or any(
+                            char not in "0123456789abcdef" for char in remote):
+                        raise ValueError("Ungültige GitHub-Commit-ID")
                     installed = Path(__file__).resolve().parent / ".itomiscan-beta-commit"
                     local = installed.read_text().strip() if installed.exists() else ""
-                    publish("Beta ist aktuell." if local == remote else
-                            "Neue Beta verfügbar. Installation vorerst über SSH/curl.")
+                    if not local:
+                        publish("Installierter Beta-Stand unbekannt. "
+                                "Update nicht automatisch freigeben.")
+                    elif local == remote:
+                        publish("Beta ist aktuell.")
+                    else:
+                        publish("Neue Beta verfügbar (" + remote[:10] +
+                                "). Installation vorerst über SSH/curl.")
                 else:
                     endpoint = ("https://api.github.com/repos/tojollinor/ItomiScan/"
                                 "releases/latest")
