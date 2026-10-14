@@ -188,6 +188,7 @@ class ItomiScan:
             self.shutdown, self.check_update, self.exit, self.status_var,
             logout=self.logout, deliver=self.choose_destination,
             open_copy=self.show_copy,
+            destination_status=self.destination_status,
         )
         self.copy_screen = CopyScreen(self.root, self.available_printers,
                                       self.start_copy, self.show_home)
@@ -858,6 +859,14 @@ class ItomiScan:
         target = next((item for item in self.delivery_queue.db.list_targets()
                        if item["id"] == self.pending_delivery), None)
         return target["kind"] if target else "scan"
+
+    def destination_status(self, kind):
+        try:
+            count = sum(item["kind"] == kind
+                        for item in self.delivery_queue.db.list_targets())
+            return str(count) + " Ziel(e) eingerichtet" if count else "Nicht eingerichtet"
+        except (OSError, ValueError):
+            return "Status nicht verfügbar"
 
     def choose_destination(self, kind):
         """Select a configured destination on a full-screen kiosk page."""
