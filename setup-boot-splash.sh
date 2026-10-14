@@ -19,9 +19,10 @@ fi
 export DEBIAN_FRONTEND=noninteractive
 apt-get update
 apt-get install -y --no-install-recommends plymouth plymouth-themes python3-pil fonts-dejavu-core
-backup_dir="/var/lib/itomiscan/boot-backups/$(date -u +%Y%m%dT%H%M%SZ)"
+backup_dir="/var/lib/itomiscan/boot-backups/$(date -u +%Y%m%dT%H%M%SZ)-$"
 install -d -m 0700 "$backup_dir"
 cp -a /etc/default/grub "$backup_dir/grub.original"
+[[ ! -f /boot/grub/grub.cfg ]] || cp -a /boot/grub/grub.cfg "$backup_dir/grub.cfg.original"
 plymouth-set-default-theme > "$backup_dir/plymouth-theme.original" || true
 
 echo "Backup angelegt: $backup_dir"
@@ -36,7 +37,7 @@ match = pattern.search(text)
 if not match:
     raise SystemExit('GRUB_CMDLINE_LINUX_DEFAULT fehlt oder enthält ungeprüfte Syntax; nichts ändern.')
 flags = match.group(2).split()
-for arg in ('quiet', 'splash'):
+for arg in ('quiet', 'splash', 'loglevel=3', 'systemd.show_status=false', 'vt.global_cursor_default=0'):
     if arg not in flags:
         flags.append(arg)
 path.write_text(text[:match.start()] + match.group(1) + '"' + ' '.join(flags) + '"' + text[match.end():])
@@ -83,7 +84,14 @@ ring_sprite = Sprite(ring);
 ring_sprite.SetX((Window.GetWidth() - ring.GetWidth()) / 2);
 ring_sprite.SetY((Window.GetHeight() - ring.GetHeight()) / 2 + 125);
 SCRIPT
+# Hide the GRUB selection pause on this single-OS appliance.
+if grep -Eq '^GRUB_TIMEOUT=' /etc/default/grub; then
+  sed -i -E 's/^GRUB_TIMEOUT=.*/GRUB_TIMEOUT=0/' /etc/default/grub
+else
+  printf '\nGRUB_TIMEOUT=0\n' >> /etc/default/grub
+fi
 plymouth-set-default-theme itomiscan
+echo 'Aktualisiere initramfs; dies kann auf dem Atom N270 einige Minuten dauern.'
 update-initramfs -u
 update-grub
 printf '\nItomiScan Boot-Splash eingerichtet. Backup: %s\n' "$backup_dir"
