@@ -284,6 +284,7 @@ class ItomiScan:
         edit = tk.Frame(right, bg=PANEL)
         edit.pack(fill="x", padx=14, pady=(0, 6))
         for label, callback in (
+                ("Erneut scannen", self.rescan_page),
                 ("Drehen", self.rotate_page),
                 ("Löschen", self.delete_page),
                 ("← Seite", lambda: self.move_page(-1)),
@@ -1030,6 +1031,70 @@ class ItomiScan:
         self.progress.stop()
         self.status_var.set("Scan fehlgeschlagen")
         show_scanner_error(self.root, msg)
+
+    def rescan_page(self):
+        """Replace the selected image only after a successful single-page scan."""
+        if self.busy or not self.review_pending or not self.pages:
+            return
+        if not messagebox.askyesno(
+                "Seite erneut scannen",
+                "Die ausgewählte Seite erneut einziehen und ersetzen? "
+                "Die bisherige Seite bleibt bei einem Fehler erhalten.",
+                parent=self.root):
+            return
+        try:
+            settings = self.chosen_args()
+        except ValueError as exc:
+            messagebox.showerror("Scanoption", str(exc), parent=self.root)
+            return
+        self.busy = True
+        self.scan_button.configure(state="disabled")
+        self.progress.start(10)
+        self.status_var.set("Ausgewählte Seite wird erneut gescannt …")
+        index = self.page_index
+        original = Path(self.pages[index])
+        threading.Thread(target=self._rescan_page_worker,
+                         args=(index, original, settings), daemon=True).start()
+
+    def _rescan_page_worker(self, index, original, settings):
+        try:
+            with tempfile.TemporaryDirectory(prefix="itomiscan-rescan-") as folder:
+                ext = original.suffix.lower().lstrip(".")
+                fmt = "jpeg" if ext in ("jpg", "jpeg") else "png"
+                command = ["scanimage", "-d", self.device, "--format=" + fmt,
+                           "--batch=retry-%04d." + ext, "--batch-count=1"] + settings
+                result = shell(command, timeout=180, cwd=folder)
+                candidates = sorted(Path(folder).glob("retry-*." + ext))
+                if result.returncode != 0:
+                    raise RuntimeError(result.stderr.strip() or "Erneuter Scan fehlgeschlagen.")
+                if len(candidates) != 1:
+                    raise RuntimeError("Es wurde keine einzelne Bildseite erkannt. "
+                                       "Bitte Einzug und Duplex-Einstellung prüfen.")
+                with Image.open(candidates[0]) as img:
+                    img.verify()
+                # Replace atomically only when acquisition is complete.
+                replacement = original.with_name(original.name + ".new")
+                shutil.copy2(candidates[0], replacement)
+                os.replace(replacement, original)
+            self.dispatch(lambda: self._rescan_page_complete(index))
+        except (OSError, RuntimeError, subprocess.TimeoutExpired) as exc:
+            error = str(exc)
+            self.dispatch(lambda: self._rescan_page_error(error))
+
+    def _rescan_page_complete(self, index):
+        self.busy = False
+        self.scan_button.configure(state="normal")
+        self.progress.stop()
+        self.page_index = index
+        self.show_page()
+        self.status_var.set("Seite erneut gescannt · Bitte Dokument prüfen")
+
+    def _rescan_page_error(self, error):
+        self.busy = False
+        self.scan_button.configure(state="normal")
+        self.progress.stop()
+        self.status_var.set("Erneuter Scan fehlgeschlagen · Alte Seite erhalten")
+        show_scanner_error(self.root, error)
 
     def rotate_page(self):
         if self.busy or not self.pages:
