@@ -29,6 +29,7 @@ jobs:
           /usr/bin/python3 -m unittest discover -s tests -p test_users.py -v
           /usr/bin/python3 -m unittest discover -s tests -p test_delivery.py -v
           /usr/bin/python3 -m unittest discover -s tests -p test_printing.py -v
+          /usr/bin/python3 -m unittest discover -s tests -p test_release_preflight.py -v
           /usr/bin/python3 -m unittest discover -s tests -p test_full_backup.py -v
           /usr/bin/python3 -m unittest discover -s tests -p test_startup.py -v
           /usr/bin/python3 -m unittest discover -s tests -p test_scaffold.py -v
