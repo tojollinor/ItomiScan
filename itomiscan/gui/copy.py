@@ -37,6 +37,15 @@ class CopyScreen:
                          padx=13, pady=12, width=width)
 
     def _build(self):
+        # Pack the primary action first to reserve space on 1024x768.
+        foot = tk.Frame(self.frame, bg=BASE)
+        foot.pack(side="bottom", fill="x", padx=35, pady=(8, 12))
+        tk.Label(foot, textvariable=self.message, bg=BASE, fg=MUTED,
+                 font=("DejaVu Sans", 10), wraplength=490,
+                 justify="left").pack(side="left")
+        self.start_button = self._button(
+            foot, "Scannen & drucken", self.start, background=BLUE, size=15)
+        self.start_button.pack(side="right", ipady=3)
         bar = tk.Frame(self.frame, bg=BASE)
         bar.pack(fill="x", padx=29, pady=(19, 8))
         self._button(bar, "← Zurück", self.back, size=13).pack(side="left")
@@ -88,14 +97,6 @@ class CopyScreen:
         tk.Label(right, textvariable=self.print_var, bg=CARD, fg=CYAN,
                  font=("DejaVu Sans", 12)).pack(pady=5)
 
-        foot = tk.Frame(self.frame, bg=BASE)
-        foot.pack(fill="x", padx=35, pady=(10, 17))
-        tk.Label(foot, textvariable=self.message, bg=BASE, fg=MUTED,
-                 font=("DejaVu Sans", 11), wraplength=530,
-                 justify="left").pack(side="left")
-        self.start_button = self._button(
-            foot, "Scannen & drucken", self.start, background=BLUE, size=17)
-        self.start_button.pack(side="right", ipady=7)
 
     def _step(self, amount):
         self.copies = max(1, min(MAX_COPIES, self.copies + amount))
@@ -132,16 +133,16 @@ class CopyScreen:
             tk.Label(self.display_printers,
                      text="Noch kein Drucker eingerichtet. Bitte in der Webadministration unter „Drucker hinzufügen“ einrichten.",
                      bg=CARD, fg=FG, font=("DejaVu Sans", 12),
-                     pady=19).pack(fill="x")
+                     pady=10, wraplength=820).pack(fill="x")
             return
         grid = tk.Frame(self.display_printers, bg=BASE)
         grid.pack(fill="x")
         for col in range(2):
             grid.grid_columnconfigure(col, weight=1, uniform="copyprinters")
-        pages = max(1, (len(entries) + 5) // 6)
+        pages = max(1, (len(entries) + 3) // 4)
         self.printer_page = max(0, min(self.printer_page, pages - 1))
-        start = self.printer_page * 6
-        for i, target in enumerate(entries[start:start + 6]):
+        start = self.printer_page * 4
+        for i, target in enumerate(entries[start:start + 4]):
             state = "normal" if target["ready"] else "disabled"
             mark = "✓  " if self.selected_id == target["id"] else ""
             if target.get("default"):
@@ -181,7 +182,7 @@ class CopyScreen:
                 self.selected_id = next((p["id"] for p in targets if p["ready"]), None)
         if self.selected_id is not None:
             self.printer_page = next(
-                (i // 6 for i, p in enumerate(targets)
+                (i // 4 for i, p in enumerate(targets)
                  if p["id"] == self.selected_id), 0)
         self._render_printers(targets)
         self.message.set(
