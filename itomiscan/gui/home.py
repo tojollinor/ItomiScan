@@ -85,28 +85,19 @@ class HomeScreen:
         tiles.pack(fill="both", expand=True, padx=30, pady=(12, 8))
         for i in range(2):
             tiles.grid_columnconfigure(i, weight=1, uniform="actions")
-            tiles.grid_rowconfigure(i, weight=1, uniform="actions")
+        tiles.grid_rowconfigure(0, weight=1)
         actions = (
-            ("scan", "SCAN", "Scannen", "PDF oder Bild speichern", True, self.open_scan),
-            ("paperless", "ARCHIV", "Paperless", "PDF an Archiv senden", True,
-             lambda: self.deliver("paperless")),
-            ("copy", "KOPIE", "Kopieren", "Netzwerkdrucker auswählen", True,
-             self.open_copy),
-            ("network", "NETZ", "Netzwerkordner", "PDF ins Netzwerk", True,
-             lambda: self.deliver("network")),
+            ("scan", "Scannen", "Dokument digitalisieren", self.show_destinations),
+            ("copy", "Kopieren", "Dokument ausdrucken", self.open_copy),
         )
-        for index, (permission, short, title, subtitle, enabled, command) in enumerate(actions):
-            row, column = divmod(index, 2)
+        for index, (permission, title, subtitle, command) in enumerate(actions):
             card = tk.Frame(tiles, bg=CARD, bd=0)
-            card.grid(row=row, column=column, padx=8, pady=8, sticky="nsew")
+            card.grid(row=0, column=index, padx=8, pady=8, sticky="nsew")
             self.tiles[permission] = card
-            tk.Label(card, text=short, bg=CARD,
-                     fg=CYAN if enabled else MUTED,
-                     font=("DejaVu Sans", 10, "bold")).pack(pady=(12, 0))
-            self._button(card, title, command, bg=CARD, font=21,
-                         pad_y=19).pack(fill="both", expand=True, padx=10)
+            self._button(card, title, command, bg=CARD, font=24,
+                         pad_y=30).pack(fill="both", expand=True, padx=10, pady=(12, 0))
             tk.Label(card, text=subtitle, bg=CARD, fg=MUTED,
-                     font=("DejaVu Sans", 11)).pack(pady=(0, 17))
+                     font=("DejaVu Sans", 12)).pack(pady=(0, 20))
 
         profiles = tk.Frame(self.frame, bg=CARD)
         profiles.pack(fill="x", padx=37, pady=(2, 12))
@@ -125,15 +116,10 @@ class HomeScreen:
         bottom = tk.Frame(self.frame, bg=BASE)
         self.controls["footer"] = bottom
         bottom.pack(fill="x", padx=31, pady=(0, 18))
-        self.controls["other"] = self._button(
-            bottom, "E-Mail / USB", lambda: self.deliver("other"), font=11, pad_y=7)
-        self.controls["other"].pack(side="left", padx=4)
-        self.controls["exit"] = self._button(bottom, "Beenden", exit_app, font=11,
-                                             pad_y=7)
-        self.controls["exit"].pack(side="left", padx=4)
-        self.controls["update"] = self._button(bottom, "Update", update, font=11,
-                                               pad_y=7)
-        self.controls["update"].pack(side="left", padx=4)
+        self.controls["menu"] = self._button(
+            bottom, "Menü", lambda: self.show_menu(shutdown, update, exit_app),
+            font=13, pad_y=9)
+        self.controls["menu"].pack(side="left", padx=4)
         self.controls["shutdown"] = self._button(bottom, "Ausschalten", shutdown,
                                                  font=11, pad_y=7)
         self.controls["shutdown"].pack(side="right", padx=4)
@@ -143,6 +129,48 @@ class HomeScreen:
         self.controls["logout"].pack(side="right", padx=4)
         self.controls["logout"].pack_forget()
 
+    def _modal(self, title):
+        dialog = tk.Toplevel(self.root)
+        dialog.title(title)
+        dialog.configure(bg=BASE)
+        dialog.transient(self.root)
+        dialog.geometry("760x590")
+        dialog.grab_set()
+        tk.Label(dialog, text=title, bg=BASE, fg=FG,
+                 font=("DejaVu Sans", 23, "bold")).pack(pady=(24, 12))
+        return dialog
+
+    def show_destinations(self):
+        dialog = self._modal("Wohin möchtest du scannen?")
+        choices = [("Normal scannen", self.open_scan, "scan")]
+        for kind, title in (("paperless", "Paperless"), ("network", "Netzwerkordner"),
+                            ("email", "E-Mail"), ("usb", "USB")):
+            if self.allowed is None or kind in self.allowed:
+                choices.append((title, lambda k=kind: self.deliver(k), kind))
+        for title, action, kind in choices:
+            def select(fn=action):
+                dialog.destroy()
+                fn()
+            self._button(dialog, title, select, bg=BLUE if kind == "scan" else CARD,
+                         font=16, pad_y=11).pack(fill="x", padx=28, pady=4)
+        self._button(dialog, "Zurück", dialog.destroy, font=13).pack(pady=9)
+
+    def show_menu(self, shutdown, update, exit_app):
+        dialog = self._modal("Menü")
+        actions = (
+            ("Updates", "update", update),
+            ("Beenden", "exit", exit_app),
+        )
+        for title, permission, action in actions:
+            if self.allowed is not None and permission not in self.allowed:
+                continue
+            def select(fn=action):
+                dialog.destroy()
+                fn()
+            self._button(dialog, title, select, font=17, pad_y=18).pack(
+                fill="x", padx=28, pady=9)
+        self._button(dialog, "Schließen", dialog.destroy, font=14).pack(pady=20)
+
     def _selected(self, _event=None):
         self.select_profile(self.selected_var.get())
 
@@ -150,25 +178,19 @@ class HomeScreen:
         self.allowed = set(user["permissions"]) if user else None
         self.user_var.set(user["name"] if user else "")
         for permission, widget in self.tiles.items():
-            if self.allowed is None or permission in self.allowed:
+            if self.allowed is None or permission == "scan" and (
+                    {"scan", "paperless", "network", "email", "usb"} & self.allowed
+                    ) or permission in self.allowed:
                 widget.grid()
             else:
                 widget.grid_remove()
-        for permission in ("exit", "update", "shutdown"):
-            widget = self.controls[permission]
-            if self.allowed is None or permission in self.allowed:
-                widget.pack(side="right" if permission == "shutdown" else "left",
-                            padx=4)
-            else:
-                widget.pack_forget()
+        self.controls["menu"].pack(side="left", padx=4)
+        self.controls["shutdown"].pack(
+            side="right", padx=4) if self.allowed is None or "shutdown" in self.allowed else self.controls["shutdown"].pack_forget()
         if user:
             self.controls["logout"].pack(side="right", padx=4)
         else:
             self.controls["logout"].pack_forget()
-        if self.allowed is not None and not ({"email", "usb"} & self.allowed):
-            self.controls["other"].pack_forget()
-        else:
-            self.controls["other"].pack(side="left", padx=4)
         if self.allowed is not None and not ({"scan", "paperless", "network", "email", "usb"} & self.allowed):
             self.controls["profile_bar"].pack_forget()
         else:
