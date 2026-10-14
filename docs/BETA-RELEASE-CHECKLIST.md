@@ -191,3 +191,16 @@ Code auf `develop/1.0.0` ergänzt:
 - [ ] Vor einer Beta-Freigabe offene Treiber-, Scan- und UI-Tests vollständig durchführen.
 
 **Wichtig:** Keine Installation, kein GitHub-Release, keine Änderung an `main`. Eingecheckte Änderungen sind keine Gerätetests.
+
+
+## Nacharbeit Block 5: Druckertreiber-Sicherheit
+
+- [x] Die automatische CUPS-Druckereinrichtung erlaubt nur IPP/IPPS mit `-m everywhere`.
+- [x] Socket/RAW, LPD und USB werden bei der **automatischen** Einrichtung mit verständlicher Treiber-/Filtermeldung abgewiesen, statt fälschlich als PDF-kompatibel zu gelten.
+- [x] Regressionstests für die Ablehnung und für CUPS-Warteschlangen ohne Auftragsannahme ergänzt.
+- [x] Bestehende PDF-Drucktests auf die neue CUPS-Auftragsannahmeprüfung angepasst.
+- [ ] Bestehende RAW-Druckerwarteschlangen werden durch dieses Update **nicht** automatisch entfernt; bei der Geräteabnahme gesondert prüfen.
+- [ ] Für RAW/LPD/USB optional später eine explizite Treiberauswahl mit lokal verfügbaren CUPS-Modellen und validiertem Filter ergänzen.
+- [ ] Tests in GitHub Actions ausführen und Ergebnisse prüfen.
+
+**Keine Installation auf dem N1800, kein Release.**
