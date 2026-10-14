@@ -79,6 +79,10 @@ class DeliveryQueue:
         size = source.stat().st_size
         if not 0 < size <= MAX_JOB_BYTES:
             raise QueueError("PDF zu groß (maximal 150 MiB pro Auftrag).")
+        # Keep a safety buffer for SQLite, temp pages and the next scan.
+        if shutil.disk_usage(self.folder).free < size + 256 * 1024 * 1024:
+            raise QueueError("Nicht genug freier Platz für sichere PDF-Zustellung. "
+                             "Die ursprüngliche Scan-Datei bleibt erhalten.")
         target = next((t for t in self.db.list_targets() if t["id"] == target_id), None)
         if not target or target["kind"] not in ("paperless", "network", "email", "usb", "printer"):
             raise QueueError("Unbekanntes oder nicht unterstütztes Dokumentenziel.")
