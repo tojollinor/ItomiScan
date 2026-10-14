@@ -878,12 +878,30 @@ class ItomiScan:
         targets = [item for item in self.delivery_queue.db.list_targets()
                    if item["kind"] in kinds and self._allowed(item["kind"], silent=True)]
         if not targets:
-            messagebox.showinfo(
-                "Dokumentenziele", "Für dieses Ziel ist noch keine Verbindung "
-                "eingerichtet. Bitte in der Webadministration konfigurieren.",
-                parent=self.root)
-            if self.home:
-                self.home.show_destinations()
+            page = tk.Frame(self.root, bg=BASE)
+            self.target_page = page
+            page.place(x=0, y=0, relwidth=1, relheight=1)
+            page.lift()
+            header = tk.Frame(page, bg=BASE)
+            header.pack(fill="x", padx=28, pady=18)
+            draw_logo(header, 52).pack(side="left", padx=(0, 12))
+            tk.Label(header, text="Dokumentenziel", bg=BASE, fg=FG,
+                     font=("DejaVu Sans", 23, "bold")).pack(side="left")
+            tk.Label(page, text="Dieses Ziel ist noch nicht eingerichtet.",
+                     bg=BASE, fg=FG, font=("DejaVu Sans", 20, "bold")
+                     ).pack(pady=(80, 14))
+            tk.Label(page,
+                     text="Die Verbindung wird in der geschützten "
+                          "Webadministration konfiguriert.",
+                     bg=BASE, fg=MUTED, font=("DejaVu Sans", 14),
+                     wraplength=760).pack(pady=12)
+            def back():
+                page.destroy()
+                self.target_page = None
+                if self.home:
+                    self.home.show_destinations()
+            self._btn(page, "← Zurück zu den Scanzielen", back, BLUE).pack(
+                pady=32)
             return
         page = tk.Frame(self.root, bg=BASE)
         self.target_page = page
