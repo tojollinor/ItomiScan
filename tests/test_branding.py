@@ -26,6 +26,11 @@ class BrandingTest(unittest.TestCase):
                      round(branding.LINE_HEIGHT * branding.LOGO_SIZE /
                            branding.LOGO_UNITS)),
                 )
+            theme = (Path(tmp) / "itomiscan.script").read_text()
+            self.assertIn(f"logo_sprite.SetY(top + {branding.LOGO_Y})", theme)
+            self.assertIn("Plymouth.SetRefreshFunction(refresh_callback)", theme)
+            self.assertIn(f"line_position = {branding.LINE_START}", theme)
+            self.assertTrue((Path(tmp) / "itomiscan.plymouth").is_file())
 
     def test_splash_uses_shared_scan_line_not_spinning_ring(self):
         splash = (Path(__file__).resolve().parents[1] /
@@ -38,7 +43,7 @@ class BrandingTest(unittest.TestCase):
         boot = (Path(__file__).resolve().parents[1] /
                 "setup-boot-splash.sh").read_text()
         self.assertIn("python3 -m itomiscan.branding --output", boot)
-        self.assertIn("Plymouth.SetRefreshFunction(refresh_callback)", boot)
+        self.assertIn("itomiscan.script", boot)
         self.assertIn("cmp -s /etc/default/grub", boot)
 
 
