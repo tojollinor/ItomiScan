@@ -2,7 +2,7 @@
 
 import tkinter as tk
 
-from itomiscan.gui.home import draw_logo, CYAN
+from itomiscan.gui.home import draw_logo
 
 BG = "#101927"
 PANEL = "#192738"
@@ -16,20 +16,23 @@ class StartupSplash:
         self.root = root
         self.retry = retry
         self.frame = tk.Frame(root, bg=BG)
-        self.frame.pack(fill="both", expand=True)
+        self.frame.place(x=0, y=0, relwidth=1, relheight=1)
+        self.frame.lift()
 
-        draw_logo(self.frame, 84).pack(pady=(29, 8))
+        # Exact reference coordinates shared with the Plymouth theme (1024x768).
+        # Keep the content visible during the switch to the main kiosk.
+        draw_logo(self.frame, 84).place(relx=0.5, y=29, anchor="n")
         brand = tk.Frame(self.frame, bg=BG)
-        brand.pack(pady=(0, 8))
+        brand.place(relx=0.5, y=126, anchor="n")
         tk.Label(brand, text="Itomi", font=("DejaVu Sans", 30, "bold"),
                  bg=BG, fg=WHITE).pack(side="left")
         tk.Label(brand, text="Scan", font=("DejaVu Sans", 30, "bold"),
                  bg=BG, fg=CYAN).pack(side="left")
         tk.Label(self.frame, text="Dokumentenscanner", font=("DejaVu Sans", 13),
-                 bg=BG, fg=MUTED).pack()
+                 bg=BG, fg=MUTED).place(relx=0.5, y=177, anchor="n")
         self.canvas = tk.Canvas(self.frame, width=150, height=150,
                                 bg=BG, bd=0, highlightthickness=0)
-        self.canvas.pack(pady=(33, 18))
+        self.canvas.place(relx=0.5, y=228, anchor="n")
         self.canvas.create_oval(21, 21, 129, 129, outline="#34475e", width=11)
         self.arc = self.canvas.create_arc(21, 21, 129, 129, start=90, extent=85,
                                           style=tk.ARC, outline=CYAN, width=11)
@@ -38,9 +41,9 @@ class StartupSplash:
         self.title = tk.StringVar(value="Scanner wird vorbereitet")
         self.info = tk.StringVar(value="Systemstart …")
         tk.Label(self.frame, textvariable=self.title, bg=BG, fg=WHITE,
-                 font=("DejaVu Sans", 19, "bold")).pack(pady=(0, 15))
+                 font=("DejaVu Sans", 19, "bold")).place(relx=0.5, y=410, anchor="n")
         tk.Label(self.frame, textvariable=self.info, bg=BG, fg=MUTED,
-                 wraplength=720, font=("DejaVu Sans", 12)).pack(padx=30)
+                 wraplength=720, font=("DejaVu Sans", 12)).place(relx=0.5, y=457, anchor="n")
         self.buttons = tk.Frame(self.frame, bg=BG)
         self.detail_text = tk.StringVar(value="")
         self.details_visible = False
@@ -76,7 +79,7 @@ class StartupSplash:
         self.info.set(message)
         self.detail_text.set((detail or "Keine weiteren Diagnosedaten.")[:600])
         if not self.buttons.winfo_manager():
-            self.buttons.pack(pady=(22, 0))
+            self.buttons.place(relx=0.5, y=520, anchor="n")
             self.retry_btn.pack(side="left", padx=8)
             self.detail_btn.pack(side="left", padx=8)
             self.exit_btn.pack(side="left", padx=8)
@@ -84,15 +87,15 @@ class StartupSplash:
     def loading(self):
         self.title.set("Scanner wird vorbereitet")
         self.info.set("Erneuter Versuch …")
-        self.buttons.pack_forget()
+        self.buttons.place_forget()
         self.detail_label.pack_forget()
         self.details_visible = False
 
     def toggle_details(self):
         if self.details_visible:
-            self.detail_label.pack_forget()
+            self.detail_label.place_forget()
         else:
-            self.detail_label.pack(pady=(15, 0), padx=40)
+            self.detail_label.place(relx=0.5, y=615, anchor="n")
         self.details_visible = not self.details_visible
 
     def destroy(self):
