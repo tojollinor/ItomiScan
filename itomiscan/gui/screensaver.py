@@ -1,13 +1,14 @@
-"""Minimal idle dim-screen for low-powered N1800 display.
-
-Never activates during a scan or modal dialog; wakes on tap or key.
-"""
+"""Minimal low-power N1800 idle screen with manual preview control."""
 import time
 import tkinter as tk
 
+from itomiscan import branding
+from itomiscan.gui.home import draw_logo
+
 BG = "#060c14"
-WHITE = "#f1f5fb"
-MUTED = "#a8bacd"
+WHITE = branding.WHITE
+MUTED = branding.MUTED
+CYAN = branding.CYAN
 
 
 class IdleScreen:
@@ -19,8 +20,14 @@ class IdleScreen:
         self.active = False
         self.frame = tk.Frame(root, bg=BG)
         self.clock = tk.StringVar(value="")
-        tk.Label(self.frame, text="ItomiScan", fg=WHITE, bg=BG,
-                 font=("DejaVu Sans", 30, "bold")).pack(pady=(220, 26))
+
+        draw_logo(self.frame, 110, background=BG).pack(pady=(142, 15))
+        brand = tk.Frame(self.frame, bg=BG)
+        brand.pack(pady=(0, 19))
+        tk.Label(brand, text="Itomi", fg=WHITE, bg=BG,
+                 font=("DejaVu Sans", 30, "bold")).pack(side="left")
+        tk.Label(brand, text="Scan", fg=CYAN, bg=BG,
+                 font=("DejaVu Sans", 30, "bold")).pack(side="left")
         tk.Label(self.frame, textvariable=self.clock, fg=WHITE, bg=BG,
                  font=("DejaVu Sans", 26)).pack()
         tk.Label(self.frame, text="Zum Aktivieren den Bildschirm berühren",
@@ -29,14 +36,14 @@ class IdleScreen:
         self.frame.bind("<KeyPress>", self.wake_event)
         for child in self.frame.winfo_children():
             child.bind("<ButtonPress>", self.wake_event)
+            for grandchild in child.winfo_children():
+                grandchild.bind("<ButtonPress>", self.wake_event)
         self.root.bind_all("<ButtonPress>", self.activity, add="+")
         self.root.bind_all("<KeyPress>", self.activity, add="+")
         self.root.after(10000, self.tick)
 
     def activity(self, _event=None):
         self.last = time.monotonic()
-        # On the cover the child's own binding handles dismissal and stops
-        # that first tap from activating something underneath.
 
     def wake_event(self, _event=None):
         self.wake()
@@ -48,6 +55,20 @@ class IdleScreen:
             self.active = False
             self.frame.place_forget()
 
+    def _show(self):
+        self.active = True
+        self.clock.set(time.strftime("%H:%M"))
+        self.frame.place(x=0, y=0, relwidth=1, relheight=1)
+        self.frame.lift()
+
+    def show_now(self):
+        """Manual debug/preview activation; never bypass busy or modal checks."""
+        if self.busy() or self.root.grab_current():
+            return False
+        self.last = time.monotonic()
+        self._show()
+        return True
+
     def tick(self):
         try:
             if not self.root.winfo_exists():
@@ -56,10 +77,7 @@ class IdleScreen:
                 self.clock.set(time.strftime("%H:%M"))
             elif (not self.busy() and not self.root.grab_current()
                   and time.monotonic() - self.last >= self.seconds):
-                self.active = True
-                self.clock.set(time.strftime("%H:%M"))
-                self.frame.place(x=0, y=0, relwidth=1, relheight=1)
-                self.frame.lift()
+                self._show()
             self.root.after(10000, self.tick)
         except tk.TclError:
             pass
