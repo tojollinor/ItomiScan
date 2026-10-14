@@ -25,6 +25,8 @@ Stand: 13.10.2026. Planung mit **8 endlichen Blöcken**. Nach jedem Block stoppe
 
 **Block 6:** Dokumentenziele Paperless-HTTPS, SMB via smbclient, SMTP/TLS und USB sowie eine dauerhaft gesicherte PDF/SQLite-Warteschlange implementiert. Touch-Zielauswahl, verschlüsselt erreichbare Webverwaltung von Zugangsdaten, Auftragsstatus und manuelle Prüfung unsicherer Zustellungen vorhanden. Optionaler separater Nicht-root-Dienst für automatische Wiederholung, nicht auf N1800 installiert. CI/Offline-Tests bestanden; reale Netzwerk-/USB-Gerätetests offen. Originalscan bleibt lokal erhalten.
 
-**Blöcke 7–8:** noch nicht umgesetzt. Release 1.0.0 erst nach ausdrücklicher Endfreigabe.
+**Block 7:** CUPS-/IPP-Netzwerkdrucker, passwortgeschützte Druckerverwaltung und manueller CUPS-Installer, große Touch-Kopieransicht (Drucker, Kopien 1–20, ADF Front/Duplex und Druckduplex), Fronttaste und gesondertes PIN-Recht `copy` implementiert. Druckjobs werden mit Kopienzahl und Duplex im bestehenden PDF-/SQLite-Spool gesichert. Unsichere Übergaben führen zu `review`, nicht zu automatischen Doppeldrucken. Offline-Tests erfolgreich, reale N1800-/CUPS-Abnahme offen.
+
+**Block 8:** noch nicht umgesetzt. Integrations-/Hardwareabnahme, Sicherung, Rollback, Installer und Release 1.0.0 erst nach ausdrücklicher Endfreigabe.
 
 **Technische Randbedingungen:** Kein unnötiger RAM-/CPU-Verbrauch; bestehendes `app.py` und aktuelle SANE-Funktion nicht unnötig umbauen. GitHub-Commits sind Implementierungsnachweise, kein Beleg für Hardwaretests.
