@@ -178,10 +178,16 @@ def install_queue(name, uri):
     """Driverless Everywhere: requires deliberately provisioned CUPS permission."""
     name = queue_name(name)
     uri = printer_uri(uri)
-    # No shell interpolation. lpadmin can still refuse if the local user
-    # is not in lpadmin or if printer does not support IPP Everywhere.
-    model = "everywhere" if urlsplit(uri).scheme in ("ipp", "ipps") else "raw"
-    run_cups(["lpadmin", "-p", name, "-E", "-v", uri, "-m", model],
+    # Only driverless IPP Everywhere is safe for direct PDF submission.
+    # A RAW queue would forward PDF bytes unconverted to socket/LPD/USB
+    # printers and can print garbage or silently fail. Reject rather than
+    # claiming support without a configured driver/filter.
+    if urlsplit(uri).scheme not in ("ipp", "ipps"):
+        raise PrintError(
+            "RAW/LPD/USB benötigt einen passenden Druckertreiber oder "
+            "CUPS-Filter. Automatische Einrichtung ist nur mit "
+            "IPP/IPPS Everywhere möglich.", permanent=True)
+    run_cups(["lpadmin", "-p", name, "-E", "-v", uri, "-m", "everywhere"],
              timeout=20)
     if not is_configured(name):
         raise PrintError("CUPS hat die Druckerwarteschlange nicht bestätigt.")
