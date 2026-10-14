@@ -1212,37 +1212,40 @@ class ItomiScan:
     def _finalize_worker(self, pages):
         try:
             output = self.output_path
-            if output is None:
-                raise RuntimeError("Kein Speicherziel vorhanden.")
+            if output is None or not pages:
+                raise RuntimeError("Keine Dokumentseiten zum Abschließen.")
             if output.suffix.lower() == ".pdf":
                 target = output.with_name("Dokument-neu.pdf")
-                converted = shell(["img2pdf", *map(str, pages), "-o", str(target)],
-                                  timeout=180)
-                if converted.returncode:
+                converted = shell(["img2pdf", *map(str, pages), "-o", str(target)], timeout=180)
+                if converted.returncode or not target.is_file() or target.stat().st_size == 0:
                     raise RuntimeError(converted.stderr or "PDF-Erstellung fehlgeschlagen.")
                 os.replace(target, output)
+                export_path = output
             else:
-                # Render ordered images to a staging directory first. Preserve
-                # original scan pages until the entire export is ready.
-                # Keep source pages as an audit/rollback copy; only reviewed
-                # pages appear in the separate final document directory.
                 ordered = output / "Fertiges-Dokument"
                 if ordered.exists():
                     raise RuntimeError("Fertiges-Dokument existiert bereits; kein Überschreiben.")
-                ordered.mkdir()
+                staging = output / "_Dokument-in-Arbeit"
+                if staging.exists():
+                    raise RuntimeError("Unvollständiger Export vorhanden; bitte prüfen.")
+                staging.mkdir()
                 for number, page in enumerate(pages, 1):
-                    shutil.copy2(page, ordered / f"Seite-{number:04d}{Path(page).suffix}")
-            if output.suffix.lower() != ".pdf" and (self.pending_delivery or self.pending_print):
-                pdf_path = output / "Dokument-fuer-Versand.pdf"
-                pdf = shell(["img2pdf", *map(str, pages), "-o", str(pdf_path)], timeout=180)
-                if pdf.returncode:
-                    raise RuntimeError(pdf.stderr or "Versand-PDF fehlgeschlagen.")
-                self.pending_export_path = pdf_path
+                    shutil.copy2(page, staging / f"Seite-{number:04d}{Path(page).suffix}")
+                os.replace(staging, ordered)
+                export_path = None
+                if self.pending_delivery or self.pending_print:
+                    pdf_path = output / "Dokument-fuer-Versand.pdf"
+                    temp_pdf = output / "_Versand-in-Arbeit.pdf"
+                    pdf = shell(["img2pdf", *map(str, pages), "-o", str(temp_pdf)], timeout=180)
+                    if pdf.returncode or not temp_pdf.is_file() or temp_pdf.stat().st_size == 0:
+                        raise RuntimeError(pdf.stderr or "Versand-PDF fehlgeschlagen.")
+                    os.replace(temp_pdf, pdf_path)
+                    export_path = pdf_path
+            self.pending_export_path = export_path
             self.dispatch(self._finalize_complete)
         except (OSError, RuntimeError, subprocess.TimeoutExpired) as exc:
             error = str(exc)
             self.dispatch(lambda: self._finalize_error(error))
-
     def _finalize_error(self, error):
         self.busy = False
         self.progress.stop()
