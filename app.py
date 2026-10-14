@@ -265,7 +265,11 @@ class ItomiScan:
             scrollregion=self.canvas.bbox("all")))
         self.canvas.bind("<Configure>", lambda e: self.canvas.itemconfigure(
             self.frame_id, width=e.width))
-        self.canvas.bind_all("<MouseWheel>", self._wheel)
+        self.canvas.bind("<MouseWheel>", self._wheel)
+        self.option_frame.bind("<MouseWheel>", self._wheel)
+        for surface in (self.canvas, self.option_frame):
+            surface.bind("<ButtonPress-1>", self._touch_scroll_start)
+            surface.bind("<B1-Motion>", self._touch_scroll_move)
 
         right = tk.Frame(body, bg=PANEL)
         right.pack(side="left", fill="both", expand=True)
@@ -828,7 +832,16 @@ class ItomiScan:
             parent=self.root)
 
     def _wheel(self, event):
-        self.canvas.yview_scroll(-1 if event.delta > 0 else 1, "units")
+        if event.delta:
+            self.canvas.yview_scroll(-1 if event.delta > 0 else 1, "units")
+
+    def _touch_scroll_start(self, event):
+        self.canvas.scan_mark(event.x_root - self.canvas.winfo_rootx(),
+                              event.y_root - self.canvas.winfo_rooty())
+
+    def _touch_scroll_move(self, event):
+        self.canvas.scan_dragto(event.x_root - self.canvas.winfo_rootx(),
+                                event.y_root - self.canvas.winfo_rooty(), gain=1)
 
     def refresh_ip(self):
         try:
