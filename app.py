@@ -970,20 +970,31 @@ class ItomiScan:
             scans = sorted(folder.glob("page-*." + extension))
             if not scans:
                 raise RuntimeError(result.stderr.strip() or "Kein Dokument eingezogen.")
+            # Preserve editable images in the permanent scan folder. Temporary
+            # scanimage output must never be the backing store for review.
+            warning = result.stderr.strip() if result.returncode else ""
+            if result.returncode != 0 and scans:
+                raise RuntimeError(warning or "Scan unvollständig.")
+            if warning and classify_scanner_error(warning)[0] in (
+                    "Scan unvollständig", "Möglicher Doppeleinzug", "Papierstau erkannt"):
+                raise RuntimeError(warning)
             stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             target = Path.home() / "Scans" / ("ItomiScan_" + stamp)
             if target.exists():
                 target = Path.home() / "Scans" / ("ItomiScan_" + stamp + "_" + str(os.getpid()))
             target.mkdir(parents=True, exist_ok=False)
+            saved = []
+            for number, scan in enumerate(scans, 1):
+                permanent = target / f"page-{number:04d}.{extension}"
+                shutil.copy2(scan, permanent)
+                saved.append(permanent)
             if output_format == "PDF":
                 path = target / "Dokument.pdf"
                 self.dispatch(lambda: self.status_var.set("PDF wird erstellt …"))
-                pdf = shell(["img2pdf", *map(str, scans), "-o", str(path)], timeout=180)
-                if pdf.returncode != 0:
+                pdf = shell(["img2pdf", *map(str, saved), "-o", str(path)], timeout=180)
+                if pdf.returncode:
                     raise RuntimeError("PDF-Erstellung: " + (pdf.stderr or pdf.stdout))
             else:
-                for scan in scans:
-                    shutil.copy2(scan, target / scan.name)
                 path = target
             # Do not prepare or enqueue any delivery before review approval.
             self.pending_export_path = None
@@ -995,7 +1006,7 @@ class ItomiScan:
             if warning and classify_scanner_error(warning)[0] in (
                     "Scan unvollständig", "Möglicher Doppeleinzug", "Papierstau erkannt"):
                 raise RuntimeError(warning)
-            self.dispatch(lambda: self.scan_finished(scans, path, warning))
+            self.dispatch(lambda: self.scan_finished(saved, path, warning))
         except (OSError, RuntimeError, subprocess.TimeoutExpired) as exc:
             msg = str(exc)
             self.dispatch(lambda: self.scan_failed(msg))
