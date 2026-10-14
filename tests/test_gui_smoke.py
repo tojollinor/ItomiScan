@@ -203,6 +203,15 @@ class TouchGuiTests(unittest.TestCase):
             self.app.tempdir.cleanup()
             self.app.tempdir = None
 
+    def test_low_disk_blocks_scan(self):
+        from types import SimpleNamespace
+        with patch("app.shutil.disk_usage",
+                   return_value=SimpleNamespace(free=1000000)):
+            with patch("app.messagebox.showwarning") as warning:
+                self.app.start_scan()
+        self.assertFalse(self.app.busy)
+        warning.assert_called_once()
+
     def test_home_and_detail_toggle(self):
         self.assertTrue(self.app.home.visible)
         self.app.show_scan()
