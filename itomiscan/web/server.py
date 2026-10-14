@@ -186,6 +186,14 @@ class AdminHandler(BaseHTTPRequestHandler):
         origin = self.headers.get("Origin", "")
         if not origin:
             return True
+        # Explicit, reversible local opt-in for browsers using an opaque
+        # origin with an untrusted self-signed TLS certificate.
+        # Scope this exception to login only; authenticated admin actions
+        # retain the normal same-origin and CSRF protections.
+        if origin == "null" and urlsplit(self.path).path == "/login":
+            flag = Path.home() / ".config" / "itomiscan" / "allow-null-origin"
+            if flag.is_file():
+                return True
         scheme = "https" if self.server.secure else "http"
         expected = f"{scheme}://{self.server.bind_ip}:{self.server.server_address[1]}"
         return origin == expected
