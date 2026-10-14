@@ -254,3 +254,17 @@ Nächste Blöcke: 2/6 Splashscreen/Tastatur, 3/6 Scanablauf, 4/6 Dokumentenüber
 - [ ] Automatisierte Regressionstests laufen lassen und Ergebnisse protokollieren.
 
 **Keine Installation, kein Release.** Nächster Block 5/6: Updates und Systemstart.
+
+
+## Neuer sechsfacher Arbeitsplan: Block 5/6 Updates und Systemstart
+
+- [x] Installer erstellt eindeutige, vollständige Backups auch bei zwei Installationen in derselben Sekunde (mktemp-Verzeichnis).
+- [x] Updateprüfung validiert GitHub-Commit-ID und unterscheidet unbekannten lokalen Installationsstand von einem bestätigten Update.
+- [x] Neues nur lesendes Skript `diagnose-boot.sh`: `systemd-analyze time`, `blame`, `critical-chain`, GRUB-Status, fehlgeschlagene Dienste und Plymouth-Status.
+- [x] Vorhandenes `setup-boot-splash.sh` setzt GRUB_TIMEOUT=0 und installiert Plymouth ausschließlich nach ausdrücklichem manuellem Aufruf, nicht beim Standard-Update.
+- [ ] **GUI-Updateinstallation nicht implementiert**: Ein sicherer privilegierter Updatehelfer mit eng begrenzten Rechten, Verifikation und automatischem Rollback muss vor Freigabe entworfen und getestet werden. Die GUI darf nicht einfach `sudo bash` ausführen.
+- [ ] Vollständigen Wiederherstellungsablauf einschließlich Servicezustand und Konfiguration auf dem Gerät prüfen; Backups allein sind noch kein getestetes Rollback.
+- [ ] N1800: GRUB/Plymouth, Neustart, Bootdauer und Dienste mit `bash diagnose-boot.sh` untersuchen; keine Bootänderung ohne Rettungsweg.
+- [ ] Installer- und Syntaxprüfungen tatsächlich ausführen und dokumentieren.
+
+**Keine Installation, kein Release.** Nächster Block 6/6: Regressionstests und Releasevorbereitung. Die GUI-Updateinstallation bleibt als offener Freigabeblocker dokumentiert.
