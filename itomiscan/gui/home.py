@@ -73,7 +73,7 @@ class HomeScreen:
 
     def __init__(self, root, profiles, select_profile, open_scan, quick_scan,
                  unavailable, shutdown, update, exit_app, status, logout=None,
-                 deliver=None, open_copy=None, destination_status=None):
+                 deliver=None, open_copy=None, destination_status=None, restart=None):
         self.root = root
         self.profiles = profiles
         self.select_profile = select_profile
@@ -83,6 +83,7 @@ class HomeScreen:
         self.deliver = deliver or (lambda _kind: None)
         self.destination_status = destination_status or (lambda _kind: "Konfiguration prüfen")
         self.open_copy = open_copy or (lambda: self.unavailable('copy', 'Kopieren', 7))
+        self.restart = restart
         self.logout = logout
         self.allowed = None
         self.tiles = {}
@@ -162,7 +163,7 @@ class HomeScreen:
         self.controls["menu"].pack(side="left", padx=4)
         self.controls["shutdown"] = self._button(bottom, "Ausschalten", shutdown,
                                                  font=11, pad_y=7)
-        self.controls["shutdown"].pack(side="right", padx=4)
+        self.controls["shutdown"].pack_forget()
         self.controls["logout"] = self._button(
             bottom, "Benutzer wechseln", self.logout or (lambda: None), font=11,
             pad_y=7)
@@ -228,20 +229,24 @@ class HomeScreen:
         self.show()
 
     def show_menu(self, shutdown, update, exit_app):
+        """Single device menu with power controls and Close always last."""
         dialog = self._modal("Menü")
         actions = (
             ("Updates", "update", update),
+            ("Neustarten", "shutdown", self.restart),
+            ("Ausschalten", "shutdown", shutdown),
             ("Beenden", "exit", exit_app),
         )
         for title, permission, action in actions:
-            if self.allowed is not None and permission not in self.allowed:
+            if action is None or (self.allowed is not None and permission not in self.allowed):
                 continue
             def select(fn=action):
                 dialog.destroy()
                 fn()
-            self._button(dialog, title, select, font=17, pad_y=18).pack(
-                fill="x", padx=28, pady=9)
-        self._button(dialog, "Schließen", dialog.destroy, font=14).pack(pady=20)
+            self._button(dialog, title, select, font=17, pad_y=13).pack(
+                fill="x", padx=28, pady=5)
+        self._button(dialog, "Schließen", dialog.destroy, font=15,
+                     pad_y=13).pack(side="bottom", fill="x", padx=28, pady=12)
 
     def _selected(self, _event=None):
         self.select_profile(self.selected_var.get())
@@ -257,8 +262,7 @@ class HomeScreen:
             else:
                 widget.grid_remove()
         self.controls["menu"].pack(side="left", padx=4)
-        self.controls["shutdown"].pack(
-            side="right", padx=4) if self.allowed is None or "shutdown" in self.allowed else self.controls["shutdown"].pack_forget()
+        self.controls["shutdown"].pack_forget()
         if user:
             self.controls["logout"].pack(side="right", padx=4)
         else:
