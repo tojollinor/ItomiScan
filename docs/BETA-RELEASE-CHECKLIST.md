@@ -126,3 +126,17 @@ Code auf `develop/1.0.0` ergänzt:
 - [ ] N1800: mindestens ein reales Zustellziel einschließlich Fehler- und Wiederholungsfall testen
 
 **Hinweis:** CUPS bestätigt nur die Auftragsannahme, nicht die physische Ausgabe. Zielstatus \"eingerichtet\" bestätigt nur einen gespeicherten Eintrag, keine erfolgreiche Verbindung. Druckertreiber und die benötigten Druckdatenformate bleiben geräteabhängig. Kein Release vor erfolgreicher Geräteabnahme.
+
+
+## Splashscreen- und Menü-Nacharbeit (14.10.2026)
+
+- [x] Scan- und Kopieren-Kacheln im Home-Layout verkleinert (Code).
+- [x] Ausschalten und Neustarten in beiden Gerätemenüs ergänzt; Schließen bleibt letzter Menüpunkt.
+- [x] Kiosk-Sudoers-Regel für `systemctl poweroff` und `systemctl reboot` ergänzt.
+- [x] Plymouth-Design mit Scan-Logo, Titel, Untertitel, Hintergrund, Status und Ring an Tk-Splash angeglichen.
+- [x] Tk-Splash auf dieselben 1024x768-Bezugspositionen wie Plymouth umgestellt.
+- [x] Xorg-Root-Hintergrund bereits vor Tk-Start auf Splash-Hintergrundfarbe gesetzt.
+- [ ] Optisch lückenloser Übergang Plymouth zu Xorg auf N1800 bestätigt. Ein kurzer Grafikmoduswechsel kann hardwarebedingt sichtbar bleiben.
+- [ ] Neustart-/Ausschaltaktionen und kleinere Schaltflächen am N1800 geprüft.
+
+**Keine Installation veranlasst.** Alle Punkte sind Änderungen am Entwicklungszweig. `setup-boot-splash.sh` bleibt ausdrücklich optional und wird vom Installer nicht automatisch ausgeführt. Kein Beta-Release ohne Gerätetest.
