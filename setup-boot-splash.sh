@@ -60,73 +60,12 @@ install -d -m 0755 "$theme_dir"
   cd "$ROOT"
   python3 -m itomiscan.branding --output "$theme_dir"
 )
-for asset in logo-base.png scanline.png brand.png subtitle.png status.png detail.png; do
+for asset in logo-base.png scanline.png brand.png subtitle.png status.png detail.png itomiscan.plymouth itomiscan.script; do
   [[ -s "$theme_dir/$asset" ]] || {
     echo "Splash-Grafik $asset wurde nicht erstellt; Abbruch vor GRUB-Änderung." >&2
     exit 5
   }
 done
-
-cat > "$theme_dir/itomiscan.plymouth" <<'THEME'
-[Plymouth Theme]
-Name=ItomiScan
-Description=Boot screen using the same animated document logo as the Tk kiosk
-ModuleName=script
-
-[script]
-ImageDir=/usr/share/plymouth/themes/itomiscan
-ScriptFile=/usr/share/plymouth/themes/itomiscan/itomiscan.script
-THEME
-
-cat > "$theme_dir/itomiscan.script" <<'SCRIPT'
-Window.SetBackgroundTopColor(0.062745, 0.098039, 0.152941);
-Window.SetBackgroundBottomColor(0.062745, 0.098039, 0.152941);
-cx = Window.GetWidth() / 2;
-top = (Window.GetHeight() - 768) / 2;
-logo = Image("logo-base.png");
-line = Image("scanline.png");
-brand = Image("brand.png");
-subtitle = Image("subtitle.png");
-status = Image("status.png");
-detail = Image("detail.png");
-logo_sprite = Sprite(logo);
-logo_sprite.SetX(cx - logo.GetWidth() / 2);
-logo_sprite.SetY(top + 141);
-line_sprite = Sprite(line);
-line_sprite.SetX(cx - logo.GetWidth() / 2 + 31);
-line_position = 36;
-line_sprite.SetY(top + 141 + line_position * 150 / 72);
-brand_sprite = Sprite(brand);
-brand_sprite.SetX(cx - brand.GetWidth() / 2);
-brand_sprite.SetY(top + 325);
-subtitle_sprite = Sprite(subtitle);
-subtitle_sprite.SetX(cx - subtitle.GetWidth() / 2);
-subtitle_sprite.SetY(top + 387);
-status_sprite = Sprite(status);
-status_sprite.SetX(cx - status.GetWidth() / 2);
-status_sprite.SetY(top + 458);
-detail_sprite = Sprite(detail);
-detail_sprite.SetX(cx - detail.GetWidth() / 2);
-detail_sprite.SetY(top + 506);
-line_direction = 1;
-frames = 0;
-fun refresh_callback () {
-    frames++;
-    if (frames % 3 == 0) {
-        line_position += line_direction * 2.5;
-        if (line_position >= 52) {
-            line_position = 52;
-            line_direction = -1;
-        }
-        if (line_position <= 20) {
-            line_position = 20;
-            line_direction = 1;
-        }
-        line_sprite.SetY(top + 141 + line_position * 150 / 72);
-    }
-}
-Plymouth.SetRefreshFunction(refresh_callback);
-SCRIPT
 
 # Preserve existing flags, add only the known quiet splash defaults.
 python3 - <<'PY'
