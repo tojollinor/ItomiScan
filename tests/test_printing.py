@@ -61,6 +61,19 @@ class CUPSIntegrationTests(unittest.TestCase):
                     self.db.save_target({"kind": "printer",
                                          "name": name, "address": address})
 
+    def test_non_ipp_raw_provisioning_requires_driver(self):
+        for uri in ("socket://printer.lan:9100", "lpd://printer.lan/queue",
+                    "usb://printer.lan/device"):
+            with self.subTest(uri=uri):
+                with self.assertRaises(PrintError):
+                    install_queue("OfficeLaser", uri)
+
+    @patch("itomiscan.integrations.printing.accepting_jobs", return_value=False)
+    @patch("itomiscan.integrations.printing.is_configured", return_value=True)
+    def test_submit_rejects_queue_not_accepting_jobs(self, _configured, _accepting):
+        with self.assertRaises(PrintError):
+            submit_pdf("OfficeLaser", self.pdf)
+
     @patch("itomiscan.integrations.printing.shutil.which", return_value="/usr/bin/fake")
     @patch("itomiscan.integrations.printing.subprocess.run")
     def test_install_and_uninstall_queue_no_shell(self, runner, _which):
@@ -81,9 +94,10 @@ class CUPSIntegrationTests(unittest.TestCase):
                          ["lpadmin", "-x", "OfficeLaser"])
         self.assertTrue(all(isinstance(cmd, list) for cmd in commands))
 
+    @patch("itomiscan.integrations.printing.accepting_jobs", return_value=True)
     @patch("itomiscan.integrations.printing.shutil.which", return_value="/usr/bin/fake")
     @patch("itomiscan.integrations.printing.subprocess.run")
-    def test_lp_receives_validated_number_and_duplex(self, runner, _which):
+    def test_lp_receives_validated_number_and_duplex(self, runner, _which, _accepting):
         runner.side_effect = [
             Mock(returncode=0, stdout="OfficeLaser\n", stderr=""),
             Mock(returncode=0,
@@ -99,9 +113,10 @@ class CUPSIntegrationTests(unittest.TestCase):
         self.assertTrue(all("shell" not in call.kwargs or
                             not call.kwargs["shell"] for call in runner.call_args_list))
 
+    @patch("itomiscan.integrations.printing.accepting_jobs", return_value=True)
     @patch("itomiscan.integrations.printing.shutil.which", return_value="/usr/bin/fake")
     @patch("itomiscan.integrations.printing.subprocess.run")
-    def test_print_disconnect_is_uncertain_and_never_auto_replayed(self, runner, _which):
+    def test_print_disconnect_is_uncertain_and_never_auto_replayed(self, runner, _which, _accepting):
         runner.side_effect = [
             Mock(returncode=0, stdout="OfficeLaser\n", stderr=""),
             subprocess.TimeoutExpired(["lp"], 30),
