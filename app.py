@@ -531,8 +531,9 @@ class ItomiScan:
     def _detail_buttons(self):
         user = self.current_user if self.login_enabled else None
         access = set(user["permissions"]) if user else None
+        # Shutdown belongs to the device menu, never the scan header.
+        self.detail_shutdown.pack_forget()
         for permission, button, side in (
-            ("shutdown", self.detail_shutdown, "right"),
             ("exit", self.detail_exit, "left"),
         ):
             if access is None or permission in access:
