@@ -163,4 +163,15 @@ Getrennter kleiner Python-Webserver für Profile, vorbereitete Papier-/Druck-/Ne
 - Scans werden als lokale PDF gesichert, Druckjobs mit Kopienzahl/Duplex an die bestehende robuste SQLite-Warteschlange übergeben. CUPS-Annahme ist noch keine bestätigte Papierausgabe.
 - Das eigene PIN-Recht `copy` funktioniert unabhängig von `scan`. Unklare CUPS-Übergaben werden zur Prüfung markiert und nicht automatisch doppelt gedruckt.
 - Das **optionale** `setup-printing.sh` installiert CUPS und verleiht ausdrücklich CUPS-Verwaltungsrechte an den Scannerbenutzer. **Nicht** auf `main` ausgeführt, reale N1800-/CUPS-Abnahme offen.
-- Details: [docs/PRINTING.md](docs/PRINTING.md). Integration, Backup, Installer und Release folgen in Block 8, nach Freigabe.
+- Details: [docs/PRINTING.md](docs/PRINTING.md). Backup, gesicherter Codewechsel und Release-Gates folgen in Block 8; reale Geräteabnahme bleibt Voraussetzung.
+
+
+### Block 8: Release-Kandidat und vollständige Offline-Sicherung
+
+- Vorbereitung für **1.0.0** auf `develop/1.0.0`, ohne Merge, Git-Tag oder Veröffentlichung.
+- Konsistente SQLite-/Scan-/Spool-/Secrets-/TLS-Vollsicherung ohne RAM-hungrige ZIP-Kompression. Verifikation per SHA-256, Probewiederherstellung **in einen separaten Ordner**, keine Veränderung laufender Daten.
+- Berechtigungsschutz für den Zustell-Worker und Sperre während des Backups, Schutz gegen parallele Verarbeitung. Freier SSD-Puffer für Scans und Aufträge, speicherschonende Bildvorschau.
+- Read-only-Prüfung via `bash release-check.sh` oder `python3 -B -m itomiscan.release_preflight --json`.
+- Codewechsel/Rollback nur explizit, nach verifizierter Sicherung, angehaltenen Diensten und neuer Freigabe. `install.sh` verlangt einen sauberen stabilen `main`-Checkout.
+- **Praxistests auf dem N1800 (Touch/ADF/Fronttaste/LAN/Paperless/CUPS/RAM/Shutdown) stehen aus. Keine Stable-Promotion ohne dokumentierte Geräteabnahme.**
+- [Abnahme- und Sicherheitscheckliste](docs/RELEASE-READINESS-1.0.0.md).
