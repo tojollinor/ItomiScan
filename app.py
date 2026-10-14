@@ -853,6 +853,23 @@ class ItomiScan:
         if self.idle_screen and self.idle_screen.active:
             self.idle_screen.wake()
             return
+        # Avoid partially scanned jobs when the SSD is critically full.
+        # Existing documents and waiting jobs always remain untouched.
+        try:
+            scan_root = Path.home() / "Scans"
+            scan_root.mkdir(parents=True, exist_ok=True)
+            free_bytes = shutil.disk_usage(scan_root).free
+            if free_bytes < 300 * 1024 * 1024:
+                messagebox.showwarning(
+                    "Speicher fast voll",
+                    "Weniger als 300 MiB frei. Bitte zuerst Scans sichern "
+                    "und Speicherplatz prüfen. Nichts wird automatisch gelöscht.",
+                    parent=self.root)
+                return
+        except OSError as exc:
+            messagebox.showerror("Speicher", "Speicherplatz nicht prüfbar: " + str(exc),
+                                 parent=self.root)
+            return
         if self.pending_print is not None:
             self.show_scan()
             # Always create a printable PDF, regardless of the user's PNG preset.
@@ -981,11 +998,12 @@ class ItomiScan:
             width = max(240, self.preview.winfo_width() - 25)
             height = max(200, self.preview.winfo_height() - 25)
             with Image.open(self.pages[self.page_index]) as src:
-                # Decode JPEG previews at reduced resolution to save CPU/RAM.
+                # Shrink in-place before RGB conversion to avoid an extra full
+                # resolution colour buffer on the 1-GiB Atom scanner.
                 if src.format == "JPEG":
                     src.draft("RGB", (width, height))
+                src.thumbnail((width, height), Image.Resampling.BILINEAR)
                 image = src.convert("RGB")
-            image.thumbnail((width, height), Image.Resampling.LANCZOS)
             self.photo = ImageTk.PhotoImage(image)
             self.preview.configure(image=self.photo, text="")
             self.page_var.set(f"Seite {self.page_index + 1} / {len(self.pages)}")
