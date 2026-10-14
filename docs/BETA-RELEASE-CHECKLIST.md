@@ -204,3 +204,15 @@ Code auf `develop/1.0.0` ergänzt:
 - [ ] Tests in GitHub Actions ausführen und Ergebnisse prüfen.
 
 **Keine Installation auf dem N1800, kein Release.**
+
+
+## Neuer sechsfacher Arbeitsplan: Block 1/6 Startseite und Menü
+
+- [x] Scan-/Kopier-Kacheln auf 1024×768 weiter verkleinert (Schrift, Innenabstand und Außenabstand).
+- [x] Menüfenster mittig und innerhalb der verfügbaren Displayabmessungen positioniert; kein `transient` auf dem randlosen Kiosk-Hauptfenster.
+- [x] Vorhandene Menüaktionen im Code geprüft: Updates, Neustarten, Ausschalten, Beenden, Schließen; Rechteprüfung vorhanden.
+- [ ] Tatsächliche Bildschirmdarstellung und Touchziele am N1800 prüfen.
+- [ ] Neustart/Ausschalten mit eingerichteten sudoers-Rechten am Gerät prüfen.
+- [ ] Menü und Startseite visuell auf vollständige Anforderungsübereinstimmung abnehmen.
+
+Nächste Blöcke: 2/6 Splashscreen/Tastatur, 3/6 Scanablauf, 4/6 Dokumentenübersicht, 5/6 Updates/Systemstart, 6/6 Tests/Releasevorbereitung. Nach jedem Block Halt für Nutzerfreigabe. Druckertreiber zurückgestellt. Keine Installation und kein Release.
