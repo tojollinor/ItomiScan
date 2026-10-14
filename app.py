@@ -1319,7 +1319,12 @@ class ItomiScan:
         self.busy = False
         self.scan_button.configure(state="normal")
         self.progress.stop()
-        self.status_var.set("Scan fehlgeschlagen")
+        if was_appending and self.pages:
+            self.status_var.set(
+                f"Weitere Seiten fehlgeschlagen · {len(self.pages)} bisherige "
+                "Bildseite(n) unverändert")
+        else:
+            self.status_var.set("Scan fehlgeschlagen")
         show_scanner_error(self.root, msg)
 
     def rescan_page(self):
