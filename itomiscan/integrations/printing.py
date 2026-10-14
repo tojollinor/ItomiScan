@@ -30,20 +30,45 @@ def queue_name(value):
 
 
 def printer_uri(uri):
-    if not isinstance(uri, str):
+    if not isinstance(uri, str) or len(uri) > 350:
         raise PrintError("Ungültige Druckeradresse.", permanent=True)
     try:
         parsed = urlsplit(uri)
         port = parsed.port
     except ValueError as exc:
-        raise PrintError("Ungültige IPP-Adresse.", permanent=True) from exc
-    if (parsed.scheme not in ("ipp", "ipps") or not parsed.hostname
-            or parsed.username or parsed.password or parsed.query
-            or parsed.fragment or "@" in parsed.netloc or
-            (port is not None and not 1 <= port <= 65535)):
-        raise PrintError("Drucker benötigen eine IPP- oder IPPS-Adresse ohne Zugangsdaten.",
+        raise PrintError("Ungültige Druckeradresse.", permanent=True) from exc
+    if (parsed.scheme not in ("ipp", "ipps", "socket", "lpd", "usb")
+            or not parsed.hostname or parsed.username or parsed.password
+            or parsed.query or parsed.fragment or "@" in parsed.netloc
+            or any(ch.isspace() for ch in uri)
+            or (port is not None and not 1 <= port <= 65535)):
+        raise PrintError("Nur IPP/IPPS, RAW 9100, LPD oder USB ohne Zugangsdaten.",
                          permanent=True)
     return uri
+
+
+def discover_printers():
+    output = run_cups(["lpinfo", "-v"], timeout=15)
+    found = []
+    for line in output.splitlines():
+        parts = line.strip().split(None, 1)
+        if len(parts) != 2:
+            continue
+        uri = parts[1].strip()
+        try:
+            printer_uri(uri)
+        except PrintError:
+            continue
+        if uri not in found:
+            found.append(uri)
+    return found[:50]
+
+
+def set_default_printer(name):
+    name = queue_name(name)
+    if not is_configured(name):
+        raise PrintError("Drucker ist nicht in CUPS eingerichtet.", permanent=True)
+    run_cups(["lpadmin", "-d", name], timeout=15)
 
 
 def validate_copy_options(copies=1, sides="one-sided"):
@@ -103,7 +128,8 @@ def install_queue(name, uri):
     uri = printer_uri(uri)
     # No shell interpolation. lpadmin can still refuse if the local user
     # is not in lpadmin or if printer does not support IPP Everywhere.
-    run_cups(["lpadmin", "-p", name, "-E", "-v", uri, "-m", "everywhere"],
+    model = "everywhere" if urlsplit(uri).scheme in ("ipp", "ipps") else "raw"
+    run_cups(["lpadmin", "-p", name, "-E", "-v", uri, "-m", model],
              timeout=20)
     if not is_configured(name):
         raise PrintError("CUPS hat die Druckerwarteschlange nicht bestätigt.")
