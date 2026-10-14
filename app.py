@@ -1453,16 +1453,21 @@ class ItomiScan:
         self.thumbnail_strip.pack(fill="x", padx=17, pady=4)
         start = max(0, min(self.page_index - 2, len(self.pages) - 5))
         for index in range(start, min(len(self.pages), start + 5)):
-            with Image.open(self.pages[index]) as source:
-                if source.format == "JPEG":
-                    source.draft("RGB", (80, 100))
-                source.thumbnail((70, 90), Image.Resampling.BILINEAR)
-                photo = ImageTk.PhotoImage(source.convert("RGB"))
-            self.thumbnail_photos.append(photo)
-            tk.Button(self.thumbnail_strip, image=photo, text=str(index + 1),
-                      compound="top", bg=BLUE if index == self.page_index else PANEL,
-                      fg=FG, command=lambda i=index: self.select_page(i)
-                      ).pack(side="left", expand=True, padx=2)
+            try:
+                with Image.open(self.pages[index]) as source:
+                    if source.format == "JPEG":
+                        source.draft("RGB", (80, 100))
+                    source.thumbnail((70, 90), Image.Resampling.BILINEAR)
+                    photo = ImageTk.PhotoImage(source.convert("RGB"))
+                self.thumbnail_photos.append(photo)
+                button = tk.Button(self.thumbnail_strip, image=photo,
+                                   text=str(index + 1), compound="top",
+                                   bg=BLUE if index == self.page_index else PANEL,
+                                   fg=FG, command=lambda i=index: self.select_page(i))
+            except (OSError, ValueError):
+                button = self._btn(self.thumbnail_strip, str(index + 1),
+                                   lambda i=index: self.select_page(i))
+            button.pack(side="left", expand=True, padx=2)
 
     def select_page(self, index):
         if not self.busy and 0 <= index < len(self.pages):
