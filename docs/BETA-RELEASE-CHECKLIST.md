@@ -229,3 +229,15 @@ Nächste Blöcke: 2/6 Splashscreen/Tastatur, 3/6 Scanablauf, 4/6 Dokumentenüber
 - [ ] Gerätetest: absichtlich fehlende Scannererkennung und Fehler beim Aufbau der Hauptoberfläche kontrolliert durchspielen.
 
 **Keine Geräteinstallation und keine Releasefreigabe.** Nächster Block 3/6: Scanablauf.
+
+
+## Neuer sechsfacher Arbeitsplan: Block 3/6 Mehrseitiger Scanablauf
+
+- [x] Weiterer Scanbatch verwendet unverändert die gespeicherten Einstellungen und das Ausgabeformat des ersten Batches; nachträglich geänderte, eventuell ungültige GUI-Felder blockieren ihn nicht mehr.
+- [x] Fehlgeschlagener zusätzlicher Batch meldet ausdrücklich, dass die bisherigen Bildseiten erhalten geblieben sind.
+- [x] Bestehende Batch-Übernahme geprüft: Seiten werden erst nach vollständig validierter Kopie in die Vorschau übernommen; bei Kopierfehlern werden neu erzeugte Dateien zurückgerollt.
+- [ ] Reale N1800-Tests: mehrere getrennte ADF-Batches, gemischte Seitenanzahl, Duplex-Reihenfolge und Fehler beim zweiten Einzug.
+- [ ] Reale N1800-Tests: Zeitüberschreitung, leerer Einzug, Papierstau, Doppeleinzug, wenig Speicherplatz und Dokumentabschluss.
+- [ ] Automatisierte GUI-Integrationstests und GitHub Actions-Ergebnis prüfen; die obigen Änderungen sind bislang Codeänderungen ohne Geräteabnahme.
+
+**Keine Installation, kein Release.** Nächster Block 4/6: Dokumentenübersicht und Seitenbearbeitung.
