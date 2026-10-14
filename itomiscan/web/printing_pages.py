@@ -64,15 +64,20 @@ def printers_page(saved_targets, installed, csrf, *, notice="", issue="", discov
                 + '<label>CUPS-Name (Buchstaben, Zahlen, _ oder -)</label>'
                 '<input name="name" pattern="[A-Za-z][A-Za-z0-9_-]{0,39}" '
                 'maxlength="40" required placeholder="BueroLaser">'
-                '<label>Netzwerkadresse</label>'
-                '<input name="address" maxlength="350" required '
+                '<label>Netzwerkadresse / USB-Geräteadresse</label>'
+                '<input name="address" list="printer-discovery" maxlength="350" required '
                 'placeholder="ipps://drucker.lan/ipp/print">'
+                '<p>Beispiele: ipp://192.168.1.20/ipp/print, socket://192.168.1.20:9100, lpd://drucker.lan/queue, usb://Hersteller/Modell.</p>'
                 '<p>IPP/IPPS unterstützt bei geeigneten Druckern treiberlosen Betrieb. RAW 9100 (socket://), LPD (lpd://) und USB (usb://) benötigen ein geeignetes Druckdatenformat beziehungsweise einen passenden Treiber. Der Druck einer PDF ist damit nicht automatisch gewährleistet. Der Drucker '
                 'muss das gewählte Protokoll unterstützen. Zugangsdaten gehören nicht in '
                 'die Druckeradresse. Der nächste Schritt registriert den '
                 'Drucker in CUPS.</p>'
                 '<button>Druckerziel speichern</button></form></section>')
     if discovered:
+        content += '<datalist id="printer-discovery">'
+        for uri in discovered:
+            content += '<option value="' + e(uri) + '"></option>'
+        content += '</datalist>'
         content += '<section class="card" style="margin-top:17px"><h2>Erkannte Drucker</h2><p>Gefunden durch CUPS (lpinfo -v). Adresse für die Einrichtung übernehmen:</p>'
         for uri in discovered:
             content += '<p><code>' + e(uri) + '</code></p>'
