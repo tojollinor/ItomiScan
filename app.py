@@ -984,7 +984,6 @@ class ItomiScan:
         except ValueError as exc:
             messagebox.showerror("Scanoption", str(exc), parent=self.root)
             return
-        self.batch_settings = (list(settings), scan_mode, self.format_var.get())
         self.busy = True
         self.scan_button.configure(state="disabled")
         self.progress.start(10)
@@ -994,6 +993,7 @@ class ItomiScan:
         self.tempdir = tempfile.TemporaryDirectory(prefix="itomiscan-")
         scan_mode = next((variable.get().strip() for opt, variable in self.fields
                           if opt["flag"] == "--mode" and not opt["inactive"]), "")
+        self.batch_settings = (list(settings), scan_mode, self.format_var.get())
         threading.Thread(target=self.scan_worker,
                          args=(settings, self.format_var.get(), scan_mode),
                          daemon=True).start()
