@@ -39,8 +39,16 @@ def ask_touch(root, title, initial="", *, numeric=False, secret=False, max_lengt
     def put(char):
         pos = entry.index(tk.INSERT)
         text = value.get()
-        if len(text) + len(char) > max_length:
+        try:
+            start = entry.index(tk.SEL_FIRST)
+            end = entry.index(tk.SEL_LAST)
+        except tk.TclError:
+            start = end = pos
+        if len(text) - (end - start) + len(char) > max_length:
             return
+        if end > start:
+            entry.delete(start, end)
+            pos = start
         entry.insert(pos, char)
         entry.icursor(pos + len(char))
 
@@ -52,9 +60,12 @@ def ask_touch(root, title, initial="", *, numeric=False, secret=False, max_lengt
     value.trace_add("write", limit_input)
 
     def erase():
-        pos = entry.index(tk.INSERT)
-        if pos:
-            entry.delete(pos - 1, pos)
+        try:
+            entry.delete(tk.SEL_FIRST, tk.SEL_LAST)
+        except tk.TclError:
+            pos = entry.index(tk.INSERT)
+            if pos:
+                entry.delete(pos - 1, pos)
 
     def confirm():
         result["value"] = value.get()
@@ -93,6 +104,14 @@ def ask_touch(root, title, initial="", *, numeric=False, secret=False, max_lengt
                 key(row, label, lambda c=label: put(c),
                     width=2 if not numeric else 3).pack(
                         side="left", fill="both", expand=True, padx=1)
+        if not numeric:
+            # Network paths, URLs, e-mail addresses and passwords require
+            # punctuation without a physical keyboard.
+            symbols = tk.Frame(board, bg=BG)
+            symbols.pack(fill="both", expand=True, pady=2)
+            for symbol in ("@", ".", "/", ":", "_", "?", "&", "=", "+", "#", "%"):
+                key(symbols, symbol, lambda s=symbol: put(s), width=2).pack(
+                    side="left", fill="both", expand=True, padx=1)
         tools = tk.Frame(board, bg=BG)
         tools.pack(fill="x", pady=3)
         if not numeric:
