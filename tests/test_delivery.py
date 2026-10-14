@@ -121,6 +121,15 @@ class QueueTests(unittest.TestCase):
         self.assertEqual(self.queue.all()[0]["status"], "failed")
         self.assertTrue(self.pdf.exists())
 
+    def test_low_free_disk_refuses_spool_without_losing_original(self):
+        from types import SimpleNamespace
+        with patch("itomiscan.storage.queue.shutil.disk_usage",
+                   return_value=SimpleNamespace(free=64 * 1024 * 1024)):
+            with self.assertRaisesRegex(QueueError, "genug freier Platz"):
+                self.create("usb")
+        self.assertTrue(self.pdf.is_file())
+        self.assertEqual(self.queue.all(), [])
+
     def test_directory_and_oversized_source_refused(self):
         with self.assertRaises(QueueError):
             self.queue.enqueue(Path(self.dir.name), self.targets["usb"])
