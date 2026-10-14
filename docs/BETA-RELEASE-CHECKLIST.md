@@ -58,3 +58,19 @@ Code auf `develop/1.0.0` umgesetzt, Hardwareabnahme steht aus:
 - [ ] N1800-Gerätetest: SANE-Testprofil, Duplex, Doppeleinzug und Optionen
 
 Die Checkboxen für Codeänderungen sind **keine** Testfreigabe. Neustart ist weiterhin nicht freigeschaltet, solange Systemberechtigungen fehlen. Eine automatische Installation aus der GUI ist nicht freigegeben.
+
+
+## Block 3/4: Ziele und Drucker (Entwicklungsstand)
+
+- [x] Scanziel-Auswahl als Vollbildseite statt Dialog; lokales Speichern, Paperless, Netzwerk, E-Mail, USB nach Berechtigung
+- [x] Konfigurierte Zustellziele ebenfalls als Vollbildseite; fehlende Ziele melden Webadministrationsbedarf
+- [x] Kopieransicht bleibt Vollbild; bestehende CUPS-Druckerwahl und Druckeinstellungen erhalten, Logo ergänzt
+- [x] Webadmin: „Drucker hinzufügen“, Adresse bearbeiten, entfernen, Testdruck und Standarddrucker setzen
+- [x] CUPS-Geräteerkennung über `lpinfo -v` und Vorschläge für Drucker-URIs
+- [x] URI-Prüfung für IPP/IPPS, socket/RAW 9100, LPD und USB; Regressionstests eingecheckt
+- [ ] Regressionstests tatsächlich ausführen und Ergebnis dokumentieren
+- [ ] N1800: Druckererkennung und Rechte von `lpadmin`, `lpinfo`, `lpstat` testen
+- [ ] N1800: PDF-Testdruck auf realem Brother-Drucker bestätigen
+- [ ] N1800: Scanziele und Berechtigungen, Zustellwarteschlange sowie Kopierablauf prüfen
+
+**Einschränkung:** Für socket/RAW, LPD und USB verwendet die derzeitige CUPS-Installation eine RAW-Warteschlange. Diese nimmt nur druckerfertige Daten entgegen; ein PDF wird dadurch nicht automatisch in eine für den Drucker verständliche Sprache umgewandelt. Ein geeigneter Druckertreiber bzw. CUPS-Filter ist für zuverlässigen Ausdruck erforderlich. IPP Everywhere funktioniert nur bei kompatiblen Geräten. Ohne diesen Nachweis gilt die Mehrprotokoll-Druckunterstützung noch nicht als praktisch abgenommen. Keine Behauptung, dass alle Brother-Modelle treiberlos unterstützt werden.
