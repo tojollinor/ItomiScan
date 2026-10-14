@@ -1172,7 +1172,10 @@ class ItomiScan:
             if preset is None:
                 self.show_home()
                 return
-            self.apply_profile(preset)
+            # The experiment preset is intentionally editable. Do not reset
+            # the user\'s trial settings just before starting the scan.
+            if preset["name"] != "Test / Alle Optionen":
+                self.apply_profile(preset)
         if self.idle_screen and self.idle_screen.active:
             self.idle_screen.wake()
             return
