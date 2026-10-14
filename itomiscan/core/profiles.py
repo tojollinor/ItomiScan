@@ -60,7 +60,7 @@ def validate_profile(data):
     name = data.get("name")
     if not isinstance(name, str) or not 1 <= len(name.strip()) <= 32:
         raise ProfileError("Profilname muss 1 bis 32 Zeichen haben.")
-    if any(ord(c) < 32 or c in "/\\" for c in name):
+    if any(ord(c) < 32 or c == "\\" for c in name):
         raise ProfileError("Profilname enthält unzulässige Zeichen.")
     mode = data.get("mode")
     if mode not in MODES:
