@@ -1311,60 +1311,37 @@ class ItomiScan:
         threading.Thread(target=self.update_worker, args=(False,), daemon=True).start()
 
     def update_worker(self, apply):
-        folder = Path(__file__).resolve().parent
+        """Check the beta archive revision without requiring a Git checkout."""
+        import json
+        import urllib.request
         try:
-            if not (folder / ".git").exists():
-                raise RuntimeError("Keine Git-Installation. Bitte aus dem Repository starten.")
-            origin = shell(["git", "-C", str(folder), "remote", "get-url", "origin"])
-            if origin.returncode or "tojollinor/ItomiScan" not in origin.stdout:
-                raise RuntimeError("Unerwartetes Git-Repository. Update abgebrochen.")
-            # Development checkouts must never update against stable main.
-            branch_name = shell(["git", "-C", str(folder),
-                                 "branch", "--show-current"])
-            if branch_name.returncode or branch_name.stdout.strip() != "main":
-                raise RuntimeError(
-                    "Updates sind nur im stabilen main-Zweig erlaubt. "
-                    "Entwicklungsfassungen über Git verwalten.")
-            if apply:
-                dirty = shell(["git", "-C", str(folder), "status", "--porcelain"])
-                if dirty.stdout.strip():
-                    raise RuntimeError("Lokale Änderungen vorhanden. Update abgebrochen.")
-                result = shell(["git", "-C", str(folder), "merge", "--ff-only",
-                                "origin/main"], timeout=90)
-                if result.returncode:
-                    raise RuntimeError(result.stderr.strip() or "Update fehlgeschlagen.")
-                self.dispatch(self.update_applied)
-                return
-            fetch = shell(["git", "-C", str(folder), "fetch", "origin", "main"], timeout=90)
-            if fetch.returncode:
-                raise RuntimeError(fetch.stderr.strip() or "GitHub nicht erreichbar.")
-            count = shell(["git", "-C", str(folder), "rev-list",
-                           "--count", "HEAD..origin/main"])
-            if count.returncode:
-                raise RuntimeError(count.stderr.strip())
-            new_count = int(count.stdout.strip())
-            if new_count:
-                self.dispatch(lambda: self.offer_update(new_count))
+            endpoint = ("https://api.github.com/repos/tojollinor/ItomiScan/"
+                        "commits/develop/1.0.0")
+            request = urllib.request.Request(
+                endpoint, headers={"User-Agent": "ItomiScan-Beta-Updater",
+                                   "Accept": "application/vnd.github+json"})
+            with urllib.request.urlopen(request, timeout=20) as response:
+                remote = json.load(response)["sha"]
+            installed = Path(__file__).resolve().parent / ".itomiscan-beta-commit"
+            local = installed.read_text().strip() if installed.exists() else ""
+            if local == remote:
+                self.dispatch(lambda: self.status_var.set("ItomiScan Beta ist aktuell"))
             else:
-                self.dispatch(lambda: self.status_var.set("ItomiScan ist aktuell"))
-        except (OSError, RuntimeError, subprocess.TimeoutExpired, ValueError) as exc:
+                def show_update():
+                    self.status_var.set("Neue Beta-Version verfügbar")
+                    messagebox.showinfo(
+                        "Beta-Update verfügbar",
+                        "Eine neue Beta-Version ist auf GitHub verfügbar. "
+                        "Zur sicheren Installation bitte den curl-Beta-Installer "
+                        "über SSH als root ausführen. "
+                        "Ein automatisches Systemupdate direkt aus dem Kiosk "
+                        "ist noch nicht freigegeben.",
+                        parent=self.root)
+                self.dispatch(show_update)
+        except (OSError, ValueError, KeyError) as exc:
             message = str(exc)
-            self.dispatch(lambda: messagebox.showerror("GitHub-Update", message, parent=self.root))
-
-    def offer_update(self, count):
-        self.status_var.set(f"{count} neue(r) Commit(s) verfügbar")
-        if messagebox.askyesno("ItomiScan Update",
-                               f"{count} Änderung(en) verfügbar.\nJetzt installieren?",
-                               parent=self.root):
-            threading.Thread(target=self.update_worker, args=(True,), daemon=True).start()
-
-    def update_applied(self):
-        self.status_var.set("Aktualisiert")
-        if messagebox.askyesno("Update installiert",
-                               "ItomiScan wurde aktualisiert.\nOberfläche jetzt neu starten?",
-                               parent=self.root):
-            os.execv(sys.executable,
-                     [sys.executable, "-m", "itomiscan.gui.kiosk"])
+            self.dispatch(lambda: messagebox.showerror(
+                "Update-Prüfung", message, parent=self.root))
 
     def shutdown(self):
         if not self._allowed("shutdown"):
