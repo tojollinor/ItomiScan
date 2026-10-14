@@ -1196,7 +1196,9 @@ class ItomiScan:
                          daemon=True).start()
 
     def append_pages(self):
-        if self.busy or not self.review_pending or not self.pages:
+        # A document may have zero pages after deleting its last rejected
+        # scan. Allow scanning replacement pages without starting a new job.
+        if self.busy or not self.review_pending or self.output_path is None:
             return
         # Subsequent batches belong to the same document. Preserve the exact
         # settings and output format from the first scan even if the UI has
