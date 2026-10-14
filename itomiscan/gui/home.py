@@ -88,6 +88,7 @@ class HomeScreen:
         self.allowed = None
         self.tiles = {}
         self.controls = {}
+        self.destination_page = None
         self.frame = tk.Frame(root, bg=BASE)
         self.selected_var = tk.StringVar(value=profiles.selected)
         self._build(shutdown, update, exit_app, status)
@@ -183,6 +184,9 @@ class HomeScreen:
 
     def show_destinations(self):
         """Show scan targets as a full-screen kiosk page."""
+        if self.destination_page is not None:
+            self.destination_page.destroy()
+            self.destination_page = None
         page = tk.Frame(self.root, bg=BASE)
         self.destination_page = page
         page.place(x=0, y=0, relwidth=1, relheight=1)
@@ -198,7 +202,9 @@ class HomeScreen:
             grid.grid_columnconfigure(col, weight=1)
         for row in range(3):
             grid.grid_rowconfigure(row, weight=1)
-        choices = [("Lokal speichern", self.open_scan, "scan")]
+        choices = []
+        if self.allowed is None or "scan" in self.allowed:
+            choices.append(("Lokal speichern", self.open_scan, "scan"))
         for kind, title in (("paperless", "Paperless"),
                             ("network", "Netzwerkordner"),
                             ("email", "E-Mail"), ("usb", "USB")):
@@ -284,6 +290,9 @@ class HomeScreen:
         self.frame.lift()
 
     def hide(self):
+        if self.destination_page is not None:
+            self.destination_page.destroy()
+            self.destination_page = None
         self.frame.place_forget()
 
     @property
