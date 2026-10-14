@@ -505,7 +505,6 @@ class ItomiScan:
                  font=("DejaVu Sans", 23, "bold")).pack(pady=18)
         actions = (
             ("Updates", "update", self.check_update),
-            ("Neustarten", "shutdown", self.restart),
             ("Ausschalten", "shutdown", self.shutdown),
             ("Beenden", "exit", self.exit),
         )
