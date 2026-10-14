@@ -143,6 +143,41 @@ class QueueTests(unittest.TestCase):
         secrets.update(ident, clear=True)
         self.assertEqual(secrets.get(ident), {})
 
+    def test_paperless_upload_stream_and_task_receipt(self):
+        from unittest.mock import MagicMock
+        self.create("paperless")
+        job = self.queue.all()[0]
+        connection = MagicMock()
+        response = MagicMock()
+        response.status = 200
+        response.read.return_value = b'"b337f63e-9057-4dab-9bf3-1f5f83fac700"'
+        connection.getresponse.return_value = response
+        with patch("itomiscan.integrations.delivery.http.client.HTTPSConnection",
+                   return_value=connection) as opener:
+            result = deliver_paperless(job, self.queue.file_for(job),
+                                       {"token":"dummy-token"})
+        self.assertIn("Task", result)
+        connection.putrequest.assert_called_once()
+        self.assertEqual(connection.putrequest.call_args[0][0], "POST")
+        self.assertEqual(connection.putrequest.call_args[0][1],
+                         "/api/documents/post_document/")
+        sent = b"".join(call.args[0] for call in connection.send.call_args_list)
+        self.assertIn(b'Content-Disposition: form-data; name="document"', sent)
+        self.assertIn(b"%PDF-1.4", sent)
+        self.assertIn(b"%%EOF", sent)
+
+    def test_paperless_disconnect_after_body_requires_review(self):
+        from unittest.mock import MagicMock
+        self.create("paperless")
+        job = self.queue.all()[0]
+        connection = MagicMock()
+        connection.getresponse.side_effect = ConnectionResetError("closed")
+        with patch("itomiscan.integrations.delivery.http.client.HTTPSConnection",
+                   return_value=connection):
+            with self.assertRaises(DeliveryError) as exc:
+                deliver_paperless(job, self.queue.file_for(job), {"token":"dummy"})
+        self.assertTrue(exc.exception.uncertain)
+
     def test_paperless_requires_encrypted_token(self):
         self.create("paperless")
         job = self.queue.all()[0]
