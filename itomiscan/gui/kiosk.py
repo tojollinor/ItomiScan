@@ -100,10 +100,18 @@ class KioskStartup:
                     from app import ItomiScan
                     # Build the complete interface behind the splash;
                     # remove the covering frame only once Tk has laid it out.
-                    ItomiScan(self.root, initial_device=a, initial_options=b)
-                    # Keep the startup overlay above the newly constructed views.
-                    self.splash.frame.lift()
-                    self.root.update_idletasks()
+                    try:
+                        ItomiScan(self.root, initial_device=a, initial_options=b)
+                        # Keep the startup overlay above newly constructed views.
+                        self.splash.frame.lift()
+                        self.root.update_idletasks()
+                    except Exception as exc:
+                        LOG.exception("Hauptoberfläche konnte nicht aufgebaut werden")
+                        self.active = False
+                        self.splash.frame.lift()
+                        self.splash.failure(
+                            "Oberfläche konnte nicht gestartet werden.", str(exc))
+                        continue
                     self.running = False
                     self.active = False
                     self.splash.destroy()
