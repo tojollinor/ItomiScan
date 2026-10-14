@@ -295,6 +295,9 @@ def deliver(job, path, secrets):
         return deliver_email(job, path, credentials)
     if kind == "usb":
         return deliver_usb(job, path)
+    if kind == "printer":
+        from itomiscan.integrations.printing import deliver_print
+        return deliver_print(job, path)
     if kind == "network":
         return deliver_smb(job, path, credentials)
     raise DeliveryError("Zieltyp wird nicht unterstützt.", permanent=True)
