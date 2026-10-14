@@ -47,8 +47,8 @@ def printers_page(saved_targets, installed, csrf, *, notice="", issue="", discov
                         e(entry["id"]) + '">' +
                         '<button>In CUPS einrichten</button></form>')
         content += ('<details><summary>Druckeradresse bearbeiten</summary>' +
-                    '<form method="post" action="/printers/save">' + token(csrf) +
-                    '<input type="hidden" name="name" value="' + e(name) + '">' +
+                    '<form method="post" action="/printers/edit">' + token(csrf) +
+                    '<input type="hidden" name="target_id" value="' + e(entry["id"]) + '">' +
                     '<label>Neue Adresse</label><input name="address" required maxlength="350" value="' +
                     e(entry["address"]) + '"><button>Änderung speichern</button></form></details>')
         content += ('<form method="post" action="/targets/delete">' +
@@ -64,7 +64,7 @@ def printers_page(saved_targets, installed, csrf, *, notice="", issue="", discov
                 + '<label>CUPS-Name (Buchstaben, Zahlen, _ oder -)</label>'
                 '<input name="name" pattern="[A-Za-z][A-Za-z0-9_-]{0,39}" '
                 'maxlength="40" required placeholder="BueroLaser">'
-                '<label>Netzwerkadresse / USB-Geräteadresse</label>'
+                '<label>Adresse mit Protokoll (IPP, IPPS, RAW 9100, LPD/LPR oder USB)</label>'
                 '<input name="address" list="printer-discovery" maxlength="350" required '
                 'placeholder="ipps://drucker.lan/ipp/print">'
                 '<p>Beispiele: ipp://192.168.1.20/ipp/print, socket://192.168.1.20:9100, lpd://drucker.lan/queue, usb://Hersteller/Modell.</p>'
