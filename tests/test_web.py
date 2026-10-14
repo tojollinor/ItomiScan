@@ -236,6 +236,54 @@ class WebAdminTests(unittest.TestCase):
             "job_id":"a"*32})[0],403)
         self.assertEqual(self.req("GET", "/jobs")[0],200)
 
+    def test_printer_page_and_safe_web_registration(self):
+        self.login()
+        with patch("itomiscan.web.server.list_queues", return_value=[]):
+            status, _, page = self.req("GET", "/printers")
+        self.assertEqual(status, 200)
+        self.assertIn("Netzwerkdrucker", page)
+        self.assertEqual(self.req("POST", "/printers/save", {
+            "csrf": self.csrf, "name": "OfficeLaser",
+            "address": "ipps://printer.lan/ipp/print"})[0], 303)
+        printer = next(x for x in self.server.store.list_targets()
+                       if x["kind"] == "printer")
+        body = {"csrf": self.csrf, "target_id": str(printer["id"])}
+        with patch("itomiscan.web.server.install_queue", return_value="OfficeLaser") as install:
+            self.assertEqual(self.req("POST", "/printers/install", body)[0], 303)
+            install.assert_called_once_with("OfficeLaser", "ipps://printer.lan/ipp/print")
+        with patch("itomiscan.web.server.test_page", return_value="Accepted") as testing:
+            self.assertEqual(self.req("POST", "/printers/test", body)[0], 303)
+            testing.assert_called_once_with("OfficeLaser")
+        with patch("itomiscan.web.server.uninstall_queue", return_value="OfficeLaser") as remove:
+            self.assertEqual(self.req("POST", "/printers/uninstall", body)[0], 303)
+            remove.assert_called_once_with("OfficeLaser")
+
+    def test_printer_admin_authorization_invalid_uri_and_errors(self):
+        self.assertEqual(self.req("GET", "/printers")[0], 303)
+        self.assertEqual(self.req("POST", "/printers/save", {
+            "name": "OfficeLaser", "address": "ipps://printer.lan/ipp/print"})[0], 303)
+        self.login()
+        self.assertEqual(self.req("POST", "/printers/save", {
+            "csrf": "bad", "name": "OfficeLaser",
+            "address": "ipps://printer.lan/ipp/print"})[0], 403)
+        self.assertEqual(self.req("POST", "/printers/save", {
+            "csrf": self.csrf, "name": "OfficeLaser",
+            "address": "http://printer.lan/"} )[0], 400)
+        self.assertEqual(self.req("POST", "/printers/save", {
+            "csrf": self.csrf, "name": "OfficeLaser",
+            "address": "ipps://printer.lan/ipp/print"})[0], 303)
+        printer = next(x for x in self.server.store.list_targets()
+                       if x["kind"] == "printer")
+        from itomiscan.integrations.printing import PrintError
+        with patch("itomiscan.web.server.install_queue",
+                   side_effect=PrintError("CUPS verweigert Zugang")):
+            status, _, html = self.req("POST", "/printers/install", {
+                "csrf": self.csrf, "target_id": str(printer["id"])})
+        self.assertEqual(status, 400)
+        self.assertIn("CUPS verweigert", html)
+        self.assertEqual(self.req("POST", "/printers/test", {
+            "csrf": self.csrf, "target_id": "99999"})[0], 400)
+
     def test_logout_clears_session(self):
         self.login()
         code, hdrs, _ = self.req("POST","/logout",{"csrf":self.csrf})
