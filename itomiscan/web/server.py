@@ -29,6 +29,7 @@ from itomiscan.storage.users import PERMISSIONS, PinError, UserStore
 from itomiscan.web import pages, user_pages, delivery_pages, printing_pages
 from itomiscan.integrations.printing import (
     PrintError, list_queues, install_queue, uninstall_queue, test_page,
+    discover_printers, set_default_printer,
 )
 from itomiscan.storage.queue import DeliveryQueue, QueueError
 from itomiscan.storage.secrets import SecretStore, SecretError
@@ -289,8 +290,13 @@ class AdminHandler(BaseHTTPRequestHandler):
                     cups, issue = [], str(exc)
                 targets = [x for x in self.server.store.list_targets()
                            if x["kind"] == "printer"]
+                try:
+                    discovered = discover_printers()
+                except PrintError:
+                    discovered = []
                 html = printing_pages.printers_page(
-                    targets, cups, csrf, notice=notice, issue=issue)
+                    targets, cups, csrf, notice=notice, issue=issue,
+                    discovered=discovered)
             elif path == "/jobs":
                 html = delivery_pages.jobs_page(self.server.queue.all(),
                                                 self.server.queue.summary(), csrf, notice)
@@ -436,7 +442,7 @@ class AdminHandler(BaseHTTPRequestHandler):
                     "kind": "printer", "name": form.get("name", ""),
                     "address": form.get("address", "")})
                 return self._redirect("/printers?ok=Druckerziel%20gespeichert")
-            if path in ("/printers/install", "/printers/test", "/printers/uninstall"):
+            if path in ("/printers/install", "/printers/test", "/printers/uninstall", "/printers/default"):
                 target_id = int(form.get("target_id", ""))
                 target = next((x for x in self.server.store.list_targets()
                                if x["id"] == target_id and x["kind"] == "printer"), None)
@@ -445,6 +451,9 @@ class AdminHandler(BaseHTTPRequestHandler):
                 if path == "/printers/install":
                     install_queue(target["name"], target["address"])
                     return self._redirect("/printers?ok=Drucker%20eingerichtet")
+                if path == "/printers/default":
+                    set_default_printer(target["name"])
+                    return self._redirect("/printers?ok=Standarddrucker%20gesetzt")
                 if path == "/printers/test":
                     test_page(target["name"])
                     return self._redirect("/printers?ok=CUPS%20hat%20Testauftrag%20angenommen")
