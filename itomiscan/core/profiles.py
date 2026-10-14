@@ -15,6 +15,10 @@ DEFAULT_PROFILES = (
      "source": "ADF Duplex", "output": "PDF"},
     {"name": "Foto", "mode": "Color", "resolution": 300,
      "source": "ADF Front", "output": "Bild (PNG)"},
+    # Diagnostic preset: the GUI exposes every option detected by SANE.
+    # Do not force contradictory scanner capabilities on simultaneously.
+    {"name": "Test / Alle Optionen", "mode": "Color", "resolution": 300,
+     "source": "ADF Duplex", "output": "PDF"},
 )
 
 
