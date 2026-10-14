@@ -860,6 +860,7 @@ class ItomiScan:
         return target["kind"] if target else "scan"
 
     def choose_destination(self, kind):
+        """Select a configured destination on a full-screen kiosk page."""
         if self.busy or self.pin_screen.active:
             return
         kinds = ("email", "usb") if kind == "other" else (kind,)
@@ -867,27 +868,36 @@ class ItomiScan:
                    if item["kind"] in kinds and self._allowed(item["kind"], silent=True)]
         if not targets:
             messagebox.showinfo(
-                "Dokumentenziele",
-                "Noch kein freigegebenes Ziel vorhanden. "
-                "Bitte über die Webadministration konfigurieren.",
+                "Dokumentenziele", "Für dieses Ziel ist noch keine Verbindung "
+                "eingerichtet. Bitte in der Webadministration konfigurieren.",
                 parent=self.root)
+            if self.home:
+                self.home.show_destinations()
             return
-        window = tk.Toplevel(self.root)
-        window.title("Dokumentenziel wählen")
-        window.configure(bg=BASE)
-        window.transient(self.root)
-        window.grab_set()
-        window.geometry("650x" + str(min(650, max(260, 110 + len(targets) * 80))))
-        tk.Label(window, text="Wohin soll der Scan?", bg=BASE, fg=FG,
-                 font=("DejaVu Sans", 22, "bold")).pack(pady=(25, 14))
-        def selected(target):
-            window.destroy()
-            self.start_target_scan(target["id"])
-        for target in targets:
-            self._btn(window, target["name"] + " · " + target["kind"],
-                      lambda t=target: selected(t), BLUE).pack(
-                          fill="x", padx=24, pady=5, ipady=11)
-        self._btn(window, "Abbrechen", window.destroy).pack(pady=14)
+        page = tk.Frame(self.root, bg=BASE)
+        self.target_page = page
+        page.place(x=0, y=0, relwidth=1, relheight=1)
+        page.lift()
+        header = tk.Frame(page, bg=BASE)
+        header.pack(fill="x", padx=25, pady=16)
+        draw_logo(header, 50).pack(side="left", padx=(0, 14))
+        tk.Label(header, text="Dokumentenziel wählen", bg=BASE, fg=FG,
+                 font=("DejaVu Sans", 23, "bold")).pack(side="left")
+        content = tk.Frame(page, bg=BASE)
+        content.pack(fill="both", expand=True, padx=30, pady=10)
+        for index, target in enumerate(targets):
+            def select(target_id=target["id"]):
+                page.destroy()
+                self.target_page = None
+                self.start_target_scan(target_id)
+            self._btn(content, target["name"] + " · " + target["kind"],
+                      select, BLUE).pack(fill="x", pady=5)
+        def back():
+            page.destroy()
+            self.target_page = None
+            if self.home:
+                self.home.show_destinations()
+        self._btn(page, "← Zurück", back).pack(anchor="w", padx=30, pady=16)
 
     def start_target_scan(self, target_id):
         if self.busy:
