@@ -1254,11 +1254,20 @@ class ItomiScan:
                 target.mkdir(parents=True, exist_ok=False)
             elif not target.is_dir():
                 raise RuntimeError("Dokumentordner nicht gefunden.")
+            # Stage an entire batch before exposing any new pages. A failed
+            # copy must not leave orphaned pages in an existing document.
             saved = []
-            for number, scan in enumerate(scans, 1):
-                permanent = target / (f"append-{time.time_ns()}-{number:04d}.{extension}" if self.appending_pages else f"page-{number:04d}.{extension}")
-                shutil.copy2(scan, permanent)
-                saved.append(permanent)
+            try:
+                for number, scan in enumerate(scans, 1):
+                    permanent = target / (f"append-{time.time_ns()}-{number:04d}.{extension}" if self.appending_pages else f"page-{number:04d}.{extension}")
+                    saved.append(permanent)
+                    shutil.copy2(scan, permanent)
+                    with Image.open(permanent) as check_image:
+                        check_image.verify()
+            except (OSError, ValueError) as exc:
+                for permanent in saved:
+                    permanent.unlink(missing_ok=True)
+                raise RuntimeError("Scanbatch konnte nicht vollständig übernommen werden: " + str(exc)) from exc
             # A PDF is generated only after the user approves page edits.
             path = self.output_path if self.appending_pages else (target / "Dokument.pdf" if output_format == "PDF" else target)
             # Do not prepare or enqueue any delivery before review approval.
