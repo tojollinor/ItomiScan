@@ -479,7 +479,7 @@ class AdminHandler(BaseHTTPRequestHandler):
                 self.server.store.restore(payload)
                 return self._redirect("/backups?ok=Konfiguration%20wiederhergestellt")
             return self._error(404, "Aktion nicht gefunden.")
-        except (ValueError, OSError, UnicodeError, KeyError, TypeError) as exc:
+        except (ValueError, OSError, UnicodeError, KeyError, TypeError, PrintError) as exc:
             return self._error(400, "Eingaben nicht übernommen: " + str(exc))
 
 
