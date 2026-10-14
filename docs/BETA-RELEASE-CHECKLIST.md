@@ -325,3 +325,45 @@ Nächste Blöcke: 2/6 Splashscreen/Tastatur, 3/6 Scanablauf, 4/6 Dokumentenüber
 **Zurückgestellt:** Druckerfunktionalität und GUI-Updateinstallation. Diese Punkte sind keine Voraussetzung für den nächsten lokalen Scantest, aber auch nicht als abgeschlossen zu betrachten.
 
 **Releaseentscheidung:** Entwicklungsarbeiten im Branch eingecheckt. Kein Tag, keine Installation und keine Freigabe, bis Tests und Geräteabnahme tatsächlich erfolgreich sind.
+
+
+## Vorbereitung des Splashscreens per SSH (separater Geräteblock)
+
+**Keine automatische Änderung durch die Beta-Installation.** Die Plymouth-Einrichtung bleibt ein ausdrücklich manueller Schritt nach der normalen ItomiScan-Installation.
+
+**1. Nur lesende Vorprüfung (keine Installation, keine GRUB-Änderung):**
+
+```bash
+curl -fL https://raw.githubusercontent.com/tojollinor/ItomiScan/develop/1.0.0/preflight-boot-splash.sh -o /tmp/itomiscan-boot-preflight.sh
+bash /tmp/itomiscan-boot-preflight.sh
+```
+
+Das Protokoll zeigt Debian-Version, Architektur, BIOS/UEFI, GRUB-Parameter, Plymouth-Status, vorhandene Sicherungen und (wenn möglich) die aktuelle Bootdauer. Vor dem Schreiben der Bootkonfiguration prüfen wir diese Ausgabe gemeinsam.
+
+**2. Nur nach ausdrücklicher Freigabe und mit physischem Zugriff auf das Gerät:**
+
+```bash
+curl -fL https://raw.githubusercontent.com/tojollinor/ItomiScan/develop/1.0.0/setup-boot-splash.sh -o /tmp/itomiscan-boot-setup.sh
+sudo bash /tmp/itomiscan-boot-setup.sh
+```
+
+Das Skript prüft GRUB, legt ein verifiziertes Backup unter `/var/lib/itomiscan/boot-backups/` an, richtet das passende Plymouth-Theme ein, setzt die Boot-Parameter und entfernt die reguläre GRUB-Auswahlwartezeit. Das System kann dennoch kurz BIOS- und Konsolenmeldungen anzeigen.
+
+**3. Nach Neustart zusammen prüfen:**
+
+```bash
+systemd-analyze
+systemd-analyze blame | head -n 25
+systemd-analyze critical-chain
+```
+
+Die tatsächliche Bootdauer, der Plymouth-zu-Xorg-Übergang und die Touchanzeige müssen am N1800 bewertet werden. Vorher keine pauschalen weiteren Boot-Optimierungen vornehmen.
+
+**4. Wiederherstellung im Problemfall (nur mit dem tatsächlich angezeigten Backup-Pfad):**
+
+```bash
+sudo bash "$HOME/ItomiScan/restore-boot-splash.sh" /var/lib/itomiscan/boot-backups/DEIN_BACKUP_ORDNER
+```
+
+Die Wiederherstellung benötigt ein funktionierendes Linux-Terminal bzw. einen alternativen Bootweg. GRUB-Wartezeit null erschwert die Rettung über das Bootmenü. **Vor Schritt 2 daher einen lokalen Wiederherstellungsweg sicherstellen.**
+
