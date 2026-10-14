@@ -37,7 +37,7 @@ def targets_page(targets, csrf, configured, notice=""):
                         '<label>Benutzername (optional)</label><input name="username" '
                         'maxlength="400" autocomplete="off">'
                         '<label>Passwort</label><input type="password" name="password" '
-                        'maxlength="400" autocomplete="new-password>'))
+                        'maxlength="400" autocomplete="new-password">'))
             if kind == "email":
                 body += ('<label>Absenderadresse</label><input name="sender" '
                          'maxlength="400" type="email">')

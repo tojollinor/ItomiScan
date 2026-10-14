@@ -57,12 +57,12 @@ def _stream_copy(source, destination, *, digest=None):
             os.fsync(dst.fileno())
         # A concurrent actor writing the same deterministic name must never
         # be overwritten (Linux hard link fails atomically if destination exists).
-        try:
-            os.link(part, destination)
-        except FileExistsError:
+        # FAT32/exFAT USB sticks do not support hard links. Publish the
+        # fully flushed temporary file via rename (single delivery worker).
+        if destination.exists() or destination.is_symlink():
             raise DeliveryError("Zieldatei wurde gleichzeitig angelegt.",
                                 permanent=True)
-        os.unlink(part)
+        os.rename(part, destination)
         fd = os.open(str(destination.parent), os.O_RDONLY)
         try:
             os.fsync(fd)
@@ -255,6 +255,10 @@ def deliver_smb(job, path, credentials):
         if exists.returncode == 0:
             raise DeliveryError("Datei existiert bereits auf SMB. Manuell prüfen.",
                                 uncertain=True)
+        if "NT_STATUS_OBJECT_NAME_NOT_FOUND" not in (exists.stdout + exists.stderr):
+            raise DeliveryError("SMB-Freigabe aktuell nicht erreichbar.")
+        if any(ch in str(path) for ch in ("\\", ";", "\n", "\r", "\"")):
+            raise DeliveryError("Ungültiger lokaler Dateipfad.", permanent=True)
         command = 'put "' + str(path) + '" "' + partial + '"; rename "' + partial + '" "' + remote + '"'
         result = subprocess.run(
             ["smbclient", "//" + host + "/" + share, "-A", str(authfile),
