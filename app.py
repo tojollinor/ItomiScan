@@ -1375,8 +1375,20 @@ class ItomiScan:
             except ValueError as exc:
                 messagebox.showerror("Scanoption", str(exc), parent=self.root)
                 return
-        # A replacement is one physical page; do not request a duplex batch.
-        settings = [arg for arg in settings if not arg.startswith("--batch")]
+        # A replacement is one physical page. Duplex ADF returns two images
+        # for one sheet, so switch only this acquisition to the front feeder.
+        # The document-wide settings remain untouched for subsequent batches.
+        settings = [arg for arg in settings
+                    if not arg.startswith("--batch") and not arg.startswith("--source=")]
+        supported_sources = next((opt["choices"] for opt in self.options
+                                  if opt["flag"] == "--source" and not opt["inactive"]), ())
+        if "ADF Front" in supported_sources:
+            settings.append("--source=ADF Front")
+        elif "ADF Duplex" in supported_sources:
+            messagebox.showwarning("Seite erneut scannen",
+                                   "Der Scanner bietet keinen einseitigen ADF-Einzug an.",
+                                   parent=self.root)
+            return
         self.busy = True
         self.scan_button.configure(state="disabled")
         self.progress.start(10)
