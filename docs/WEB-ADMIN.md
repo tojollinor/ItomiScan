@@ -8,7 +8,7 @@ Stand 13.10.2026: **Entwicklungszweig `develop/1.0.0` implementiert, nicht auf d
 - Anmeldung mit **nur einem Passwort**, ohne Benutzernamen und ohne mitgelieferte Standard-Zugangsdaten.
 - Übersicht mit Versions-/Systemstatus und Profil-/Zielanzahl.
 - Scanprofile erstellen, anpassen, als Standard wählen; vollständige SANE-Parameter als validierte JSON-Einstellungen.
-- Paperless-, IPP-/CUPS-, SMB- und SMTP-Zieladressen vorbereiten. **Keine tatsächliche Übertragung oder Druckfunktion** vor Blöcken 6 und 7.
+- Paperless-, SMB-, SMTP- und USB-Ziele sind seit Block 6 mit lokalem PDF-Auftragsspeicher und geschützten Zugangsdaten angebunden. Für tatsächlichen Versand muss der optionale Zustelldienst gestartet werden. IPP-/CUPS-Kopieren folgt in Block 7.
 - Einstellungen: Gerätename, Bildschirmschonerzeit und Änderung des Administratorpassworts.
 - SANE-Diagnose nur auf Anforderung (`scanimage -L`, kurzer Timeout), Uptime und freier Speicher.
 - Konfiguration als JSON herunterladen und per Dateiimport wiederherstellen. **Keine Passwörter, Hashes oder Sitzungen in Sicherungen.**
@@ -58,3 +58,9 @@ bash setup-web.sh BENUTZERNAME 192.168.1.50
 - Geprüfte Szenarien: Authentifizierung, nicht autorisierter Zugriff, CSRF, Host/Origin, HTML-Escaping, Profil- und Zielanlage, JSON-Sicherung/Import, TLS-Pflicht beim Nicht-Loopback-Binden.
 - **Am N1800 noch offen:** HTTPS mit Zertifikat/Vertrauensstellung, tatsächlicher LAN-Zugriff, RAM-/CPU-Belastung, Scannerrechte, paralleles Scannen mit Webzugriff und Wiederherstellungstest.
 - **Block 5:** der zusätzliche Tab `Benutzer` verwaltet aktive/inaktive PIN-Benutzer, Rechte, zugewiesene Scanprofile sowie die optionale PIN-Anmeldung und Inaktivitätsfrist. Benutzer-PINs/-Hashes gehören nicht zum JSON-Konfigurationsbackup. Keine Zielübertragung (Block 6), kein CUPS-Kopieren (Block 7); Release erst in Block 8.
+
+## Ergänzung Block 6: Dokumentenziele
+
+Im Browser gibt es jetzt **Zielsysteme** zum Anlegen von HTTPS-Paperless, SMB-Freigaben, SMTP und eingehängten USB-Datenträgern. API-Token, SMB-/SMTP-Zugang und Mail-Absender werden in einer separaten, nur für den Scannerbenutzer lesbaren Datei gespeichert. Zugangsdaten und lokaler PDF-Spool gehören **nicht** zum üblichen JSON-Konfigurationsbackup.
+
+Der neue Tab **Aufträge** zeigt wartende, zugestellte, erneut versuchte und zu prüfende Zustellungen. Unsichere Versandzustände können nur mit expliziter Bestätigung erneut ausgelöst werden. Reale Weiterleitung benötigt den separat gestarteten Dienst `itomiscan-delivery.service`, der auf dem bestehenden Gerät **nicht** installiert ist. Details: `docs/DELIVERY.md`.
