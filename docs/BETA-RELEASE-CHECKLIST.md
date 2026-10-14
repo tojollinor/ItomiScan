@@ -39,3 +39,22 @@ sudo bash /tmp/itomiscan-beta-install.sh --user administrator
 - Ein optisch lückenloser Plymouth-Xorg-Übergang ist noch nicht nachgewiesen.
 - Die Entwicklungsdokumentation im README enthält ältere Beschreibungen; dieser Freigabecheck beschreibt die aktuellen Einschränkungen.
 - Bis zum erfolgreichen Abschluss der Kriterien ist die Beta **nicht freigegeben**.
+
+
+## Block 2/4: Bedienung und Hardware (Entwicklungsstand)
+
+Code auf `develop/1.0.0` umgesetzt, Hardwareabnahme steht aus:
+
+- [x] Bildschirmtastatur zentriert, Fokus und Tastenabstände für 1024×768 angepasst
+- [x] Zieh-Scrollen auf freien Flächen der Scanoptionen und lokal begrenztes Mausrad
+- [x] Ausschalten aus dem Scanheader entfernt, auch nach Berechtigungswechsel
+- [x] Dokument-Abbruch als zentrierter Zwei-Schaltflächen-Dialog
+- [x] Scannerfehlerdialog an Bildschirmgröße angepasst und zentriert
+- [x] Logo in Scanheader ergänzt, vorhandener Scanbalken wird bei aktiver Arbeit animiert
+- [x] SANE-Hardwarediagnose und vorsichtiges 300-DPI-Testprofil ergänzt
+- [ ] N1800-Gerätetest: Bildschirm wird bei Texteingabe nicht leer
+- [ ] N1800-Gerätetest: Zieh-Scrollen ohne versehentliche Eingabe
+- [ ] N1800-Gerätetest: Scanbalkenanimation und Dialoge
+- [ ] N1800-Gerätetest: SANE-Testprofil, Duplex, Doppeleinzug und Optionen
+
+Die Checkboxen für Codeänderungen sind **keine** Testfreigabe. Neustart ist weiterhin nicht freigeschaltet, solange Systemberechtigungen fehlen. Eine automatische Installation aus der GUI ist nicht freigegeben.
