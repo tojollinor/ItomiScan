@@ -29,7 +29,7 @@ from itomiscan.storage.users import PERMISSIONS, PinError, UserStore
 from itomiscan.web import pages, user_pages, delivery_pages, printing_pages
 from itomiscan.integrations.printing import (
     PrintError, list_queues, install_queue, uninstall_queue, test_page,
-    discover_printers, set_default_printer,
+    discover_printers, set_default_printer, printer_uri, queue_name,
 )
 from itomiscan.storage.queue import DeliveryQueue, QueueError
 from itomiscan.storage.secrets import SecretStore, SecretError
@@ -438,10 +438,19 @@ class AdminHandler(BaseHTTPRequestHandler):
                 self.server.store.delete_target(int(form.get("id", "")))
                 return self._redirect("/targets?ok=Ziel%20entfernt")
             if path == "/printers/save":
+                name = form.get("name", "")
+                address = form.get("address", "")
+                printer_uri(address)
+                queue_name(name)
                 self.server.store.save_target({
-                    "kind": "printer", "name": form.get("name", ""),
-                    "address": form.get("address", "")})
+                    "kind": "printer", "name": name, "address": address})
                 return self._redirect("/printers?ok=Druckerziel%20gespeichert")
+            if path == "/printers/edit":
+                address = form.get("address", "")
+                printer_uri(address)
+                self.server.store.update_target_address(
+                    int(form.get("target_id", "")), address)
+                return self._redirect("/printers?ok=Druckeradresse%20aktualisiert")
             if path in ("/printers/install", "/printers/test", "/printers/uninstall", "/printers/default"):
                 target_id = int(form.get("target_id", ""))
                 target = next((x for x in self.server.store.list_targets()
