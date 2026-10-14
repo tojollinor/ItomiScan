@@ -22,12 +22,13 @@ jobs:
       - name: Python syntax
         run: /usr/bin/python3 -m compileall -q app.py itomiscan tests
       - name: Shell syntax
-        run: bash -n install.sh setup-shutdown.sh setup-boot-splash.sh setup-web.sh setup-delivery.sh
+        run: bash -n install.sh setup-shutdown.sh setup-boot-splash.sh setup-web.sh setup-delivery.sh setup-printing.sh
       - name: Offline configuration, startup and package tests
         run: |
           /usr/bin/python3 -m unittest discover -s tests -p test_profiles.py -v
           /usr/bin/python3 -m unittest discover -s tests -p test_users.py -v
           /usr/bin/python3 -m unittest discover -s tests -p test_delivery.py -v
+          /usr/bin/python3 -m unittest discover -s tests -p test_printing.py -v
           /usr/bin/python3 -m unittest discover -s tests -p test_startup.py -v
           /usr/bin/python3 -m unittest discover -s tests -p test_scaffold.py -v
       - name: Touchscreen smoke tests in isolated X process
