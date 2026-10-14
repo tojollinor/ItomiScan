@@ -255,6 +255,7 @@ class ItomiScan:
         body = tk.Frame(self.scan_view, bg=BASE)
         body.pack(fill="both", expand=True, padx=16, pady=7)
         left = tk.Frame(body, bg=PANEL, width=405)
+        self.scan_options_panel = left
         left.pack(side="left", fill="y", padx=(0, 12))
         left.pack_propagate(False)
         tk.Label(left, text="SCAN-EINSTELLUNGEN", bg=PANEL, fg=FG,
@@ -289,6 +290,7 @@ class ItomiScan:
             surface.bind("<B1-Motion>", self._touch_scroll_move)
 
         right = tk.Frame(body, bg=PANEL)
+        self.document_panel = right
         right.pack(side="left", fill="both", expand=True)
         top = tk.Frame(right, bg=PANEL)
         top.pack(fill="x", padx=20, pady=(15, 6))
@@ -687,6 +689,7 @@ class ItomiScan:
             self.thumbnail_strip.pack_forget()
             self.pending_delivery = None
             self.pending_print = None
+        self._set_review_layout(False)
         self.scan_view.place_forget()
         if self.copy_screen:
             self.copy_screen.hide()
@@ -711,11 +714,24 @@ class ItomiScan:
         self._detail_buttons()
         self.home.show()
 
+    def _set_review_layout(self, reviewing):
+        """Use the whole screen for document review; options belong before scanning."""
+        if reviewing:
+            self.scan_options_panel.pack_forget()
+            self.document_panel.pack_configure(side="left", fill="both", expand=True)
+            self.scan_button.pack_forget()
+        else:
+            self.document_panel.pack_forget()
+            self.scan_options_panel.pack(side="left", fill="y", padx=(0, 12), before=self.document_panel)
+            self.document_panel.pack(side="left", fill="both", expand=True)
+            self.scan_button.pack(side="right")
+
     def show_scan(self):
         if not self._allowed(self._delivery_permission()):
             return
         if self.home:
             self.home.hide()
+        self._set_review_layout(self.review_pending)
         self.scan_view.place(x=0, y=0, relwidth=1, relheight=1)
         self.scan_view.lift()
 
@@ -1300,6 +1316,7 @@ class ItomiScan:
         self.review_pending = bool(self.pages)
         self.output_path = path
         self.path_label.configure(text="Gespeichert: " + str(path))
+        self._set_review_layout(True)
         self.show_page()
         self.status_var.set(str(len(self.pages)) + " Bildseite(n) erfasst · Bitte prüfen")
         if self.review_pending:
@@ -1339,11 +1356,16 @@ class ItomiScan:
                 "Die bisherige Seite bleibt bei einem Fehler erhalten.",
                 parent=self.root):
             return
-        try:
-            settings = self.chosen_args()
-        except ValueError as exc:
-            messagebox.showerror("Scanoption", str(exc), parent=self.root)
-            return
+        if self.batch_settings is not None:
+            settings = list(self.batch_settings[0])
+        else:
+            try:
+                settings = self.chosen_args()
+            except ValueError as exc:
+                messagebox.showerror("Scanoption", str(exc), parent=self.root)
+                return
+        # A replacement is one physical page; do not request a duplex batch.
+        settings = [arg for arg in settings if not arg.startswith("--batch")]
         self.busy = True
         self.scan_button.configure(state="disabled")
         self.progress.start(10)
@@ -1601,6 +1623,7 @@ class ItomiScan:
         self.append_button.pack_forget()
         self.thumbnail_strip.pack_forget()
         self.batch_settings = None
+        self._set_review_layout(False)
         self.status_var.set("Dokument abgeschlossen · " + str(len(self.pages)) + " Bildseiten")
         export_path = self.pending_export_path or self.output_path
         self.pending_export_path = None
