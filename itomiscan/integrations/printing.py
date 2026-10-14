@@ -47,6 +47,20 @@ def printer_uri(uri):
     return uri
 
 
+def address_from_host(protocol, host):
+    """Build a safe common printer URI from a manually entered IP or hostname."""
+    if protocol not in ("ipp", "ipps", "socket", "lpd"):
+        raise PrintError("Unbekanntes Druckprotokoll.", permanent=True)
+    if not isinstance(host, str) or not re.fullmatch(r"[A-Za-z0-9.-]{1,253}", host):
+        raise PrintError("Bitte eine gültige IPv4-Adresse oder einen Hostnamen angeben.",
+                         permanent=True)
+    if host.startswith((".", "-")) or host.endswith((".", "-")) or ".." in host:
+        raise PrintError("Ungültiger Hostname.", permanent=True)
+    suffix = {"ipp": "/ipp/print", "ipps": "/ipp/print",
+              "socket": ":9100", "lpd": "/queue"}[protocol]
+    return printer_uri(protocol + "://" + host + suffix)
+
+
 def discover_printers():
     output = run_cups(["lpinfo", "-v"], timeout=15)
     found = []
