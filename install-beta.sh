@@ -44,19 +44,25 @@ apt-get update
 apt-get install -y --no-install-recommends xserver-xorg-core xserver-xorg-input-libinput xserver-xorg-video-intel xinit x11-xserver-utils xauth python3 python3-tk python3-pil python3-pil.imagetk sane-utils img2pdf git ca-certificates fonts-dejavu-core sudo openssl cups cups-client cups-filters smbclient
 ok "Basispakete installiert."
 
-step "Beta-Code"
-[[ ! -e "$PROJECT" || -d "$PROJECT/.git" ]] || fail "$PROJECT existiert, ist aber kein Git-Repository."
-if [[ ! -d "$PROJECT/.git" ]]; then runuser -u "$USER_NAME" -- git clone https://github.com/tojollinor/ItomiScan.git "$PROJECT"; fi
-[[ -z "$(runuser -u "$USER_NAME" -- git -C "$PROJECT" status --porcelain)" ]] || fail "Lokale Aenderungen in $PROJECT vorhanden. Bitte zuerst sichern."
-runuser -u "$USER_NAME" -- git -C "$PROJECT" fetch --prune origin
-if runuser -u "$USER_NAME" -- git -C "$PROJECT" show-ref --verify --quiet refs/heads/develop/1.0.0; then
- runuser -u "$USER_NAME" -- git -C "$PROJECT" checkout develop/1.0.0
-else
- runuser -u "$USER_NAME" -- git -C "$PROJECT" checkout -b develop/1.0.0 --track origin/develop/1.0.0
-fi
-runuser -u "$USER_NAME" -- git -C "$PROJECT" reset --hard origin/develop/1.0.0
-/usr/bin/python3 -m compileall -q "$PROJECT/app.py" "$PROJECT/itomiscan"
-ok "develop/1.0.0 ausgecheckt und Python-Code kompiliert."
+step "Beta-Code (curl-Archiv, ohne git pull/reset)"
+command -v curl >/dev/null || fail "curl fehlt."
+[[ -d "$PROJECT" && -f "$PROJECT/app.py" ]] || fail "Vorhandene Installation fehlt: $PROJECT"
+WORK="$(mktemp -d /tmp/itomiscan-beta.XXXXXXXX)"
+trap 'rm -rf "$WORK"' EXIT
+mkdir "$WORK/source"
+curl -fL --retry 2 --connect-timeout 15 --max-time 180 \
+  "https://github.com/tojollinor/ItomiScan/archive/refs/heads/develop/1.0.0.tar.gz" \
+  -o "$WORK/beta.tar.gz"
+tar -xzf "$WORK/beta.tar.gz" --strip-components=1 -C "$WORK/source"
+[[ -f "$WORK/source/app.py" && -f "$WORK/source/itomiscan/gui/kiosk.py" ]] || fail "Archiv unvollständig."
+/usr/bin/python3 -m compileall -q "$WORK/source/app.py" "$WORK/source/itomiscan"
+bash -n "$WORK/source/install-beta.sh"
+BACKUP="$USER_HOME/ItomiScan-backup-$(date -u +%Y%m%dT%H%M%SZ)"
+cp -a "$PROJECT" "$BACKUP"
+info "Sicherung: $BACKUP"
+cp -a "$WORK/source/." "$PROJECT/"
+chown -R "$USER_NAME:$(id -gn "$USER_NAME")" "$PROJECT"
+ok "Beta aus Archiv installiert, alte Dateien und Konfiguration gesichert."
 
 step "Kiosk und Scannerrechte"
 bash "$PROJECT/setup-shutdown.sh" "$USER_NAME"
@@ -93,9 +99,9 @@ LAN_IP="$(hostname -I | tr ' ' '\n' | awk '/^(10\.|192\.168\.|172\.(1[6-9]|2[0-9
 ok "Webadmin vorbereitet; LAN-IP: $LAN_IP"
 
 step "ItomiScan-Dienste"
-if [[ ! -e /etc/systemd/system/itomiscan-web.service ]]; then bash "$PROJECT/setup-web.sh" "$USER_NAME" "$LAN_IP"; else systemctl enable --now itomiscan-web.service; fi
-if [[ ! -e /etc/systemd/system/itomiscan-delivery.service ]]; then bash "$PROJECT/setup-delivery.sh" "$USER_NAME"; else systemctl enable --now itomiscan-delivery.service; fi
-bash "$PROJECT/setup-printing.sh" "$USER_NAME"
+if [[ ! -e /etc/systemd/system/itomiscan-web.service ]]; then bash "$PROJECT/setup-web.sh" "$USER_NAME" "$LAN_IP"; else systemctl restart itomiscan-web.service; fi
+if [[ ! -e /etc/systemd/system/itomiscan-delivery.service ]]; then bash "$PROJECT/setup-delivery.sh" "$USER_NAME"; else systemctl restart itomiscan-delivery.service; fi
+if ! systemctl is-active --quiet cups.service; then bash "$PROJECT/setup-printing.sh" "$USER_NAME"; fi
 ok "Web, Zustellung und CUPS eingerichtet."
 
 step "Funktionstests"
@@ -116,6 +122,6 @@ echo "[OK] Benutzer: $USER_NAME"
 echo "[OK] Branch: develop/1.0.0"
 echo "[OK] Webadmin: https://$LAN_IP:8443"
 echo "[OK] Log: $LOG"
-echo "[INFO] Noch NICHT enthalten: GRUB-Bootoptimierung und Plymouth."
+echo "[INFO] Plymouth wird aus Sicherheitsgründen nur separat nach Prüfung eingerichtet."
 echo "[INFO] Naechster Schritt: Neustart und anschliessend Bootanalyse."
 echo "=============================================="
