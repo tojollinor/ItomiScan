@@ -3,6 +3,7 @@
 # Usage: sudo bash install-beta.sh --user USERNAME
 set -Eeuo pipefail
 umask 022
+[[ $EUID -eq 0 ]] || { echo "Bitte mit sudo ausführen." >&2; exit 2; }
 LOG=/var/log/itomiscan-install.log
 exec > >(tee -a "$LOG") 2>&1
 trap 'rc=$?; echo "[FEHLER] Zeile $LINENO: $BASH_COMMAND (Exit $rc)"; echo "[FEHLER] Log: $LOG"; exit $rc' ERR
@@ -41,12 +42,12 @@ ok "Debian 12, Benutzer, Home, Speicher und DNS geprueft."
 step "Basispakete"
 export DEBIAN_FRONTEND=noninteractive
 apt-get update
-apt-get install -y --no-install-recommends xserver-xorg-core xserver-xorg-input-libinput xserver-xorg-video-intel xinit x11-xserver-utils xauth python3 python3-tk python3-pil python3-pil.imagetk sane-utils img2pdf git ca-certificates fonts-dejavu-core sudo openssl cups cups-client cups-filters smbclient
+apt-get install -y --no-install-recommends xserver-xorg-core xserver-xorg-input-libinput xserver-xorg-video-intel xinit x11-xserver-utils xauth python3 python3-tk python3-pil python3-pil.imagetk sane-utils img2pdf git ca-certificates fonts-dejavu-core sudo openssl cups cups-client cups-filters smbclient curl
 ok "Basispakete installiert."
 
 step "Beta-Code (curl-Archiv, ohne git pull/reset)"
 command -v curl >/dev/null || fail "curl fehlt."
-[[ -d "$PROJECT" && -f "$PROJECT/app.py" ]] || fail "Vorhandene Installation fehlt: $PROJECT"
+if [[ -e "$PROJECT" && ! -d "$PROJECT" ]]; then fail "$PROJECT ist keine Verzeichnisinstallation."; fi
 WORK="$(mktemp -d /tmp/itomiscan-beta.XXXXXXXX)"
 trap 'rm -rf "$WORK"' EXIT
 mkdir "$WORK/source"
@@ -57,9 +58,14 @@ tar -xzf "$WORK/beta.tar.gz" --strip-components=1 -C "$WORK/source"
 [[ -f "$WORK/source/app.py" && -f "$WORK/source/itomiscan/gui/kiosk.py" ]] || fail "Archiv unvollständig."
 /usr/bin/python3 -m compileall -q "$WORK/source/app.py" "$WORK/source/itomiscan"
 bash -n "$WORK/source/install-beta.sh"
-BACKUP="$USER_HOME/ItomiScan-backup-$(date -u +%Y%m%dT%H%M%SZ)"
-cp -a "$PROJECT" "$BACKUP"
-info "Sicherung: $BACKUP"
+if [[ -d "$PROJECT" ]]; then
+ BACKUP="$USER_HOME/ItomiScan-backup-$(date -u +%Y%m%dT%H%M%SZ)"
+ cp -a "$PROJECT" "$BACKUP"
+ info "Sicherung: $BACKUP"
+else
+ install -d -o "$USER_NAME" -g "$(id -gn "$USER_NAME")" "$PROJECT"
+ info "Erstinstallation: $PROJECT"
+fi
 cp -a "$WORK/source/." "$PROJECT/"
 # Record installed beta revision for the kiosk update checker.
 ARCHIVE_SHA="$(curl -fsSL --retry 2 --connect-timeout 15 --max-time 30 \
@@ -127,7 +133,7 @@ echo
 echo "=============================================="
 echo "[OK] ItomiScan Beta wurde erfolgreich eingerichtet."
 echo "[OK] Benutzer: $USER_NAME"
-echo "[OK] Branch: develop/1.0.0"
+echo "[OK] Beta-Kanal: develop/1.0.0"
 echo "[OK] Webadmin: https://$LAN_IP:8443"
 echo "[OK] Log: $LOG"
 echo "[INFO] Plymouth wird separat nach Prüfung eingerichtet. Boot-Konfiguration unverändert."
