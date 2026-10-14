@@ -8,7 +8,7 @@ BG = "#101927"
 PANEL = "#192738"
 WHITE = "#f1f5fb"
 MUTED = "#a8bacd"
-CYAN = "#52c3db"
+CYAN = "#42bfea"
 
 
 class StartupSplash:
