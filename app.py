@@ -88,8 +88,8 @@ def read_options(device, timeout=25):
         if not match:
             continue
         flag, check, rest = match.groups()
-        if flag not in LABELS:
-            continue
+        # Expose every SANE device option, including backend-specific flags.
+        # The section filter above excludes scanimage global command flags.
         brackets = re.findall(r"\[([^\]]+)\]", rest)
         inactive = "inactive" in brackets
         defaults = [b for b in brackets if b not in ("inactive", "advanced")]
@@ -1104,7 +1104,7 @@ class ItomiScan:
                          anchor="w").pack(fill="x", padx=9, pady=(17, 7))
             row = tk.Frame(self.option_frame, bg=PANEL)
             row.pack(fill="x", padx=7, pady=5)
-            caption = LABELS[opt["flag"]] + ("  (inaktiv)" if opt["inactive"] else "")
+            caption = LABELS.get(opt["flag"], opt["flag"]) + ("  (inaktiv)" if opt["inactive"] else "")
             tk.Label(row, text=caption, bg=PANEL,
                      fg=MUTED if opt["inactive"] else FG,
                      font=("DejaVu Sans", 10), anchor="w",
@@ -1146,15 +1146,15 @@ class ItomiScan:
             if not value:
                 continue
             if opt["kind"] == "enum" and value not in opt["choices"]:
-                raise ValueError("Ungültiger Wert: " + LABELS[opt["flag"]])
+                raise ValueError("Ungültiger Wert: " + LABELS.get(opt["flag"], opt["flag"]))
             if opt["kind"] == "number":
                 try:
                     float(value.replace(",", "."))
                 except ValueError as exc:
-                    raise ValueError("Zahl erwartet: " + LABELS[opt["flag"]]) from exc
+                    raise ValueError("Zahl erwartet: " + LABELS.get(opt["flag"], opt["flag"])) from exc
                 value = value.replace(",", ".")
             if opt["kind"] == "bool" and value not in ("yes", "no"):
-                raise ValueError("Ungültige Auswahl: " + LABELS[opt["flag"]])
+                raise ValueError("Ungültige Auswahl: " + LABELS.get(opt["flag"], opt["flag"]))
             if value != opt["default"]:
                 args.append(opt["flag"] + "=" + value)
         return args
