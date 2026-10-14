@@ -239,6 +239,9 @@ class ItomiScan:
                          cursor="hand2", width=width)
 
     def _layout(self):
+        # Reserve persistent controls before the expanding preview/options body.
+        footer = tk.Frame(self.scan_view, bg=BASE)
+        footer.pack(side="bottom", fill="x", padx=18, pady=(5, 10))
         header = tk.Frame(self.scan_view, bg=BASE, height=62)
         header.pack(fill="x", padx=20, pady=(10, 4))
         self.scan_logo = draw_logo(header, 52)
@@ -305,11 +308,11 @@ class ItomiScan:
         self.thumbnail_strip = tk.Frame(right, bg=PANEL)
         self.thumbnail_strip.pack(fill="x", padx=17, pady=4)
         nav = tk.Frame(right, bg=PANEL)
-        nav.pack(pady=8)
+        nav.pack(pady=4)
         self._btn(nav, "◀  Zurück", lambda: self.change_page(-1)).pack(side="left", padx=9)
         self._btn(nav, "Weiter  ▶", lambda: self.change_page(1)).pack(side="left", padx=9)
         edit = tk.Frame(right, bg=PANEL)
-        edit.pack(fill="x", padx=14, pady=(0, 6))
+        edit.pack(fill="x", padx=14, pady=(0, 3))
         actions = (
             ("Erneut scannen", self.rescan_page),
             ("Drehen", self.rotate_page),
@@ -323,19 +326,18 @@ class ItomiScan:
                 row=index // 3, column=index % 3, sticky="ew", padx=3, pady=3)
         for column in range(3):
             edit.grid_columnconfigure(column, weight=1)
-        self.review_button = self._btn(right, "Fertig · Dokument übernehmen", self.finalize_scan, BLUE)
-        self.review_button.pack(fill="x", padx=18, pady=(0, 8))
-        self.review_button.pack_forget()
-        self.append_button = self._btn(right, "Weitere Seiten scannen", self.append_pages, BLUE)
+        # Review actions live in the fixed footer, never below the preview.
+        self.review_actions = tk.Frame(footer, bg=BASE)
+        self.review_actions.pack(side="right")
+        self.append_button = self._btn(self.review_actions, "Weitere Seiten scannen", self.append_pages, BLUE)
+        self.review_button = self._btn(self.review_actions, "Fertig · Dokument übernehmen", self.finalize_scan, BLUE)
         self.path_label = tk.Label(right, text="Noch keine Datei", bg=PANEL, fg=MUTED,
                                    font=("DejaVu Sans", 9), wraplength=590)
-        self.path_label.pack(pady=(3, 12))
+        self.path_label.pack(pady=(3, 4))
 
         self.profile_save_button = self._btn(
             left, "Profil speichern", self.save_profile, width=16)
         self.profile_save_button.pack(fill="x", padx=13, pady=(0, 8))
-        footer = tk.Frame(self.scan_view, bg=BASE)
-        footer.pack(fill="x", padx=18, pady=(5, 13))
         self._btn(footer, "⌂", self.show_home, width=3).pack(side="left", padx=(0, 8))
         self.detail_exit = self._btn(footer, "Menü", self.show_device_menu)
         self.detail_exit.pack(side="left")
@@ -722,7 +724,8 @@ class ItomiScan:
             self.scan_button.pack_forget()
         else:
             self.document_panel.pack_forget()
-            self.scan_options_panel.pack(side="left", fill="y", padx=(0, 12), before=self.document_panel)
+            self.scan_options_panel.pack_forget()
+            self.scan_options_panel.pack(side="left", fill="y", padx=(0, 12))
             self.document_panel.pack(side="left", fill="both", expand=True)
             self.scan_button.pack(side="right")
 
@@ -1316,13 +1319,13 @@ class ItomiScan:
         self.review_pending = bool(self.pages)
         self.output_path = path
         self.path_label.configure(text="Gespeichert: " + str(path))
-        self._set_review_layout(True)
+        self._set_review_layout(self.review_pending)
         self.show_page()
         self.status_var.set(str(len(self.pages)) + " Bildseite(n) erfasst · Bitte prüfen")
         if self.review_pending:
-            self.append_button.pack(fill="x", padx=18, pady=(0, 8))
+            self.append_button.pack(side="left", padx=5)
         if self.review_pending:
-            self.review_button.pack(fill="x", padx=18, pady=(0, 8))
+            self.review_button.pack(side="left", padx=5)
         if warning:
             title, _ = classify_scanner_error(warning)
             if title != "Kein Dokument eingelegt":
