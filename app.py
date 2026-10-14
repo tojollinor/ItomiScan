@@ -584,6 +584,85 @@ class ItomiScan:
         self.apply_profile(profile)
         self.start_scan()
 
+    def _delivery_permission(self):
+        if self.pending_delivery is None:
+            return "scan"
+        target = next((item for item in self.delivery_queue.db.list_targets()
+                       if item["id"] == self.pending_delivery), None)
+        return target["kind"] if target else "scan"
+
+    def choose_destination(self, kind):
+        if self.busy or self.pin_screen.active:
+            return
+        kinds = ("email", "usb") if kind == "other" else (kind,)
+        targets = [item for item in self.delivery_queue.db.list_targets()
+                   if item["kind"] in kinds and self._allowed(item["kind"], silent=True)]
+        if not targets:
+            messagebox.showinfo(
+                "Dokumentenziele",
+                "Noch kein freigegebenes Ziel vorhanden. "
+                "Bitte über die Webadministration konfigurieren.",
+                parent=self.root)
+            return
+        window = tk.Toplevel(self.root)
+        window.title("Dokumentenziel wählen")
+        window.configure(bg=BASE)
+        window.transient(self.root)
+        window.grab_set()
+        window.geometry("650x" + str(min(650, max(260, 110 + len(targets) * 80))))
+        tk.Label(window, text="Wohin soll der Scan?", bg=BASE, fg=FG,
+                 font=("DejaVu Sans", 22, "bold")).pack(pady=(25, 14))
+        def selected(target):
+            window.destroy()
+            self.start_target_scan(target["id"])
+        for target in targets:
+            self._btn(window, target["name"] + " · " + target["kind"],
+                      lambda t=target: selected(t), BLUE).pack(
+                          fill="x", padx=24, pady=5, ipady=11)
+        self._btn(window, "Abbrechen", window.destroy).pack(pady=14)
+
+    def start_target_scan(self, target_id):
+        if self.busy:
+            return
+        target = next((item for item in self.delivery_queue.db.list_targets()
+                       if item["id"] == target_id), None)
+        if not target or target["kind"] not in ("paperless", "network", "email", "usb"):
+            return
+        if not self._allowed(target["kind"]):
+            return
+        self.pending_delivery = target_id
+        self.pending_export_path = None
+        self.start_scan()
+        if not self.busy:
+            self.pending_delivery = None
+            self.pending_export_path = None
+
+    def queue_export(self, path, target_id):
+        try:
+            job_id = self.delivery_queue.enqueue(path, target_id)
+            self.dispatch(lambda: self.status_var.set(
+                "Zustellung vorgemerkt · Auftrag " + job_id[:8]))
+        except (OSError, ValueError) as exc:
+            msg = str(exc)
+            # The original scan stays in ~/Scans even if the spool fails.
+            self.dispatch(lambda: messagebox.showerror(
+                "Zustellung nicht vorgemerkt",
+                "Die PDF ist lokal gespeichert, die Warteschlange konnte "
+                "nicht angelegt werden. Bitte Datei sichern.\n\n" + msg,
+                parent=self.root))
+
+    def delivery_tick(self):
+        try:
+            counts = self.delivery_queue.summary()
+            pending = sum(counts.get(k, 0)
+                          for k in ("queued", "retry", "review", "failed"))
+            if pending and not self.busy:
+                self.status_var.set(str(pending) + " Zustellauftrag/-aufträge offen")
+        except (OSError, ValueError):
+            pass
+        if self.root.winfo_exists():
+            self.root.after(15000, self.delivery_tick)
+
     def unavailable(self, permission, name, block):
         if not self._allowed(permission):
             return
