@@ -87,6 +87,68 @@ def render_plymouth_assets(directory):
     )
     for filename, parts, px, bold in titles:
         _text_image(parts, px, bold).save(output / filename)
+    # Plymouth's script is generated from the SAME geometry constants as Tk.
+    # Keep layout values out of shell installer scripts to prevent drift.
+    theme = """[Plymouth Theme]
+Name=ItomiScan
+Description=Boot screen matching the Tk animated document logo
+ModuleName=script
+
+[script]
+ImageDir=/usr/share/plymouth/themes/itomiscan
+ScriptFile=/usr/share/plymouth/themes/itomiscan/itomiscan.script
+"""
+    (output / "itomiscan.plymouth").write_text(theme)
+    line_x = scaled((LINE_LEFT,))[0]
+    script = f"""Window.SetBackgroundTopColor(0.062745, 0.098039, 0.152941);
+Window.SetBackgroundBottomColor(0.062745, 0.098039, 0.152941);
+cx = Window.GetWidth() / 2;
+top = (Window.GetHeight() - 768) / 2;
+logo = Image("logo-base.png");
+line = Image("scanline.png");
+brand = Image("brand.png");
+subtitle = Image("subtitle.png");
+status = Image("status.png");
+detail = Image("detail.png");
+logo_sprite = Sprite(logo);
+logo_sprite.SetX(cx - logo.GetWidth() / 2);
+logo_sprite.SetY(top + {LOGO_Y});
+line_sprite = Sprite(line);
+line_sprite.SetX(cx - logo.GetWidth() / 2 + {line_x});
+line_position = {LINE_START};
+line_sprite.SetY(top + {LOGO_Y} + line_position * {LOGO_SIZE} / {LOGO_UNITS});
+brand_sprite = Sprite(brand);
+brand_sprite.SetX(cx - brand.GetWidth() / 2);
+brand_sprite.SetY(top + {BRAND_Y});
+subtitle_sprite = Sprite(subtitle);
+subtitle_sprite.SetX(cx - subtitle.GetWidth() / 2);
+subtitle_sprite.SetY(top + {SUBTITLE_Y});
+status_sprite = Sprite(status);
+status_sprite.SetX(cx - status.GetWidth() / 2);
+status_sprite.SetY(top + {STATUS_Y});
+detail_sprite = Sprite(detail);
+detail_sprite.SetX(cx - detail.GetWidth() / 2);
+detail_sprite.SetY(top + {DETAIL_Y});
+line_direction = 1;
+frames = 0;
+fun refresh_callback () {{
+    frames++;
+    if (frames % 3 == 0) {{
+        line_position += line_direction * 2.5;
+        if (line_position >= {LINE_MAX}) {{
+            line_position = {LINE_MAX};
+            line_direction = -1;
+        }}
+        if (line_position <= {LINE_MIN}) {{
+            line_position = {LINE_MIN};
+            line_direction = 1;
+        }}
+        line_sprite.SetY(top + {LOGO_Y} + line_position * {LOGO_SIZE} / {LOGO_UNITS});
+    }}
+}}
+Plymouth.SetRefreshFunction(refresh_callback);
+"""
+    (output / "itomiscan.script").write_text(script)
 
 
 if __name__ == "__main__":
