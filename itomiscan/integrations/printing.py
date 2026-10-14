@@ -106,6 +106,18 @@ def list_queues():
     return sorted(set(result), key=str.casefold)
 
 
+def default_printer():
+    """Read CUPS default without changing any printer configuration."""
+    try:
+        output = run_cups(["lpstat", "-d"], timeout=6)
+    except PrintError:
+        return None
+    # CUPS output is localized; check against actual configured queue names.
+    names = list_queues()
+    return next((name for name in names
+                 if output.strip().endswith(": " + name)), None)
+
+
 def is_configured(name):
     return queue_name(name) in list_queues()
 
