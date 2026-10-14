@@ -914,13 +914,39 @@ class ItomiScan:
                  font=("DejaVu Sans", 23, "bold")).pack(side="left")
         content = tk.Frame(page, bg=BASE)
         content.pack(fill="both", expand=True, padx=30, pady=10)
-        for index, target in enumerate(targets):
-            def select(target_id=target["id"]):
-                page.destroy()
-                self.target_page = None
-                self.start_target_scan(target_id)
-            self._btn(content, target["name"] + " · " + target["kind"],
-                      select, BLUE).pack(fill="x", pady=5)
+        pagination = tk.Frame(page, bg=BASE)
+        pagination.pack(pady=5)
+        page_index = [0]
+        page_count = max(1, (len(targets) + 4) // 5)
+
+        def render():
+            for child in content.winfo_children():
+                child.destroy()
+            for target in targets[page_index[0] * 5:(page_index[0] + 1) * 5]:
+                def select(target_id=target["id"]):
+                    page.destroy()
+                    self.target_page = None
+                    self.start_target_scan(target_id)
+                self._btn(content, target["name"] + " · " + target["kind"],
+                          select, BLUE).pack(fill="x", pady=6)
+            indicator.configure(text="Seite " + str(page_index[0] + 1) +
+                                " / " + str(page_count))
+            previous.configure(state="normal" if page_index[0] else "disabled")
+            following.configure(state="normal" if page_index[0] < page_count - 1
+                                else "disabled")
+
+        def step(direction):
+            page_index[0] = max(0, min(page_count - 1, page_index[0] + direction))
+            render()
+
+        previous = self._btn(pagination, "◀", lambda: step(-1))
+        previous.pack(side="left", padx=10)
+        indicator = tk.Label(pagination, bg=BASE, fg=FG,
+                             font=("DejaVu Sans", 12))
+        indicator.pack(side="left")
+        following = self._btn(pagination, "▶", lambda: step(1))
+        following.pack(side="left", padx=10)
+        render()
         def back():
             page.destroy()
             self.target_page = None
