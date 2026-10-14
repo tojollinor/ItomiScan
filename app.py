@@ -174,7 +174,7 @@ class ItomiScan:
             # Reuse SANE options from the splash's background readiness probe.
             self.render_options()
             self.apply_profile(self.profile_store.current())
-            self.status_var.set("Bereit · " + self.device)
+            self.status_var.set("Bereit")
         else:
             # Preserve the original behavior for direct app.py invocations.
             self.root.after(200, self.load_scanner)
@@ -230,9 +230,8 @@ class ItomiScan:
         tk.Label(header, textvariable=self.ip_var, bg=BASE, fg=MUTED,
                  font=("DejaVu Sans", 13)).pack(side="right", padx=8)
         self.detail_shutdown = self._btn(header, "Ausschalten", self.shutdown)
-        self.detail_shutdown.pack(side="right", padx=(0, 8))
-        self._btn(header, "← Startseite", self.show_home, width=12).pack(
-            side="right", padx=(0, 10))
+        self.detail_shutdown.pack_forget()
+        
         body = tk.Frame(self.scan_view, bg=BASE)
         body.pack(fill="both", expand=True, padx=16, pady=7)
         left = tk.Frame(body, bg=PANEL, width=405)
@@ -287,7 +286,7 @@ class ItomiScan:
                 ("Erneut scannen", self.rescan_page),
                 ("Drehen", self.rotate_page),
                 ("Löschen", self.delete_page),
-                ("Leerseiten", self.remove_blank_pages),
+                ("Leere Seiten prüfen", self.remove_blank_pages),
                 ("← Seite", lambda: self.move_page(-1)),
                 ("Seite →", lambda: self.move_page(1))):
             self._btn(edit, label, callback).pack(side="left", expand=True, fill="x", padx=3)
@@ -303,11 +302,12 @@ class ItomiScan:
         self.profile_save_button.pack(fill="x", padx=13, pady=(0, 8))
         footer = tk.Frame(self.scan_view, bg=BASE)
         footer.pack(fill="x", padx=18, pady=(5, 13))
+        self._btn(footer, "⌂", self.show_home, width=3).pack(side="left", padx=(0, 8))
         self.detail_exit = self._btn(footer, "Menü", self.show_device_menu)
         self.detail_exit.pack(side="left")
         self.detail_update = self._btn(footer, "Updates", self.check_update)
         self.progress = ttk.Progressbar(footer, mode="indeterminate", length=90)
-        self.progress.pack(side="left", padx=12)
+        
         self.scan_button = self._btn(footer, "SCANNEN", self.start_scan, BLUE, width=15)
         self.scan_button.pack(side="right")
         tk.Label(footer, textvariable=self.status_var, bg=BASE, fg=MUTED,
@@ -524,6 +524,18 @@ class ItomiScan:
                 self.show_login("Benutzerkonto nicht mehr aktiv.")
                 return
             self.current_user = user
+        if self.review_pending and not messagebox.askyesno(
+                "Dokumentbearbeitung abbrechen",
+                "Das Dokument ist noch nicht fertiggestellt. Wirklich zu Home wechseln? "
+                "Die bereits erfassten Originalseiten bleiben lokal gespeichert.",
+                parent=self.root):
+            return
+        if self.review_pending:
+            self.review_pending = False
+            self.pages = []
+            self.review_button.pack_forget()
+            self.pending_delivery = None
+            self.pending_print = None
         self.scan_view.place_forget()
         if self.copy_screen:
             self.copy_screen.hide()
@@ -800,7 +812,7 @@ class ItomiScan:
             self.options = read_options(self.device)
             self.render_options()
             self.apply_profile(self.profile_store.current())
-            self.status_var.set("Bereit · " + self.device)
+            self.status_var.set("Bereit")
             if self.home:
                 if self.users.settings()["enabled"]:
                     self.show_login()
@@ -1233,7 +1245,7 @@ class ItomiScan:
                     shutil.copy2(page, staging / f"Seite-{number:04d}{Path(page).suffix}")
                 os.replace(staging, ordered)
                 export_path = None
-                if self.pending_delivery or self.pending_print:
+                if self.pending_delivery is not None or self.pending_print is not None:
                     pdf_path = output / "Dokument-fuer-Versand.pdf"
                     temp_pdf = output / "_Versand-in-Arbeit.pdf"
                     pdf = shell(["img2pdf", *map(str, pages), "-o", str(temp_pdf)], timeout=180)
@@ -1258,11 +1270,11 @@ class ItomiScan:
         self.review_pending = False
         self.review_button.pack_forget()
         self.status_var.set("Dokument abgeschlossen · " + str(len(self.pages)) + " Bildseiten")
+        export_path = self.pending_export_path or self.output_path
+        self.pending_export_path = None
         if self.pending_delivery is not None:
             target_id = self.pending_delivery
             self.pending_delivery = None
-            export_path = self.pending_export_path or self.output_path
-            self.pending_export_path = None
             threading.Thread(target=self.queue_export,
                              args=(export_path, target_id), daemon=True).start()
         if self.pending_print is not None:
