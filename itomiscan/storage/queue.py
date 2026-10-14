@@ -18,7 +18,7 @@ MAX_JOB_BYTES = 150 * 1024 * 1024
 MAX_JOBS = 500
 RETRY_SECONDS = (60, 120, 300, 900, 1800, 3600)
 LEASE_SECONDS = 600
-NON_IDEMPOTENT = {"paperless", "email"}
+NON_IDEMPOTENT = {"paperless", "email", "printer"}
 
 
 class QueueError(ConfigError):
@@ -45,6 +45,13 @@ class DeliveryQueue:
             )""")
             db.execute("""CREATE INDEX IF NOT EXISTS delivery_jobs_pending
                 ON delivery_jobs(status,retry_at)""")
+            # Online migration of queues created in Block 6. Existing jobs
+            # retain defaults and all scanned PDF files remain untouched.
+            existing = {row["name"] for row in db.execute("PRAGMA table_info(delivery_jobs)")}
+            if "print_copies" not in existing:
+                db.execute("ALTER TABLE delivery_jobs ADD COLUMN print_copies INTEGER NOT NULL DEFAULT 1")
+            if "print_sides" not in existing:
+                db.execute("ALTER TABLE delivery_jobs ADD COLUMN print_sides TEXT NOT NULL DEFAULT 'one-sided'")
 
     def _job(self, row):
         return dict(row)
@@ -61,7 +68,11 @@ class DeliveryQueue:
                 "SELECT status,COUNT(*) AS n FROM delivery_jobs GROUP BY status").fetchall()
         return {r["status"]: r["n"] for r in rows}
 
-    def enqueue(self, source, target_id):
+    def enqueue(self, source, target_id, *, copies=1, sides="one-sided"):
+        from itomiscan.integrations.printing import validate_copy_options
+        # Copy metadata is validated before writing the PDF into the spool.
+        validate_copy_options(copies, sides)
+
         source = Path(source)
         if not source.is_file() or source.suffix.lower() != ".pdf" or source.is_symlink():
             raise QueueError("Für die Zustellung ist eine vorhandene PDF-Datei erforderlich.")
@@ -69,7 +80,7 @@ class DeliveryQueue:
         if not 0 < size <= MAX_JOB_BYTES:
             raise QueueError("PDF zu groß (maximal 150 MiB pro Auftrag).")
         target = next((t for t in self.db.list_targets() if t["id"] == target_id), None)
-        if not target or target["kind"] not in ("paperless", "network", "email", "usb"):
+        if not target or target["kind"] not in ("paperless", "network", "email", "usb", "printer"):
             raise QueueError("Unbekanntes oder nicht unterstütztes Dokumentenziel.")
         with self.db._connection() as db:
             used = db.execute("SELECT COALESCE(SUM(size_bytes),0),COUNT(*) FROM delivery_jobs").fetchone()
@@ -103,11 +114,11 @@ class DeliveryQueue:
             with self.db._connection(write=True) as db:
                 db.execute("""INSERT INTO delivery_jobs
                     (id,target_id,kind,target_name,target_address,filename,digest,
-                    size_bytes,created_at,status,retry_at)
-                    VALUES(?,?,?,?,?,?,?,?,?,?,?)""", (
+                    size_bytes,created_at,status,retry_at,print_copies,print_sides)
+                    VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)""", (
                     job_id, target["id"], target["kind"], target["name"],
                     target["address"], filename, digest.hexdigest(), size,
-                    self.clock(), "queued", self.clock()))
+                    self.clock(), "queued", self.clock(), copies, sides))
             return job_id
         finally:
             if temp.exists():
