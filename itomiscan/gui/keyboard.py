@@ -14,14 +14,16 @@ def ask_touch(root, title, initial="", *, numeric=False, secret=False, max_lengt
     win = tk.Toplevel(root)
     win.title(title)
     win.configure(bg=BG)
-    win.transient(root)
+    # The kiosk root uses overrideredirect(True) and no window manager.
+    # A transient child can be hidden or leave the screen apparently blank.
+    # Keep this keyboard as a normal, explicitly raised top-level window.
     screen_w = root.winfo_screenwidth()
     screen_h = root.winfo_screenheight()
     width = min(1000, max(320, screen_w - 24))
     height = min(690, max(260, screen_h - 24))
     win.geometry(f"{width}x{height}+{(screen_w-width)//2}+{(screen_h-height)//2}")
-    win.lift()
     win.update_idletasks()
+    win.lift()
     win.grab_set()
     value = tk.StringVar(value=str(initial))
     shifted = tk.BooleanVar(value=False)
@@ -98,7 +100,7 @@ def ask_touch(root, title, initial="", *, numeric=False, secret=False, max_lengt
     win.protocol("WM_DELETE_WINDOW", cancel)
     win.bind("<Return>", lambda _e: confirm())
     win.bind("<Escape>", lambda _e: cancel())
-    entry.focus_set()
     win.lift()
+    entry.focus_force()
     root.wait_window(win)
     return result["value"]
