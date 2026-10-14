@@ -469,6 +469,29 @@ class ItomiScan:
             except tk.TclError:
                 pass
 
+    def _center_dialog(self, dialog, width=600, height=430):
+        """Position touch dialogs relative to the physical kiosk screen."""
+        self.root.update_idletasks()
+        screen_w = self.root.winfo_screenwidth()
+        screen_h = self.root.winfo_screenheight()
+        width = min(width, screen_w - 24)
+        height = min(height, screen_h - 24)
+        dialog.geometry(f"{width}x{height}+{(screen_w-width)//2}+{(screen_h-height)//2}")
+        dialog.lift()
+        dialog.focus_force()
+
+    def restart(self):
+        if not self._allowed("shutdown") or self.busy:
+            return
+        if not messagebox.askyesno("Neustart", "ItomiScan jetzt neu starten?", parent=self.root):
+            return
+        try:
+            result = shell(["sudo", "-n", "/usr/bin/systemctl", "reboot"], timeout=15)
+            if result.returncode:
+                raise RuntimeError(result.stderr or "Neustart fehlgeschlagen.")
+        except (OSError, RuntimeError, subprocess.TimeoutExpired) as exc:
+            messagebox.showerror("Neustart", str(exc), parent=self.root)
+
     def show_device_menu(self):
         if self.busy:
             return
@@ -476,20 +499,25 @@ class ItomiScan:
         dialog.title("Menü")
         dialog.configure(bg=BASE)
         dialog.transient(self.root)
-        dialog.geometry("600x430")
+        self._center_dialog(dialog)
         dialog.grab_set()
         tk.Label(dialog, text="Menü", bg=BASE, fg=FG,
-                 font=("DejaVu Sans", 23, "bold")).pack(pady=22)
-        for label, permission, fn in (
-                ("Updates", "update", self.check_update),
-                ("Beenden", "exit", self.exit)):
+                 font=("DejaVu Sans", 23, "bold")).pack(pady=18)
+        actions = (
+            ("Updates", "update", self.check_update),
+            ("Neustarten", "shutdown", self.restart),
+            ("Ausschalten", "shutdown", self.shutdown),
+            ("Beenden", "exit", self.exit),
+        )
+        for label, permission, fn in actions:
             if not self._allowed(permission, silent=True):
                 continue
             def invoke(action=fn):
                 dialog.destroy()
                 action()
-            self._btn(dialog, label, invoke).pack(fill="x", padx=25, pady=8)
-        self._btn(dialog, "Schließen", dialog.destroy).pack(pady=10)
+            self._btn(dialog, label, invoke).pack(fill="x", padx=32, pady=4)
+        self._btn(dialog, "Schließen", dialog.destroy).pack(
+            side="bottom", fill="x", padx=32, pady=14)
 
     def _detail_buttons(self):
         user = self.current_user if self.login_enabled else None
