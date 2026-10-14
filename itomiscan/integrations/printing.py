@@ -120,6 +120,32 @@ def list_queues():
     return sorted(set(result), key=str.casefold)
 
 
+def accepting_jobs(name):
+    """Return whether CUPS currently accepts new jobs for this queue.
+
+    Use C locale for predictable lpstat output regardless of kiosk language.
+    Treat an unavailable CUPS status as not ready, never as success.
+    """
+    name = queue_name(name)
+    if not is_configured(name):
+        return False
+    if not shutil.which("lpstat"):
+        return False
+    try:
+        import os
+        env = dict(os.environ, LC_ALL="C")
+        result = subprocess.run(
+            ["lpstat", "-a", name], capture_output=True, text=True,
+            timeout=6, check=False, env=env)
+    except (OSError, subprocess.TimeoutExpired):
+        return False
+    if result.returncode:
+        return False
+    lines = result.stdout.strip().splitlines()
+    return bool(lines and lines[0].startswith(name + " ") and
+                "accepting requests" in lines[0].lower())
+
+
 def default_printer():
     """Read CUPS default without changing any printer configuration."""
     try:
