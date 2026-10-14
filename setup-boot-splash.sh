@@ -54,7 +54,7 @@ from pathlib import Path
 import sys
 out = Path(sys.argv[1])
 bg = (16, 25, 39, 255)
-cyan = (82, 195, 219, 255)
+cyan = (66, 191, 234, 255)
 white = (241, 245, 251, 255)
 muted = (168, 186, 205, 255)
 fontpath = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
