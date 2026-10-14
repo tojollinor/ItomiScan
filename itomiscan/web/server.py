@@ -29,7 +29,7 @@ from itomiscan.storage.users import PERMISSIONS, PinError, UserStore
 from itomiscan.web import pages, user_pages, delivery_pages, printing_pages
 from itomiscan.integrations.printing import (
     PrintError, list_queues, install_queue, uninstall_queue, test_page,
-    discover_printers, set_default_printer, printer_uri, queue_name,
+    discover_printers, set_default_printer, printer_uri, queue_name, address_from_host,
 )
 from itomiscan.storage.queue import DeliveryQueue, QueueError
 from itomiscan.storage.secrets import SecretStore, SecretError
@@ -439,7 +439,10 @@ class AdminHandler(BaseHTTPRequestHandler):
                 return self._redirect("/targets?ok=Ziel%20entfernt")
             if path == "/printers/save":
                 name = form.get("name", "")
-                address = form.get("address", "")
+                address = form.get("address", "").strip()
+                if not address:
+                    address = address_from_host(form.get("protocol", ""),
+                                                form.get("host", "").strip())
                 printer_uri(address)
                 queue_name(name)
                 self.server.store.save_target({
