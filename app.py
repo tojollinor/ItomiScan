@@ -554,6 +554,62 @@ class ItomiScan:
         except (OSError, RuntimeError, subprocess.TimeoutExpired) as exc:
             messagebox.showerror("Neustart", str(exc), parent=self.root)
 
+    def show_hardware_diagnostics(self):
+        if self.busy:
+            return
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Hardwarediagnose")
+        dialog.configure(bg=BASE)
+        dialog.transient(self.root)
+        self._center_dialog(dialog, 800, 620)
+        tk.Label(dialog, text="Scanner-Hardwarediagnose", bg=BASE, fg=FG,
+                 font=("DejaVu Sans", 21, "bold")).pack(pady=12)
+        active = {o["flag"] for o in self.options if not o["inactive"]}
+        lines = ["Scanner: " + str(self.device or "nicht erkannt"),
+                 "Software-Entzerrung: " + str("--swdeskew" in active),
+                 "Software-Zuschnitt: " + str("--swcrop" in active),
+                 "Leerseiten-Option: " + str("--swskip" in active),
+                 "Doppeleinzug-Optionen: " + str(bool(active.intersection(
+                     {"--df-action", "--df-thickness", "--df-length", "--df-skew"}))),
+                 "Ultraschall-Erkennung: nicht separat verifiziert",
+                 "Letzte Scanparameter: " + (
+                     " ".join(self.batch_settings[0]) if self.batch_settings else "keine"),
+                 "", "Erkannte SANE-Optionen:"]
+        lines.extend(LABELS.get(o["flag"], o["flag"]) + " (" +
+                     ("inaktiv" if o["inactive"] else "aktiv") + ") " +
+                     ", ".join(o["choices"]) for o in self.options)
+        content = tk.Text(dialog, bg=PANEL, fg=FG, wrap="word",
+                          font=("DejaVu Sans", 11))
+        content.insert("1.0", "\n".join(lines))
+        content.configure(state="disabled")
+        content.pack(fill="both", expand=True, padx=20, pady=8)
+        self._btn(dialog, "Testprofil vorbereiten", lambda: (
+            dialog.destroy(), self.apply_hardware_test_profile()
+        ), BLUE).pack(fill="x", padx=22, pady=5)
+        self._btn(dialog, "Schließen", dialog.destroy).pack(
+            fill="x", padx=22, pady=(0, 14))
+        dialog.grab_set()
+
+    def apply_hardware_test_profile(self):
+        for opt, variable in self.fields:
+            if opt["inactive"]:
+                continue
+            flag = opt["flag"]
+            if flag == "--mode" and "Color" in opt["choices"]:
+                variable.set("Color")
+            elif flag == "--source":
+                duplex = next((v for v in opt["choices"]
+                               if "duplex" in v.lower()), None)
+                if duplex:
+                    variable.set(duplex)
+            elif flag == "--resolution":
+                variable.set("300")
+            elif flag in ("--swdeskew", "--swcrop") and opt["kind"] == "bool":
+                variable.set("yes")
+        self.format_var.set("PDF")
+        self.show_scan()
+        self.status_var.set("Hardwaretestprofil vorbereitet, bitte Scan starten")
+
     def show_device_menu(self):
         if self.busy:
             return
@@ -567,6 +623,7 @@ class ItomiScan:
                  font=("DejaVu Sans", 23, "bold")).pack(pady=18)
         actions = (
             ("Updates", "update", self.check_update),
+            ("Hardwarediagnose", "update", self.show_hardware_diagnostics),
             ("Ausschalten", "shutdown", self.shutdown),
             ("Beenden", "exit", self.exit),
         )
