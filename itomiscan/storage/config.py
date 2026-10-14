@@ -248,6 +248,20 @@ class ConfigStore:
                        "ON CONFLICT(kind,name) DO UPDATE SET address=excluded.address",
                        (data["kind"], data["name"], data["address"]))
 
+    def update_target_address(self, target_id, address, *, kind="printer"):
+        """Update an existing target by ID, never silently create a new target."""
+        if type(target_id) is not int or target_id <= 0:
+            raise ConfigError("Ungültige Ziel-ID.")
+        with self._connection(write=True) as db:
+            row = db.execute("SELECT kind,name FROM targets WHERE id=?",
+                             (target_id,)).fetchone()
+            if not row or row["kind"] != kind:
+                raise ConfigError("Ziel existiert nicht.")
+            data = validate_target({"kind": kind, "name": row["name"],
+                                    "address": address})
+            db.execute("UPDATE targets SET address=? WHERE id=?",
+                       (data["address"], target_id))
+
     def delete_target(self, target_id):
         if type(target_id) is not int or target_id <= 0:
             raise ConfigError("Ungültige Ziel-ID.")
