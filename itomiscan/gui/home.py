@@ -121,23 +121,23 @@ class HomeScreen:
                  font=("DejaVu Sans", 10), wraplength=285,
                  justify="right").pack(side="right", anchor="n", padx=6)
 
+        # Compact primary actions; leave breathing room on the 1024x768 panel.
         tiles = tk.Frame(self.frame, bg=BASE)
-        tiles.pack(fill="both", expand=True, padx=30, pady=(12, 8))
+        tiles.pack(fill="x", padx=85, pady=(28, 20))
         for i in range(2):
             tiles.grid_columnconfigure(i, weight=1, uniform="actions")
-        tiles.grid_rowconfigure(0, weight=1)
         actions = (
             ("scan", "Scannen", "Dokument digitalisieren", self.show_destinations),
             ("copy", "Kopieren", "Dokument ausdrucken", self.open_copy),
         )
         for index, (permission, title, subtitle, command) in enumerate(actions):
             card = tk.Frame(tiles, bg=CARD, bd=0)
-            card.grid(row=0, column=index, padx=8, pady=8, sticky="nsew")
+            card.grid(row=0, column=index, padx=8, pady=8, sticky="ew")
             self.tiles[permission] = card
-            self._button(card, title, command, bg=CARD, font=24,
-                         pad_y=30).pack(fill="both", expand=True, padx=10, pady=(12, 0))
+            self._button(card, title, command, bg=CARD, font=21,
+                         pad_y=16).pack(fill="x", padx=10, pady=(10, 0))
             tk.Label(card, text=subtitle, bg=CARD, fg=MUTED,
-                     font=("DejaVu Sans", 12)).pack(pady=(0, 20))
+                     font=("DejaVu Sans", 11)).pack(pady=(0, 12))
 
         profiles = tk.Frame(self.frame, bg=CARD)
         profiles.pack(fill="x", padx=37, pady=(2, 12))
