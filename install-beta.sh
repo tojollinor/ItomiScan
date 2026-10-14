@@ -66,8 +66,9 @@ tar -xzf "$WORK/beta.tar.gz" --strip-components=1 -C "$WORK/source"
 /usr/bin/python3 -m compileall -q "$WORK/source/app.py" "$WORK/source/itomiscan"
 bash -n "$WORK/source/install-beta.sh"
 if [[ -d "$PROJECT" ]]; then
- BACKUP="$USER_HOME/ItomiScan-backup-$(date -u +%Y%m%dT%H%M%SZ)"
- cp -a "$PROJECT" "$BACKUP"
+ BACKUP="$(mktemp -d "$USER_HOME/ItomiScan-backup-$(date -u +%Y%m%dT%H%M%SZ)-XXXXXXXX")"
+ # Preserve file ownership, modes and existing local configuration.
+ cp -a "$PROJECT/." "$BACKUP/"
  info "Sicherung: $BACKUP"
 else
  install -d -o "$USER_NAME" -g "$(id -gn "$USER_NAME")" "$PROJECT"
