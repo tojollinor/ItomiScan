@@ -1198,16 +1198,20 @@ class ItomiScan:
     def append_pages(self):
         if self.busy or not self.review_pending or not self.pages:
             return
-        try:
-            settings = self.chosen_args()
-        except ValueError as exc:
-            messagebox.showerror("Scanoption", str(exc), parent=self.root)
-            return
-        scan_mode = next((v.get().strip() for opt, v in self.fields
-                          if opt["flag"] == "--mode" and not opt["inactive"]), "")
+        # Subsequent batches belong to the same document. Preserve the exact
+        # settings and output format from the first scan even if the UI has
+        # since changed. Do not validate unrelated, changed UI settings.
         if self.batch_settings is not None:
-            settings, scan_mode, output_format = self.batch_settings
+            saved_settings, scan_mode, output_format = self.batch_settings
+            settings = list(saved_settings)
         else:
+            try:
+                settings = self.chosen_args()
+            except ValueError as exc:
+                messagebox.showerror("Scanoption", str(exc), parent=self.root)
+                return
+            scan_mode = next((v.get().strip() for opt, v in self.fields
+                              if opt["flag"] == "--mode" and not opt["inactive"]), "")
             output_format = self.format_var.get()
         self.last_scan_settings = (list(settings), scan_mode, output_format)
         self.appending_pages = True
