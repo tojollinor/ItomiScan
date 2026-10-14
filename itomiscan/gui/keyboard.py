@@ -20,6 +20,8 @@ def ask_touch(root, title, initial="", *, numeric=False, secret=False, max_lengt
     width = min(1000, max(320, screen_w - 24))
     height = min(690, max(260, screen_h - 24))
     win.geometry(f"{width}x{height}+{(screen_w-width)//2}+{(screen_h-height)//2}")
+    win.lift()
+    win.update_idletasks()
     win.grab_set()
     value = tk.StringVar(value=str(initial))
     shifted = tk.BooleanVar(value=False)
@@ -53,11 +55,14 @@ def ask_touch(root, title, initial="", *, numeric=False, secret=False, max_lengt
     def cancel():
         win.destroy()
 
+    compact = screen_w < 1050 or screen_h < 720
+
     def key(parent, label, command, width=5, color=PANEL):
         return tk.Button(parent, text=label, command=command,
-                         font=("DejaVu Sans", 17, "bold"), bg=color, fg=FG,
+                         font=("DejaVu Sans", 13 if compact else 17, "bold"), bg=color, fg=FG,
                          activebackground=BLUE, activeforeground=FG,
-                         relief="flat", bd=0, width=width, padx=4, pady=11)
+                         relief="flat", bd=0, width=width, padx=2 if compact else 4,
+                         pady=4 if compact else 11)
 
     def render():
         for widget in board.winfo_children():
@@ -71,7 +76,7 @@ def ask_touch(root, title, initial="", *, numeric=False, secret=False, max_lengt
             row.pack(expand=True, fill="x", pady=3)
             for ch in line:
                 label = ch.upper() if shifted.get() else ch
-                key(row, label, lambda c=label: put(c), width=4 if numeric else 5
+                key(row, label, lambda c=label: put(c), width=3 if numeric else (2 if compact else 5)
                     ).pack(side="left", expand=True, fill="both", padx=2)
         tools = tk.Frame(board, bg=BG)
         tools.pack(fill="x", pady=5)
@@ -94,5 +99,6 @@ def ask_touch(root, title, initial="", *, numeric=False, secret=False, max_lengt
     win.bind("<Return>", lambda _e: confirm())
     win.bind("<Escape>", lambda _e: cancel())
     entry.focus_set()
+    win.lift()
     root.wait_window(win)
     return result["value"]
