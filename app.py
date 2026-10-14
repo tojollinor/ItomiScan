@@ -970,11 +970,12 @@ class ItomiScan:
             scans = sorted(folder.glob("page-*." + extension))
             if not scans:
                 raise RuntimeError(result.stderr.strip() or "Kein Dokument eingezogen.")
-            # Preserve editable images in the permanent scan folder. Temporary
-            # scanimage output must never be the backing store for review.
+            # Validate acquisition before committing review files.
             warning = result.stderr.strip() if result.returncode else ""
-            if result.returncode != 0 and scans:
-                raise RuntimeError(warning or "Scan unvollständig.")
+            if result.returncode != 0:
+                title, _ = classify_scanner_error(warning)
+                if title != "Kein Dokument eingelegt":
+                    raise RuntimeError(warning or "Scan unvollständig.")
             if warning and classify_scanner_error(warning)[0] in (
                     "Scan unvollständig", "Möglicher Doppeleinzug", "Papierstau erkannt"):
                 raise RuntimeError(warning)
@@ -998,14 +999,6 @@ class ItomiScan:
                 path = target
             # Do not prepare or enqueue any delivery before review approval.
             self.pending_export_path = None
-            warning = result.stderr.strip() if result.returncode else ""
-            if result.returncode != 0:
-                title, _ = classify_scanner_error(warning)
-                if title not in ("Kein Dokument eingelegt",) or scans:
-                    raise RuntimeError(warning or "Scan wurde unvollständig beendet.")
-            if warning and classify_scanner_error(warning)[0] in (
-                    "Scan unvollständig", "Möglicher Doppeleinzug", "Papierstau erkannt"):
-                raise RuntimeError(warning)
             self.dispatch(lambda: self.scan_finished(saved, path, warning))
         except (OSError, RuntimeError, subprocess.TimeoutExpired) as exc:
             msg = str(exc)
