@@ -132,12 +132,8 @@ status_sprite.SetY(top + 410);
 detail_sprite = Sprite(detail);
 detail_sprite.SetX(cx - detail.GetWidth() / 2);
 detail_sprite.SetY(top + 457);
-# Rotation in Plymouth uses a native frame callback; the Tk screen animates
-# independently after Xorg takes ownership of the display.
-fun animate() {
-    ring_sprite.SetImage(ring.Rotate(Plymouth.GetTime() * 2));
-}
-Plymouth.SetRefreshFunction(animate);
+# Static ring during early boot; the Tk splash animates after Xorg starts.
+# Avoid unsupported Plymouth script APIs on Debian 12.
 SCRIPT
 # Hide the GRUB selection pause on this single-OS appliance.
 if grep -Eq '^GRUB_TIMEOUT_STYLE=' /etc/default/grub; then
