@@ -172,11 +172,18 @@ class HomeScreen:
         self.controls["logout"].pack_forget()
 
     def _modal(self, title):
+        """Keep the menu fully visible and centred on the N1800 display."""
         dialog = tk.Toplevel(self.root)
         dialog.title(title)
         dialog.configure(bg=BASE)
-        dialog.transient(self.root)
-        dialog.geometry("760x590")
+        screen_w = self.root.winfo_screenwidth()
+        screen_h = self.root.winfo_screenheight()
+        width = min(600, max(320, screen_w - 40))
+        height = min(550, max(320, screen_h - 40))
+        dialog.geometry(
+            f"{width}x{height}+{max(0, (screen_w-width)//2)}+"
+            f"{max(0, (screen_h-height)//2)}")
+        dialog.lift()
         dialog.grab_set()
         tk.Label(dialog, text=title, bg=BASE, fg=FG,
                  font=("DejaVu Sans", 23, "bold")).pack(pady=(24, 12))
