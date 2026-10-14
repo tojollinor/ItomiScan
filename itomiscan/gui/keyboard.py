@@ -34,7 +34,7 @@ def ask_touch(root, title, initial="", *, numeric=False, secret=False, max_lengt
                      bg="#ffffff", fg="#101927", insertbackground="#101927")
     entry.pack(fill="x", padx=24, pady=(0, 12), ipady=8)
     board = tk.Frame(win, bg=BG)
-    board.pack(fill="both", expand=True, padx=18)
+    # The board is packed after the bottom action bar.
 
     def put(char):
         pos = entry.index(tk.INSERT)
@@ -56,44 +56,51 @@ def ask_touch(root, title, initial="", *, numeric=False, secret=False, max_lengt
     def cancel():
         win.destroy()
 
-    compact = screen_w < 1050 or screen_h < 720
+    # Reserve the confirmation bar before expanding the keyboard rows.
+    # The N1800 panel is 1024x768: no keyboard action may be clipped.
+    compact = width < 900 or height < 620
+    footer = tk.Frame(win, bg=BG)
+    footer.pack(side="bottom", fill="x", padx=20, pady=(4, 12))
+    board.pack_forget()
+    board.pack(fill="both", expand=True, padx=12, pady=(0, 3))
 
     def key(parent, label, command, width=5, color=PANEL):
         return tk.Button(parent, text=label, command=command,
-                         font=("DejaVu Sans", 13 if compact else 17, "bold"), bg=color, fg=FG,
-                         activebackground=BLUE, activeforeground=FG,
-                         relief="flat", bd=0, width=width, padx=2 if compact else 4,
-                         pady=4 if compact else 11)
+                         font=("DejaVu Sans", 13 if compact else 16, "bold"),
+                         bg=color, fg=FG, activebackground=BLUE,
+                         activeforeground=FG, relief="flat", bd=0,
+                         width=width, padx=2, pady=4 if compact else 7,
+                         takefocus=False)
 
     def render():
         for widget in board.winfo_children():
             widget.destroy()
         if numeric:
-            rows = ["789", "456", "123", ",0."]
+            rows = ("789", "456", "123", ",0.")
         else:
-            rows = ["qwertzuiopü", "asdfghjklöä", "yxcvbnmß"]
+            rows = ("qwertzuiopü", "asdfghjklöä", "yxcvbnmß")
         for line in rows:
             row = tk.Frame(board, bg=BG)
-            row.pack(expand=True, fill="x", pady=3)
+            row.pack(fill="both", expand=True, pady=2)
             for ch in line:
                 label = ch.upper() if shifted.get() else ch
-                key(row, label, lambda c=label: put(c), width=3 if numeric else (2 if compact else 5)
-                    ).pack(side="left", expand=True, fill="both", padx=2)
+                key(row, label, lambda c=label: put(c),
+                    width=2 if not numeric else 3).pack(
+                        side="left", fill="both", expand=True, padx=1)
         tools = tk.Frame(board, bg=BG)
-        tools.pack(fill="x", pady=5)
+        tools.pack(fill="x", pady=3)
         if not numeric:
             def toggle():
                 shifted.set(not shifted.get())
                 render()
-            key(tools, "Shift", toggle, width=7).pack(side="left", padx=3)
-            key(tools, "Leerzeichen", lambda: put(" "), width=15
-                ).pack(side="left", fill="x", expand=True, padx=3)
-            key(tools, "-", lambda: put("-"), width=3).pack(side="left", padx=3)
-        key(tools, "Löschen", erase, width=9).pack(side="right", padx=3)
+                entry.focus_set()
+            key(tools, "⇧ Shift", toggle, width=8).pack(side="left", padx=2)
+            key(tools, "Leerzeichen", lambda: put(" "), width=12).pack(
+                side="left", fill="x", expand=True, padx=2)
+            key(tools, "-", lambda: put("-"), width=3).pack(side="left", padx=2)
+        key(tools, "⌫ Löschen", erase, width=10).pack(side="right", padx=2)
 
     render()
-    footer = tk.Frame(win, bg=BG)
-    footer.pack(fill="x", padx=20, pady=(5, 15))
     key(footer, "Abbrechen", cancel, width=11).pack(side="left")
     key(footer, "Übernehmen", confirm, width=12, color=BLUE).pack(side="right")
     win.protocol("WM_DELETE_WINDOW", cancel)
@@ -102,7 +109,11 @@ def ask_touch(root, title, initial="", *, numeric=False, secret=False, max_lengt
     win.update_idletasks()
     win.wait_visibility()
     win.lift()
-    win.grab_set()
+    try:
+        win.grab_set()
+    except tk.TclError:
+        # Never leave a blank kiosk if the X server rejects the grab.
+        win.lift()
     entry.focus_set()
     root.wait_window(win)
     return result["value"]
