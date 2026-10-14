@@ -350,8 +350,9 @@ class ItomiScan:
         
         self.scan_button = self._btn(footer, "SCANNEN", self.start_scan, BLUE, width=15)
         self.scan_button.pack(side="right")
-        tk.Label(footer, textvariable=self.status_var, bg=BASE, fg=MUTED,
-                 font=("DejaVu Sans", 10), wraplength=360).pack(side="right", padx=16)
+        self.footer_status = tk.Label(footer, textvariable=self.status_var, bg=BASE, fg=MUTED,
+                                      font=("DejaVu Sans", 10), wraplength=250)
+        self.footer_status.pack(side="right", padx=8)
 
     def on_front_scan_key(self, event):
         if self.pin_screen and self.pin_screen.active:
@@ -723,12 +724,17 @@ class ItomiScan:
     def _set_review_layout(self, reviewing):
         """Use the whole screen for document review; options belong before scanning."""
         if reviewing:
+            # Two document actions need the width of the footer. Keep status
+            # in the document pane rather than letting buttons leave the screen.
+            self.footer_status.pack_forget()
             self.review_navigation.pack(pady=4)
             self.review_editing.pack(fill="x", padx=14, pady=(0, 3))
             self.scan_options_panel.pack_forget()
             self.document_panel.pack_configure(side="left", fill="both", expand=True)
             self.scan_button.pack_forget()
         else:
+            self.footer_status.pack_forget()
+            self.footer_status.pack(side="right", padx=8)
             self.review_navigation.pack_forget()
             self.review_editing.pack_forget()
             self.document_panel.pack_forget()
@@ -1331,7 +1337,12 @@ class ItomiScan:
         self.output_path = path
         self.path_label.configure(text="Gespeichert: " + str(path))
         self._set_review_layout(self.review_pending)
-        self.show_page()
+        if self.pages:
+            self.show_page()
+        else:
+            self.photo = None
+            self.preview.configure(image="", text="Keine Seiten erfasst")
+            self.page_var.set("Keine Seiten")
         self.status_var.set(str(len(self.pages)) + " Bildseite(n) erfasst · Bitte prüfen")
         if self.review_pending:
             self.append_button.pack(side="left", padx=5)
