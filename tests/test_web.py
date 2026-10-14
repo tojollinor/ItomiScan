@@ -307,6 +307,20 @@ class WebAdminTests(unittest.TestCase):
             "csrf": self.csrf, "target_id": "999999",
             "address": "ipp://laser.lan/ipp/print"})[0], 400)
 
+    def test_configured_printer_must_be_uninstalled_before_delete(self):
+        self.login()
+        self.assertEqual(self.req("POST", "/printers/save", {
+            "csrf": self.csrf, "name": "OfficePrinter",
+            "address": "ipps://printer.lan/ipp/print"})[0], 303)
+        target = next(x for x in self.server.store.list_targets()
+                      if x["kind"] == "printer" and x["name"] == "OfficePrinter")
+        with patch("itomiscan.web.server.list_queues", return_value=["OfficePrinter"]):
+            code, _, _ = self.req("POST", "/targets/delete", {
+                "csrf": self.csrf, "id": str(target["id"])})
+        self.assertEqual(code, 400)
+        self.assertTrue(any(x["id"] == target["id"]
+                            for x in self.server.store.list_targets()))
+
     def test_logout_clears_session(self):
         self.login()
         code, hdrs, _ = self.req("POST","/logout",{"csrf":self.csrf})
