@@ -117,7 +117,7 @@ noch aus.
 
 Im Entwicklungszweig (noch **nicht** über den normalen Update-Button auf dem N1800 installiert):
 
-- Großflächige 2×2-Startseite. Stand Block 6: Scannen, Paperless und Netzwerkordner zum Scannen und Vormerken, E-Mail/USB per weiterer Zielauswahl; Kopieren folgt in Block 7.
+- Großflächige 2×2-Startseite. Seit Block 7: Scannen, Paperless, Netzwerkordner und Kopieren über eine eigene Druckerauswahl; E-Mail/USB per zusätzlicher Zielauswahl.
 - Vereinfachtes ItomiScan-Scan-Logo in kräftigen, kontrastreichen Farben; direkt mit Tk-Canvas gezeichnet, ohne große Bilddateien.
 - Profile **Dokument (Farbe/200 DPI/Duplex/PDF)**, **Text (Grau/300 DPI/Duplex/PDF)** und **Foto (Farbe/300 DPI/ADF Front/PNG)**; Profil wählen und per „Jetzt scannen“ oder physischer Scan-Taste scannen.
 - Einstellungen und zusätzliche aktive SANE-Optionen können in der bisherigen Detailmaske geändert und über „Profil speichern“ mit einem Namen abgelegt werden. Bis zur Webkonfiguration erfordert die Namenseingabe eine Tastatur.
@@ -154,3 +154,13 @@ Getrennter kleiner Python-Webserver für Profile, vorbereitete Papier-/Druck-/Ne
 - Zustellung benötigt einen separaten Nicht-root-Dienst, der nur über das **optionale** Skript `setup-delivery.sh` eingerichtet wird. Auf dem bestehenden Scanner wurde nichts installiert.
 - Paperless-Upload bestätigt zunächst **Beginn der Verarbeitung**, nicht die fertig archivierte Datei. SMB, Mail, USB und echtes Paperless müssen noch am N1800 getestet werden.
 - [Vollständige Einrichtung und Grenzen](docs/DELIVERY.md). CUPS-Kopiermodus folgt in Block 7, Release erst nach Block 8 und ausdrücklicher Freigabe.
+
+
+### Block 7: CUPS-Drucker und Kopieren (Entwicklung)
+
+- Geschützte Webadministration: IPP-/IPPS-Netzwerkdrucker speichern, nach explizitem CUPS-Setup registrieren, Testseite anstoßen und Warteschlange entfernen.
+- Für den kleinen 1024×768-Bildschirm: Drucker auswählen, 1–20 Kopien, ADF Front/Duplex, einseitiger/Duplexdruck, Druckerliste mit Pfeilnavigation. Die physische Scantaste startet im Kopiermodus die ausgewählte Kopie.
+- Scans werden als lokale PDF gesichert, Druckjobs mit Kopienzahl/Duplex an die bestehende robuste SQLite-Warteschlange übergeben. CUPS-Annahme ist noch keine bestätigte Papierausgabe.
+- Das eigene PIN-Recht `copy` funktioniert unabhängig von `scan`. Unklare CUPS-Übergaben werden zur Prüfung markiert und nicht automatisch doppelt gedruckt.
+- Das **optionale** `setup-printing.sh` installiert CUPS und verleiht ausdrücklich CUPS-Verwaltungsrechte an den Scannerbenutzer. **Nicht** auf `main` ausgeführt, reale N1800-/CUPS-Abnahme offen.
+- Details: [docs/PRINTING.md](docs/PRINTING.md). Integration, Backup, Installer und Release folgen in Block 8, nach Freigabe.
