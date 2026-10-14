@@ -1,6 +1,6 @@
 # ItomiScan 1.0.0: Architekturvertrag
 
-**Status 14.10.2026:** Blöcke 1–6 auf `develop/1.0.0` implementiert. Block 6 ergänzt dauerhafte PDF-Aufträge und Paperless-/SMB-/SMTP-/USB-Ziele. Automatisierte Tests bestanden; N1800-/LAN-Abnahme noch ausstehend. CUPS folgt Block 7.
+**Status 14.10.2026:** Blöcke 1–7 auf `develop/1.0.0` implementiert. Block 7 ergänzt CUPS/IPPS-Netzwerkdrucker, Touch-Kopieransicht und gesicherte Druckjobs. Automatisierte Tests grün; reale N1800-/LAN-/CUPS-Abnahme ausstehend. Block 8 enthält Integration/Backup/Rollback/Installer/Release.
 
 ## Plattform und vorhandener Code
 
@@ -14,8 +14,8 @@
 - `itomiscan/core/`: Geräteerkennung, Scanjobs, Zustandsmaschine, zuverlässige Scan-/Exportlogik; später zentrale Dienstschnittstelle.
 - `itomiscan/gui/`: Touchoberfläche, Splash, PIN-Gate sowie Zielauswahl für Paperless/SMB und E-Mail/USB; Zustellaufträge werden im Web verwaltet.
 - `itomiscan/web/`: kleiner unabhängiger, ausdrücklich aktivierbarer HTTPS-Webdienst mit Anmeldung, Profilen, Zieladressen, Status und Sicherung; kein Browser auf dem Gerät.
-- `itomiscan/storage/`: SQLite für Profile, Einstellungen, Zieladressen, Administratorhash und PIN-Benutzer samt Berechtigungen vorhanden. Auftragsspeicher und Warteschlange folgen.
-- `itomiscan/integrations/`: Paperless-HTTPS, SMB per smbclient, SMTP/TLS und USB-Ablage implementiert, dazu separater Nicht-root-Zustellworker. CUPS folgt Block 7.
+- `itomiscan/storage/`: SQLite für Profile, Einstellungen, Zieladressen, Nutzer/PIN-Rechte und gesicherte PDF-/Druckaufträge samt Kopienzahl und Duplex. Die vorherigen Block-6-Jobs bleiben bei der Migration erhalten.
+- `itomiscan/integrations/`: Paperless-HTTPS, SMB, SMTP/TLS, USB und CUPS über einen gemeinsamen Nicht-root-Zustellworker. CUPS-Queues per Web nur nach ausdrücklichem lokalem `setup-printing.sh` mit `lpadmin`-Recht administrierbar.
 
 Kein Paket startet beim Import automatisch Hardware, Netzwerkserver oder Hintergrundthreads. Komponenten werden erst in späteren Blöcken schrittweise an den bestehenden Einstiegspunkt angeschlossen. Nicht alle Dienste müssen permanent laufen.
 
@@ -39,7 +39,7 @@ Kein Paket startet beim Import automatisch Hardware, Netzwerkserver oder Hinterg
 
 ## Oberflächen- und Zielprinzipien
 
-- Vier große Hauptaktionen: lokales Scannen, Paperless und Netzwerkordner mit PDF-Auftragsanlage, sowie Kopieren (noch Platzhalter bis Block 7). E-Mail/USB über weitere Touch-Zielauswahl. Die Zustellung erfordert einen gesondert gestarteten Worker; kein automatischer Dienst auf bestehendem Gerät.
+- Vier große Hauptaktionen: Scannen, Paperless, Netzwerkordner und Kopieren. Kopieren bietet große Druckerwahl, Kopien 1–20 sowie Scan-/Druck-Duplex. E-Mail/USB über ergänzende Zielauswahl. Ausgehende PDF- und Druckzustellung laufen über den gesondert gestarteten Worker; vorhandenes `main` unverändert.
 - Vereinfachtes, kontrastreiches Scan-Symbol als flache Canvas-Zeichnung im GUI und Splash, an das vereinbarte minimalistische Logo angelehnt; ohne hochauflösende Bildressourcen für das ältere Display.
 - Lokales Scannen öffnet die beibehaltene SANE-Detailmaske mit bestehender PDF-/PNG-Vorschau und Navigation. Bereits bisher gespeicherte Scans bleiben gespeichert; nachträgliches Editieren und eine zielbezogene Freigabe-/Sendevorschau folgen später.
 - Erweiterte Netz- und Integrationskonfiguration im Web; alltägliche Optionen am Scanner.
