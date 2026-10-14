@@ -14,7 +14,7 @@ from pathlib import Path
 import tkinter as tk
 from tkinter import messagebox, simpledialog, ttk
 
-from itomiscan.core.profiles import ProfileError, ProfileStore
+from itomiscan.core.profiles import ProfileError, ProfileStore, experiment_settings
 from itomiscan.gui.keyboard import ask_touch
 from itomiscan.gui.scanner_errors import show_scanner_error, classify_scanner_error
 from itomiscan.gui.home import HomeScreen, draw_logo, set_logo_busy
@@ -759,6 +759,11 @@ class ItomiScan:
                   "--source": profile["source"],
                   "--resolution": str(profile["resolution"])}
         wanted.update(profile.get("settings", {}))
+        if profile["name"] == "Test / Alle Optionen":
+            # Rebuild only the supported options of the connected scanner.
+            # Explicit saved overrides take precedence over safe test defaults.
+            wanted.update(experiment_settings(self.options))
+            wanted.update(profile.get("settings", {}))
         for opt, variable in self.fields:
             value = wanted.get(opt["flag"])
             if value is None or opt["inactive"]:
@@ -831,6 +836,11 @@ class ItomiScan:
         else:
             profile = self.profile_store.current()
         self.apply_profile(profile)
+        if profile["name"] == "Test / Alle Optionen":
+            # Experimental profiles must open the editable SANE controls.
+            # Quick scan would otherwise start immediately without inspection.
+            self.show_scan()
+            return
         self.start_scan()
 
     def available_printers(self):
