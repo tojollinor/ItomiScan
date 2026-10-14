@@ -13,10 +13,10 @@ CYAN = branding.CYAN
 BLUE = "#397edb"
 
 
-def draw_logo(parent, size=68):
+def draw_logo(parent, size=68, *, background=None):
     """Solid two-colour N1800-friendly rendition of the approved scan icon."""
     canvas = tk.Canvas(parent, width=size, height=size,
-                       bg=BASE, bd=0, highlightthickness=0)
+                       bg=background or BASE, bd=0, highlightthickness=0)
     factor = size / branding.LOGO_UNITS
     scaled = lambda coords: branding.scaled(coords, size)
     canvas.create_rectangle(*scaled((1, 1, 71, 71)),
@@ -103,7 +103,7 @@ class HomeScreen:
                          font=("DejaVu Sans", font, "bold"),
                          bg=bg, fg=FG, activebackground=CARD_HOVER,
                          activeforeground=FG, relief="flat", bd=0,
-                         padx=12, pady=pad_y, cursor="hand2", width=width)
+                         padx=12, pady=pad_y, cursor="none", width=width)
 
     def _build(self, shutdown, update, exit_app, status):
         # Reserve the persistent bottom actions before the flexible content.
@@ -131,21 +131,23 @@ class HomeScreen:
                  font=("DejaVu Sans", 10), wraplength=285,
                  justify="right").pack(side="right", anchor="n", padx=6)
 
-        # Compact primary actions; leave breathing room on the 1024x768 panel.
+        # Match the 2-column scan destination cards, including their touch height.
+        # Fixed first row leaves room for more actions on the home screen later.
         tiles = tk.Frame(self.frame, bg=BASE)
-        tiles.pack(fill="x", padx=100, pady=(22, 16))
+        tiles.pack(fill="x", padx=30, pady=(22, 16))
         for i in range(2):
             tiles.grid_columnconfigure(i, weight=1, uniform="actions")
+        tiles.grid_rowconfigure(0, minsize=182)
         actions = (
             ("scan", "Scannen", "Dokument digitalisieren", self.show_destinations),
             ("copy", "Kopieren", "Dokument ausdrucken", self.open_copy),
         )
         for index, (permission, title, subtitle, command) in enumerate(actions):
             card = tk.Frame(tiles, bg=CARD, bd=0)
-            card.grid(row=0, column=index, padx=8, pady=8, sticky="ew")
+            card.grid(row=0, column=index, padx=7, pady=7, sticky="nsew")
             self.tiles[permission] = card
-            self._button(card, title, command, bg=CARD, font=19,
-                         pad_y=12).pack(fill="x", padx=10, pady=(8, 0))
+            self._button(card, title, command, bg=CARD, font=17,
+                         pad_y=13).pack(fill="both", expand=True, padx=4)
             tk.Label(card, text=subtitle, bg=CARD, fg=MUTED,
                      font=("DejaVu Sans", 11)).pack(pady=(0, 12))
 
@@ -216,7 +218,7 @@ class HomeScreen:
         for col in range(2):
             grid.grid_columnconfigure(col, weight=1)
         for row in range(3):
-            grid.grid_rowconfigure(row, weight=1)
+            grid.grid_rowconfigure(row, weight=1, minsize=182)
         choices = []
         if self.allowed is None or "scan" in self.allowed:
             choices.append(("Lokal speichern", self.open_scan, "scan"))
