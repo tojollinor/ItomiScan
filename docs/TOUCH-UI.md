@@ -5,7 +5,7 @@ Status 13.10.2026: Block-3-Funktionen auf `develop/1.0.0` committet, nicht am N1
 ## Ansicht und Navigation
 
 - Das vereinfachte Scannerlogo wird ohne zusätzliche Bilddatei mit geometrischen Canvas-Elementen gezeichnet. Die große Schrift und kontrastreichen Schaltflächen sind auf die Anzeige 1024×768 und ältere Touchhardware ausgerichtet.
-- Auf der Startseite erscheinen **Scannen**, **Paperless**, **Kopieren** und **Netzwerkordner**. Seit Block 6 öffnen Paperless/Netzwerk die Zielauswahl und legen PDF-Zustellaufträge an; zusätzlich steht **E-Mail / USB** zur Verfügung. Die eigentliche Zustellung übernimmt erst der separat gestartete Worker; **Kopieren** folgt in Block 7.
+- Startseite: Scannen, Paperless, Kopieren und Netzwerkordner. Paperless/Netzwerk wählen ein Ziel und planen die PDF-Übertragung; Kopieren öffnet seit Block 7 einen großen CUPS-Kopierdialog. E-Mail/USB über zusätzliche Auswahl. Der separate Worker übernimmt Druck und Übertragungen.
 - Die Taste **Scannen** öffnet die vorhandene Experten-/Detailansicht mit allen vom SANE-Backend erkannten, aktiven Optionen. Mit **← Startseite** gelangt man zurück; nicht während eines Scanauftrags.
 - Die Taste **Jetzt scannen** auf der Startseite oder die echte Scanner-Fronttaste verwendet das aktuell gewählte Profil, zeigt den laufenden Scan in der Detailansicht und danach die bereits vorhandene, speicherschonende Bildvorschau mit Seitennavigation.
 - **Beenden, Update, Ausschalten** bleiben vorhanden. Auf dem Entwicklungszweig ist das automatische GitHub-Update nach `origin/main` bewusst gesperrt, um einen ungeprüften Versionswechsel zu vermeiden.
@@ -34,4 +34,8 @@ Status 13.10.2026: Block-3-Funktionen auf `develop/1.0.0` committet, nicht am N1
 
 ## Ergänzung Block 6: Zielauswahl und PDF-Zustellung
 
-Nach der Zielauswahl wird das konfigurierte, berechtigte Scanprofil genutzt. Eine gewählte PNG-Ausgabe bleibt lokal erhalten; für ausgehende Zustellungen wird zusätzlich eine PDF erzeugt. Die ursprüngliche Scan-Datei wird nicht gelöscht. Wartende PDF-Aufträge sind in SQLite samt SHA-256 geschützt und im Browser unter **Aufträge** sichtbar. Bei nicht erreichbarem Ziel bleibt die Datei lokal; der Worker unternimmt nur sichere Wiederholungsversuche. Es gibt noch **keine** vollständige nachträgliche Seitenbearbeitung und keinen CUPS-Kopiermodus. Originalhardware nicht getestet.
+Nach der Zielauswahl wird das konfigurierte, berechtigte Scanprofil genutzt. Eine gewählte PNG-Ausgabe bleibt lokal erhalten; für ausgehende Zustellungen wird zusätzlich eine PDF erzeugt. Die ursprüngliche Scan-Datei wird nicht gelöscht. Wartende PDF-Aufträge sind in SQLite samt SHA-256 geschützt und im Browser unter **Aufträge** sichtbar. Bei nicht erreichbarem Ziel bleibt die Datei lokal; der Worker unternimmt nur sichere Wiederholungsversuche. Es gibt noch **keine** vollständige nachträgliche Seitenbearbeitung. Der CUPS-Kopiermodus ist seit Block 7 implementiert; Originalhardware nicht getestet.
+
+## Block 7: Touch-Kopieren
+
+Der Kopieren-Button öffnet eine eigenständige große Oberfläche für lokal eingerichtete CUPS-Drucker, Kopienanzahl 1–20, ADF Front/Duplex und einseitigen/Duplexdruck. Bei mehr als sechs Druckern kann seitenweise geblättert werden. Die physische Fronttaste startet hier den Kopierauftrag. PIN-Recht `copy` gilt unabhängig vom Recht `scan`. Die Kopie wird zunächst als PDF gesichert und erst danach durch den Zustelldienst an CUPS übergeben. Echte Druckerabnahme am N1800 steht aus. Einzelheiten: [PRINTING.md](PRINTING.md).
