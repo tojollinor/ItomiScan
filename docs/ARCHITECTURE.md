@@ -47,3 +47,12 @@ Kein Paket startet beim Import automatisch Hardware, Netzwerkserver oder Hinterg
 ## Deployment-Regel
 
 `main` versorgt den aktuell installierten Scanner. Arbeiten für 1.0.0 ausschließlich in `develop/1.0.0`; niemals versehentlich über den bestehenden Update-Button in die Entwicklungsfassung wechseln. Promotion nach getesteter Freigabe; Release erst in Block 8.
+
+
+## Block 8: Release-Absicherung (nur Entwicklungszweig)
+
+- Vollständige Offline-Sicherung enthält auch Originalscans, SQLite inklusive Benutzern, PDF-Spool, API-/SMTP-/SMB-Secrets sowie TLS-Zertifikate und Schlüssel. Keine automatische Ausgabe an das Webinterface. Streaming-ZIP ohne Komprimierung für 1 GiB RAM und SHA-256 pro Datei; kein Live-Restore.
+- Probewiederherstellung ausschließlich in ein neues Staging-Verzeichnis. Zustelldienst per exklusiver Dateisperre gegen Parallelstarts und laufende Vollbackups geschützt.
+- Lesender `release_preflight` prüft Abhängigkeiten, SSD-Reserve, Scanneridentifikation und vorhandene DB ohne Tabellenmigration. `release-check.sh` und Installer-Härtung bereiten gezielte Abnahme vor.
+- Für das N1800-Budget: Bildvorschau möglichst vor dem Anzeigen herunterskalieren, freier Festplattenpuffer vor neuen Scans/Spool; keine eigenständige OCR-Engine oder schwere Browseroberfläche.
+- **Keine** tatsächliche Geräteabnahme, kein automatischer Rollback über laufende Systemdienste, kein Git-Tag und keine Freigabe von `main`. Details siehe `docs/RELEASE-READINESS-1.0.0.md`.
