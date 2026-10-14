@@ -51,8 +51,15 @@ if [[ -e "$PROJECT" && ! -d "$PROJECT" ]]; then fail "$PROJECT ist keine Verzeic
 WORK="$(mktemp -d /tmp/itomiscan-beta.XXXXXXXX)"
 trap 'rm -rf "$WORK"' EXIT
 mkdir "$WORK/source"
+# Resolve the exact commit BEFORE downloading. Archive and installed revision
+# must describe the same source even if develop advances mid-install.
+ARCHIVE_SHA="$(curl -fsSL --retry 2 --connect-timeout 15 --max-time 30 \
+  -H 'Accept: application/vnd.github+json' \
+  'https://api.github.com/repos/tojollinor/ItomiScan/commits/develop/1.0.0' \
+  | python3 -c 'import json,sys; print(json.load(sys.stdin)["sha"])')"
+[[ "$ARCHIVE_SHA" =~ ^[0-9a-f]{40}$ ]] || fail "GitHub-Revision nicht verifizierbar."
 curl -fL --retry 2 --connect-timeout 15 --max-time 180 \
-  "https://github.com/tojollinor/ItomiScan/archive/refs/heads/develop/1.0.0.tar.gz" \
+  "https://github.com/tojollinor/ItomiScan/archive/${ARCHIVE_SHA}.tar.gz" \
   -o "$WORK/beta.tar.gz"
 tar -xzf "$WORK/beta.tar.gz" --strip-components=1 -C "$WORK/source"
 [[ -f "$WORK/source/app.py" && -f "$WORK/source/itomiscan/gui/kiosk.py" ]] || fail "Archiv unvollständig."
@@ -67,14 +74,8 @@ else
  info "Erstinstallation: $PROJECT"
 fi
 cp -a "$WORK/source/." "$PROJECT/"
-# Record installed beta revision for the kiosk update checker.
-ARCHIVE_SHA="$(curl -fsSL --retry 2 --connect-timeout 15 --max-time 30 \
-  -H 'Accept: application/vnd.github+json' \
-  'https://api.github.com/repos/tojollinor/ItomiScan/commits/develop/1.0.0' \
-  | python3 -c 'import json,sys; print(json.load(sys.stdin)["sha"])' || true)"
-if [[ "$ARCHIVE_SHA" =~ ^[0-9a-f]{40}$ ]]; then
-  printf '%s\n' "$ARCHIVE_SHA" > "$PROJECT/.itomiscan-beta-commit"
-fi
+# Record the same commit whose archive was downloaded.
+printf '%s\n' "$ARCHIVE_SHA" > "$PROJECT/.itomiscan-beta-commit"
 chown -R "$USER_NAME:$(id -gn "$USER_NAME")" "$PROJECT"
 ok "Beta aus Archiv installiert, alte Dateien und Konfiguration gesichert."
 
