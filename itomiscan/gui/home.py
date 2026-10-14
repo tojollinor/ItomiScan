@@ -22,12 +22,50 @@ def draw_logo(parent, size=68):
                             outline="")
     canvas.create_polygon(*scaled((23, 15, 44, 15, 52, 23, 52, 58, 23, 58)),
                           fill="white", outline="")
-    canvas.create_rectangle(*scaled((15, 36, 57, 40)), fill=CYAN, outline="")
+    canvas.create_rectangle(*scaled((15, 36, 57, 40)), fill=CYAN, outline="", tags="scanline")
     for x, y, dx, dy in ((13, 13, 8, 8), (59, 13, -8, 8),
                          (13, 59, 8, -8), (59, 59, -8, -8)):
         canvas.create_line(*scaled((x, y + dy, x, y, x + dx, y)),
                            fill=CYAN, width=max(3, round(4 * factor)))
     return canvas
+
+
+
+def set_logo_busy(canvas, busy):
+    """Animate only the existing scan bar, keeping the rest of the logo static."""
+    if not canvas.winfo_exists():
+        return
+    current = bool(getattr(canvas, "_itomi_busy", False))
+    if current == bool(busy):
+        return
+    canvas._itomi_busy = bool(busy)
+    canvas._itomi_generation = getattr(canvas, "_itomi_generation", 0) + 1
+    generation = canvas._itomi_generation
+    original = canvas.coords("scanline")
+    if not busy:
+        if hasattr(canvas, "_itomi_original"):
+            canvas.coords("scanline", *canvas._itomi_original)
+        return
+    canvas._itomi_original = original
+    factor = float(canvas.cget("width")) / 72
+    position = [36.0]
+    direction = [1.0]
+
+    def frame():
+        if (not canvas.winfo_exists() or
+                not getattr(canvas, "_itomi_busy", False) or
+                canvas._itomi_generation != generation):
+            return
+        position[0] += direction[0] * 2.5
+        if position[0] >= 52:
+            position[0], direction[0] = 52, -1
+        elif position[0] <= 20:
+            position[0], direction[0] = 20, 1
+        canvas.coords("scanline", 15 * factor, position[0] * factor,
+                      57 * factor, (position[0] + 4) * factor)
+        canvas.after(90, frame)
+
+    frame()
 
 
 class HomeScreen:
@@ -63,7 +101,8 @@ class HomeScreen:
     def _build(self, shutdown, update, exit_app, status):
         header = tk.Frame(self.frame, bg=BASE)
         header.pack(fill="x", padx=28, pady=(18, 6))
-        draw_logo(header, 64).pack(side="left", padx=(0, 16))
+        self.logo = draw_logo(header, 64)
+        self.logo.pack(side="left", padx=(0, 16))
         brand = tk.Frame(header, bg=BASE)
         brand.pack(side="left", anchor="w")
         title = tk.Frame(brand, bg=BASE)
