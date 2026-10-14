@@ -308,10 +308,12 @@ class ItomiScan:
         self.thumbnail_strip = tk.Frame(right, bg=PANEL)
         self.thumbnail_strip.pack(fill="x", padx=17, pady=4)
         nav = tk.Frame(right, bg=PANEL)
+        self.review_navigation = nav
         nav.pack(pady=4)
         self._btn(nav, "◀  Zurück", lambda: self.change_page(-1)).pack(side="left", padx=9)
         self._btn(nav, "Weiter  ▶", lambda: self.change_page(1)).pack(side="left", padx=9)
         edit = tk.Frame(right, bg=PANEL)
+        self.review_editing = edit
         edit.pack(fill="x", padx=14, pady=(0, 3))
         actions = (
             ("Erneut scannen", self.rescan_page),
@@ -334,6 +336,8 @@ class ItomiScan:
         self.path_label = tk.Label(right, text="Noch keine Datei", bg=PANEL, fg=MUTED,
                                    font=("DejaVu Sans", 9), wraplength=590)
         self.path_label.pack(pady=(3, 4))
+        self.review_navigation.pack_forget()
+        self.review_editing.pack_forget()
 
         self.profile_save_button = self._btn(
             left, "Profil speichern", self.save_profile, width=16)
@@ -719,10 +723,14 @@ class ItomiScan:
     def _set_review_layout(self, reviewing):
         """Use the whole screen for document review; options belong before scanning."""
         if reviewing:
+            self.review_navigation.pack(pady=4)
+            self.review_editing.pack(fill="x", padx=14, pady=(0, 3))
             self.scan_options_panel.pack_forget()
             self.document_panel.pack_configure(side="left", fill="both", expand=True)
             self.scan_button.pack_forget()
         else:
+            self.review_navigation.pack_forget()
+            self.review_editing.pack_forget()
             self.document_panel.pack_forget()
             self.scan_options_panel.pack_forget()
             self.scan_options_panel.pack(side="left", fill="y", padx=(0, 12))
