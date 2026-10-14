@@ -1,14 +1,16 @@
-"""Small Tk-only startup screen, sized for the N1800 1024x768 display."""
-
+"""Scanner startup screen matching the Plymouth artwork at 1024x768."""
 import tkinter as tk
 
-from itomiscan.gui.home import draw_logo
+from PIL import ImageTk
 
-BG = "#101927"
+from itomiscan import branding
+from itomiscan.gui.home import draw_logo, set_logo_busy
+
+BG = branding.BG
 PANEL = "#192738"
-WHITE = "#f1f5fb"
-MUTED = "#a8bacd"
-CYAN = "#42bfea"
+WHITE = branding.WHITE
+MUTED = branding.MUTED
+CYAN = branding.CYAN
 
 
 class StartupSplash:
@@ -19,31 +21,31 @@ class StartupSplash:
         self.frame.place(x=0, y=0, relwidth=1, relheight=1)
         self.frame.lift()
 
-        # Exact reference coordinates shared with the Plymouth theme (1024x768).
-        # Keep the content visible during the switch to the main kiosk.
-        draw_logo(self.frame, 84).place(relx=0.5, y=29, anchor="n")
-        brand = tk.Frame(self.frame, bg=BG)
-        brand.place(relx=0.5, y=126, anchor="n")
-        tk.Label(brand, text="Itomi", font=("DejaVu Sans", 30, "bold"),
-                 bg=BG, fg=WHITE).pack(side="left")
-        tk.Label(brand, text="Scan", font=("DejaVu Sans", 30, "bold"),
-                 bg=BG, fg=CYAN).pack(side="left")
-        tk.Label(self.frame, text="Dokumentenscanner", font=("DejaVu Sans", 13),
-                 bg=BG, fg=MUTED).place(relx=0.5, y=177, anchor="n")
-        self.canvas = tk.Canvas(self.frame, width=150, height=150,
-                                bg=BG, bd=0, highlightthickness=0)
-        self.canvas.place(relx=0.5, y=228, anchor="n")
-        self.canvas.create_oval(21, 21, 129, 129, outline="#34475e", width=11)
-        self.arc = self.canvas.create_arc(21, 21, 129, 129, start=90, extent=85,
-                                          style=tk.ARC, outline=CYAN, width=11)
-        self.angle = 90
-        self.running = True
+        # Plymouth and Tk use the same icon, artwork and reference positions.
+        self.logo = draw_logo(self.frame, branding.LOGO_SIZE)
+        self.logo.place(relx=0.5, y=branding.LOGO_Y, anchor="n")
+        set_logo_busy(self.logo, True)
+
+        self.brand_photo = ImageTk.PhotoImage(
+            branding._text_image((("Itomi", WHITE), ("Scan", CYAN)), 40))
+        tk.Label(self.frame, image=self.brand_photo, bg=BG, bd=0,
+                 highlightthickness=0).place(
+                     relx=0.5, y=branding.BRAND_Y, anchor="n")
+        self.subtitle_photo = ImageTk.PhotoImage(
+            branding._text_image((("Dokumentenscanner", MUTED),), 17, False))
+        tk.Label(self.frame, image=self.subtitle_photo, bg=BG, bd=0,
+                 highlightthickness=0).place(
+                     relx=0.5, y=branding.SUBTITLE_Y, anchor="n")
+
         self.title = tk.StringVar(value="Scanner wird vorbereitet")
         self.info = tk.StringVar(value="Systemstart …")
         tk.Label(self.frame, textvariable=self.title, bg=BG, fg=WHITE,
-                 font=("DejaVu Sans", 19, "bold")).place(relx=0.5, y=410, anchor="n")
+                 font=("DejaVu Sans", 19, "bold")).place(
+                     relx=0.5, y=branding.STATUS_Y, anchor="n")
         tk.Label(self.frame, textvariable=self.info, bg=BG, fg=MUTED,
-                 wraplength=720, font=("DejaVu Sans", 12)).place(relx=0.5, y=457, anchor="n")
+                 wraplength=720, font=("DejaVu Sans", 12)).place(
+                     relx=0.5, y=branding.DETAIL_Y, anchor="n")
+
         self.buttons = tk.Frame(self.frame, bg=BG)
         self.detail_text = tk.StringVar(value="")
         self.details_visible = False
@@ -59,14 +61,6 @@ class StartupSplash:
         self.exit_btn = tk.Button(self.buttons, text="Beenden", command=exit_app,
                                    bg=PANEL, fg=WHITE, font=("DejaVu Sans", 13),
                                    padx=20, pady=12)
-        self._animate()
-
-    def _animate(self):
-        if not self.running:
-            return
-        self.angle = (self.angle + 12) % 360
-        self.canvas.itemconfigure(self.arc, start=self.angle)
-        self.root.after(80, self._animate)
 
     def stage(self, step, message):
         self.title.set("Scanner wird vorbereitet")
@@ -79,7 +73,7 @@ class StartupSplash:
         self.info.set(message)
         self.detail_text.set((detail or "Keine weiteren Diagnosedaten.")[:600])
         if not self.buttons.winfo_manager():
-            self.buttons.place(relx=0.5, y=520, anchor="n")
+            self.buttons.place(relx=0.5, y=565, anchor="n")
             self.retry_btn.pack(side="left", padx=8)
             self.detail_btn.pack(side="left", padx=8)
             self.exit_btn.pack(side="left", padx=8)
@@ -95,9 +89,10 @@ class StartupSplash:
         if self.details_visible:
             self.detail_label.place_forget()
         else:
-            self.detail_label.place(relx=0.5, y=615, anchor="n")
+            self.detail_label.place(relx=0.5, y=648, anchor="n")
         self.details_visible = not self.details_visible
 
     def destroy(self):
-        self.running = False
+        # Invalidate any pending scan-line callbacks before destroying the frame.
+        set_logo_busy(self.logo, False)
         self.frame.destroy()
