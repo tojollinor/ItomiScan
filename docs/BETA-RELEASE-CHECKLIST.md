@@ -140,3 +140,16 @@ Code auf `develop/1.0.0` ergänzt:
 - [ ] Neustart-/Ausschaltaktionen und kleinere Schaltflächen am N1800 geprüft.
 
 **Keine Installation veranlasst.** Alle Punkte sind Änderungen am Entwicklungszweig. `setup-boot-splash.sh` bleibt ausdrücklich optional und wird vom Installer nicht automatisch ausgeführt. Kein Beta-Release ohne Gerätetest.
+
+
+## Restarbeiten: erster Korrekturblock
+
+- [x] Bildschirmtastatur ohne `transient(root)` im fenstermanagerlosen Kiosk anzeigen und explizit fokussieren.
+- [x] Diagnoseskript unabhängig vom Home-Verzeichnis des aufrufenden Benutzers machen; Python-Syntax nur bei vorhandenem Quellcode als OK melden.
+- [x] Kioskberechtigungen für Poweroff und Reboot getrennt prüfen.
+- [x] Wiederholtes Öffnen der Vollbild-Scanziele ohne übereinanderliegende Seiten; lokale Scanziele nach Berechtigung filtern.
+- [ ] Bildschirmtastatur und Vollbild-Navigation auf N1800 praktisch testen.
+- [ ] Scanablauf, Dokumentbearbeitung, Druckertreiber und Updateinstallation weiter vervollständigen und testen.
+- [ ] Nahtloser Plymouth/Xorg-Übergang am N1800 prüfen; derzeit nur Design und Hintergrundübergang vorbereitet.
+
+**Keine Installation, kein Release und keine Änderung an main.** Die Checkboxen bezeichnen ausschließlich eingecheckte Codekorrekturen.
