@@ -5,7 +5,7 @@ Status 13.10.2026: Block-3-Funktionen auf `develop/1.0.0` committet, nicht am N1
 ## Ansicht und Navigation
 
 - Das vereinfachte Scannerlogo wird ohne zusätzliche Bilddatei mit geometrischen Canvas-Elementen gezeichnet. Die große Schrift und kontrastreichen Schaltflächen sind auf die Anzeige 1024×768 und ältere Touchhardware ausgerichtet.
-- Nach dem Splash erscheint eine Startseite mit **Scannen**, **Paperless**, **Kopieren** und **Netzwerkordner**. Nur das lokale Scannen ist verfügbar. Die weiteren Tasten sind ausdrücklich mit „In Vorbereitung“ gekennzeichnet; sie behaupten keine erfolgreiche Netzwerkübertragung.
+- Auf der Startseite erscheinen **Scannen**, **Paperless**, **Kopieren** und **Netzwerkordner**. Seit Block 6 öffnen Paperless/Netzwerk die Zielauswahl und legen PDF-Zustellaufträge an; zusätzlich steht **E-Mail / USB** zur Verfügung. Die eigentliche Zustellung übernimmt erst der separat gestartete Worker; **Kopieren** folgt in Block 7.
 - Die Taste **Scannen** öffnet die vorhandene Experten-/Detailansicht mit allen vom SANE-Backend erkannten, aktiven Optionen. Mit **← Startseite** gelangt man zurück; nicht während eines Scanauftrags.
 - Die Taste **Jetzt scannen** auf der Startseite oder die echte Scanner-Fronttaste verwendet das aktuell gewählte Profil, zeigt den laufenden Scan in der Detailansicht und danach die bereits vorhandene, speicherschonende Bildvorschau mit Seitennavigation.
 - **Beenden, Update, Ausschalten** bleiben vorhanden. Auf dem Entwicklungszweig ist das automatische GitHub-Update nach `origin/main` bewusst gesperrt, um einen ungeprüften Versionswechsel zu vermeiden.
@@ -31,3 +31,7 @@ Status 13.10.2026: Block-3-Funktionen auf `develop/1.0.0` committet, nicht am N1
 - Eine echte vollwertige Zielvorschau mit nachträglichem Löschen/Drehen/Umsortieren von Seiten ist noch nicht implementiert. Die bereits vorhandene Vorschau zeigt die gescannten Seiten. Die sichere Auftragsverwaltung und Übertragungsziele folgen in den vereinbarten späteren Blöcken.
 
 **Blöcke 4 und 5 sind im Entwicklungszweig implementiert:** passwortgeschützte Webadministration und optionale PIN-Benutzer. Hardwareabnahme offen. Release 1.0.0 frühestens in Block 8 nach ausdrücklicher Freigabe.
+
+## Ergänzung Block 6: Zielauswahl und PDF-Zustellung
+
+Nach der Zielauswahl wird das konfigurierte, berechtigte Scanprofil genutzt. Eine gewählte PNG-Ausgabe bleibt lokal erhalten; für ausgehende Zustellungen wird zusätzlich eine PDF erzeugt. Die ursprüngliche Scan-Datei wird nicht gelöscht. Wartende PDF-Aufträge sind in SQLite samt SHA-256 geschützt und im Browser unter **Aufträge** sichtbar. Bei nicht erreichbarem Ziel bleibt die Datei lokal; der Worker unternimmt nur sichere Wiederholungsversuche. Es gibt noch **keine** vollständige nachträgliche Seitenbearbeitung und keinen CUPS-Kopiermodus. Originalhardware nicht getestet.
