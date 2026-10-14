@@ -195,6 +195,47 @@ class WebAdminTests(unittest.TestCase):
                                  {"csrf":self.csrf,"user_id":str(uid)})[0], 400)
         self.assertTrue(self.server.users.settings()["enabled"])
 
+    def test_document_targets_credentials_and_queue_management(self):
+        self.login()
+        self.assertEqual(self.req("POST", "/targets/save", {
+            "csrf":self.csrf,"kind":"usb","name":"OfficeStick",
+            "address":"usb://SCANUSB/Scans"})[0], 303)
+        self.assertEqual(self.req("POST", "/targets/save", {
+            "csrf":self.csrf,"kind":"paperless","name":"Archiv",
+            "address":"https://paperless.example.org"})[0], 303)
+        paperless = next(x for x in self.server.store.list_targets()
+                         if x["kind"] == "paperless")
+        secrets = {"csrf":self.csrf,"target_id":str(paperless["id"]),
+                   "token":"top-private-api-token"}
+        self.assertEqual(self.req("POST", "/targets/secrets", secrets)[0],303)
+        self.assertEqual(self.server.secrets.get(paperless["id"])["token"],
+                         "top-private-api-token")
+        self.assertNotIn("top-private-api-token", self.req("GET", "/targets")[2])
+        self.assertNotIn("top-private-api-token", self.req("GET", "/backup.json")[2])
+        scan = Path(self.tmp.name) / "source.pdf"
+        scan.write_bytes(b"%PDF-1.4\n" + b"example")
+        job_id = self.server.queue.enqueue(scan, paperless["id"])
+        code, _, html = self.req("GET", "/jobs")
+        self.assertEqual(code, 200)
+        self.assertIn(job_id[:10], html)
+        self.assertIn("Wartend", html)
+        claimed = self.server.queue.claim()
+        self.server.queue.outcome(claimed["id"],"review",error="Unklar")
+        self.assertEqual(self.req("POST", "/jobs/retry", {
+            "csrf":self.csrf,"job_id":job_id})[0],400)
+        self.assertEqual(self.req("POST", "/jobs/retry", {
+            "csrf":self.csrf,"job_id":job_id,"reviewed":"yes"})[0],303)
+        self.assertEqual(self.server.queue.all()[0]["status"], "retry")
+
+    def test_delivery_endpoints_require_auth_and_csrf(self):
+        self.assertEqual(self.req("GET", "/jobs")[0],303)
+        self.login()
+        self.assertEqual(self.req("POST","/targets/secrets",{
+            "target_id":"1", "token":"evil"})[0],403)
+        self.assertEqual(self.req("POST","/jobs/retry",{
+            "job_id":"a"*32})[0],403)
+        self.assertEqual(self.req("GET", "/jobs")[0],200)
+
     def test_logout_clears_session(self):
         self.login()
         code, hdrs, _ = self.req("POST","/logout",{"csrf":self.csrf})
