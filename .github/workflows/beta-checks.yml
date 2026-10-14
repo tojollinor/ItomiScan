@@ -1,0 +1,25 @@
+name: ItomiScan Beta Checks
+
+on:
+  push:
+    branches:
+      - develop/1.0.0
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  static-and-unit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Python test prerequisites
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y python3-tk python3-pil python3-pil.imagetk
+      - name: Check Python syntax
+        run: python3 -m compileall -q app.py itomiscan tests
+      - name: Check shell syntax
+        run: |
+          find . -maxdepth 2 -type f -name '*.sh' -print0 | xargs -0 -r -n1 bash -n
+      - name: Run unit tests
+        run: PYTHONPATH=. python3 -m unittest discover -s tests -p 'test*.py' -v
