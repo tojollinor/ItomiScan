@@ -10,6 +10,15 @@ WARN = "#f5bd55"
 
 def classify_scanner_error(raw):
     text = str(raw or "").lower()
+    if "application transferred too few scanlines" in text:
+        return ("Scan unvollständig",
+                "Die Bildübertragung wurde vorzeitig beendet. Bitte prüfen, ob "
+                "mehrere Blätter gleichzeitig eingezogen wurden, und die "
+                "betroffenen Seiten erneut scannen.")
+    if "multifeed" in text or "double feed" in text or "multiple feed" in text:
+        return ("Möglicher Doppeleinzug",
+                "Der Scanner meldet einen Mehrfacheinzug. Bitte Papier prüfen "
+                "und die betroffenen Seiten erneut scannen.")
     if "document feeder jammed" in text or "paper jam" in text or "paper jammed" in text:
         return ("Papierstau erkannt",
                 "Bitte Dokumenteneinzug öffnen, gestautes Papier vorsichtig entfernen "
