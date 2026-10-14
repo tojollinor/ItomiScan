@@ -189,6 +189,7 @@ class ItomiScan:
             logout=self.logout, deliver=self.choose_destination,
             open_copy=self.show_copy,
             destination_status=self.destination_status,
+            restart=self.restart,
         )
         self.copy_screen = CopyScreen(self.root, self.available_printers,
                                       self.start_copy, self.show_home)
@@ -626,6 +627,7 @@ class ItomiScan:
         actions = (
             ("Updates", "update", self.check_update),
             ("Hardwarediagnose", "update", self.show_hardware_diagnostics),
+            ("Neustarten", "shutdown", self.restart),
             ("Ausschalten", "shutdown", self.shutdown),
             ("Beenden", "exit", self.exit),
         )
