@@ -11,6 +11,7 @@ from http import cookies
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import ipaddress
 import json
+import logging
 import os
 from pathlib import Path
 import secrets
@@ -38,6 +39,7 @@ SESSION_TTL = 30 * 60
 LOCKOUT = 3 * 60
 MAX_FAILURES = 5
 COOKIE = "itomiscan_session"
+LOG = logging.getLogger("itomiscan.web")
 
 
 def inspect_system(store, bind):
@@ -153,8 +155,25 @@ class AdminHandler(BaseHTTPRequestHandler):
     sys_version = ""
 
     def log_message(self, _format, *args):
-        # No cookies, passwords, profile content or query strings in logs.
+        # Never log raw request lines (may contain query strings).
         pass
+
+    def log_request(self, code="-", size="-"):
+        path = urlsplit(self.path).path[:160]
+        LOG.info("HTTP %s %s status=%s client=%s",
+                 self.command, json.dumps(path, ensure_ascii=True),
+                 code, self.client_address[0])
+
+    def _log_rejected_origin(self, host_ok, origin_ok):
+        host = self.headers.get("Host", "")[:160]
+        origin = self.headers.get("Origin", "")[:160]
+        LOG.warning(
+            "HTTP 403 security_check host_ok=%s origin_ok=%s "
+            "host=%s origin=%s client=%s",
+            host_ok, origin_ok,
+            json.dumps(host, ensure_ascii=True),
+            json.dumps(origin, ensure_ascii=True),
+            self.client_address[0])
 
     def _host_ok(self):
         host = self.headers.get("Host", "")
@@ -330,7 +349,10 @@ class AdminHandler(BaseHTTPRequestHandler):
         raise ValueError("Unbekannter Formulartyp.")
 
     def do_POST(self):
-        if not self._host_ok() or not self._origin_ok():
+        host_ok = self._host_ok()
+        origin_ok = self._origin_ok()
+        if not host_ok or not origin_ok:
+            self._log_rejected_origin(host_ok, origin_ok)
             return self._error(403, "Ungültiger Ursprung.")
         path = urlsplit(self.path).path
         try:
@@ -528,8 +550,11 @@ def main():
         server = build_server(args.bind, args.port, cert=args.cert, key=args.key)
     except (ValueError, OSError) as exc:
         parser.error(str(exc))
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s %(levelname)s %(name)s: %(message)s")
     scheme = "https" if args.cert else "http"
-    print(f"ItomiScan Webadministration: {scheme}://{args.bind}:{server.server_port}")
+    print(f"ItomiScan Webadministration: {scheme}://{args.bind}:{server.server_port}", flush=True)
     try:
         server.serve_forever(poll_interval=0.3)
     except KeyboardInterrupt:
