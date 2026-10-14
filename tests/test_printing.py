@@ -9,6 +9,7 @@ from itomiscan.integrations.delivery import DeliveryError, deliver
 from itomiscan.integrations.printing import (
     PrintError, deliver_print, install_queue, list_queues, printer_uri,
     queue_name, submit_pdf, test_page, uninstall_queue, validate_copy_options,
+    address_from_host, default_printer,
 )
 from itomiscan.storage.config import ConfigStore
 from itomiscan.storage.queue import DeliveryQueue, QueueError
@@ -166,6 +167,35 @@ class CUPSIntegrationTests(unittest.TestCase):
         self.assertIn("CUPS angenommen", test_page("OfficeLaser"))
         text = runner.call_args_list[1].kwargs["input"]
         self.assertIn("ItomiScan", text)
+
+
+    def test_manual_printer_address_builder(self):
+        self.assertEqual(address_from_host("ipps", "192.168.1.20"),
+                         "ipps://192.168.1.20/ipp/print")
+        self.assertEqual(address_from_host("socket", "laser.lan"),
+                         "socket://laser.lan:9100")
+        self.assertEqual(address_from_host("lpd", "laser.lan"),
+                         "lpd://laser.lan/queue")
+        for protocol, host in (("file", "laser.lan"), ("ipp", "x/../../"),
+                               ("socket", "bad@host"), ("ipp", "-bad")):
+            with self.subTest(protocol=protocol, host=host):
+                with self.assertRaises(PrintError):
+                    address_from_host(protocol, host)
+
+    def test_printer_address_edit_keeps_existing_target_id(self):
+        self.db.update_target_address(self.target_id, "ipp://printer.lan/ipp/print")
+        rows = [x for x in self.db.list_targets() if x["kind"] == "printer"]
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["id"], self.target_id)
+        self.assertEqual(rows[0]["address"], "ipp://printer.lan/ipp/print")
+        with self.assertRaises(Exception):
+            self.db.update_target_address(self.target_id, "file:///tmp/unsafe")
+
+    @patch("itomiscan.integrations.printing.run_cups")
+    def test_default_printer_reads_only_installed_queue(self, run):
+        run.side_effect = ["system default destination: OfficeLaser",
+                           "OfficeLaser\nOtherPrinter"]
+        self.assertEqual(default_printer(), "OfficeLaser")
 
 
 if __name__ == "__main__":
