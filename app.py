@@ -138,6 +138,7 @@ class ItomiScan:
         self.pending_print = None
         self.pages = []
         self.review_pending = False
+        self.appending_pages = False
         self.page_index = 0
         self.photo = None
         self.tempdir = None
@@ -293,6 +294,7 @@ class ItomiScan:
         self.review_button = self._btn(right, "Fertig · Dokument übernehmen", self.finalize_scan, BLUE)
         self.review_button.pack(fill="x", padx=18, pady=(0, 8))
         self.review_button.pack_forget()
+        self.append_button = self._btn(right, "Weitere Seiten scannen", self.append_pages, BLUE)
         self.path_label = tk.Label(right, text="Noch keine Datei", bg=PANEL, fg=MUTED,
                                    font=("DejaVu Sans", 9), wraplength=590)
         self.path_label.pack(pady=(3, 12))
@@ -994,6 +996,28 @@ class ItomiScan:
                          args=(settings, self.format_var.get(), scan_mode),
                          daemon=True).start()
 
+    def append_pages(self):
+        if self.busy or not self.review_pending or not self.pages:
+            return
+        try:
+            settings = self.chosen_args()
+        except ValueError as exc:
+            messagebox.showerror("Scanoption", str(exc), parent=self.root)
+            return
+        scan_mode = next((v.get().strip() for opt, v in self.fields
+                          if opt["flag"] == "--mode" and not opt["inactive"]), "")
+        self.appending_pages = True
+        self.busy = True
+        self.scan_button.configure(state="disabled")
+        self.progress.start(10)
+        self.status_var.set("Weitere Seiten werden gescannt …")
+        if self.tempdir:
+            self.tempdir.cleanup()
+        self.tempdir = tempfile.TemporaryDirectory(prefix="itomiscan-append-")
+        threading.Thread(target=self.scan_worker,
+                         args=(settings, self.format_var.get(), scan_mode),
+                         daemon=True).start()
+
     def scan_worker(self, settings, output_format, scan_mode):
         folder = Path(self.tempdir.name)
         # For PDF color/gray pages, JPEG avoids expensive PNG compression on
@@ -1019,17 +1043,22 @@ class ItomiScan:
                     "Scan unvollständig", "Möglicher Doppeleinzug", "Papierstau erkannt"):
                 raise RuntimeError(warning)
             stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            target = Path.home() / "Scans" / ("ItomiScan_" + stamp)
-            if target.exists():
-                target = Path.home() / "Scans" / ("ItomiScan_" + stamp + "_" + str(os.getpid()))
-            target.mkdir(parents=True, exist_ok=False)
+            target = (self.output_path.parent if self.output_path.suffix.lower() == ".pdf"
+                      else self.output_path) if self.appending_pages else (
+                          Path.home() / "Scans" / ("ItomiScan_" + stamp))
+            if not self.appending_pages:
+                if target.exists():
+                    target = Path.home() / "Scans" / ("ItomiScan_" + stamp + "_" + str(os.getpid()))
+                target.mkdir(parents=True, exist_ok=False)
+            elif not target.is_dir():
+                raise RuntimeError("Dokumentordner nicht gefunden.")
             saved = []
             for number, scan in enumerate(scans, 1):
-                permanent = target / f"page-{number:04d}.{extension}"
+                permanent = target / (f"append-{time.time_ns()}-{number:04d}.{extension}" if self.appending_pages else f"page-{number:04d}.{extension}")
                 shutil.copy2(scan, permanent)
                 saved.append(permanent)
             # A PDF is generated only after the user approves page edits.
-            path = target / "Dokument.pdf" if output_format == "PDF" else target
+            path = self.output_path if self.appending_pages else (target / "Dokument.pdf" if output_format == "PDF" else target)
             # Do not prepare or enqueue any delivery before review approval.
             self.pending_export_path = None
             self.dispatch(lambda: self.scan_finished(saved, path, warning))
@@ -1041,13 +1070,21 @@ class ItomiScan:
         self.busy = False
         self.scan_button.configure(state="normal")
         self.progress.stop()
-        self.pages = list(images)
-        self.review_pending = bool(images)
-        self.page_index = 0
+        was_appending = self.appending_pages
+        self.appending_pages = False
+        if was_appending:
+            self.pages.extend(images)
+            self.page_index = len(self.pages) - len(images)
+        else:
+            self.pages = list(images)
+            self.page_index = 0
+        self.review_pending = bool(self.pages)
         self.output_path = path
         self.path_label.configure(text="Gespeichert: " + str(path))
         self.show_page()
-        self.status_var.set(str(len(images)) + " Bildseite(n) erfasst · Bitte prüfen")
+        self.status_var.set(str(len(self.pages)) + " Bildseite(n) erfasst · Bitte prüfen")
+        if self.review_pending:
+            self.append_button.pack(fill="x", padx=18, pady=(0, 8))
         if self.review_pending:
             self.review_button.pack(fill="x", padx=18, pady=(0, 8))
         if warning:
@@ -1056,6 +1093,7 @@ class ItomiScan:
                 show_scanner_error(self.root, warning)
 
     def scan_failed(self, msg):
+        self.appending_pages = False
         self.pending_delivery = None
         self.pending_export_path = None
         self.pending_print = None
@@ -1296,6 +1334,7 @@ class ItomiScan:
         self.progress.stop()
         self.review_pending = False
         self.review_button.pack_forget()
+        self.append_button.pack_forget()
         self.status_var.set("Dokument abgeschlossen · " + str(len(self.pages)) + " Bildseiten")
         export_path = self.pending_export_path or self.output_path
         self.pending_export_path = None
