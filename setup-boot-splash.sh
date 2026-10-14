@@ -88,7 +88,9 @@ centered_text("detail.png",[("Systemstart …",muted)],12,False)
 ring = Image.new("RGBA",(150,150),(0,0,0,0))
 rd = ImageDraw.Draw(ring)
 rd.ellipse((21,21,129,129),outline=(52,71,94,255),width=11)
-rd.arc((21,21,129,129),start=0,end=85,fill=cyan,width=11)
+# Tk draws from the top towards the left; Pillow measures clockwise.
+# Match the initial Tk spinner arc to avoid a visible jump at handover.
+rd.arc((21,21,129,129),start=180,end=265,fill=cyan,width=11)
 ring.save(out / "ring.png")
 PYIMAGE
 cat > "$theme_dir/itomiscan.plymouth" <<'THEME'
