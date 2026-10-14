@@ -282,3 +282,46 @@ Nächste Blöcke: 2/6 Splashscreen/Tastatur, 3/6 Scanablauf, 4/6 Dokumentenüber
 - [ ] Nach Gerätetest und Freigabe: Beta-Release erstellen. `main` bleibt bis dahin unangetastet.
 
 **Entwicklungsblöcke 1 bis 6 dokumentiert; Release weiterhin gesperrt.** Kein Installer wurde ausgeführt, kein Bootparameter geändert und kein Release erstellt.
+
+
+## Gemeinsame Umsetzungsrunde: Blöcke 1 bis 4 (15.10.2026)
+
+**Branch:** `develop/1.0.0`. **Kein Merge nach `main`, keine Installation, keine Beta-Freigabe.**
+
+### Block 1: Oberfläche und Navigation
+
+- [x] Scan-Einstellungen werden während der Dokumentenprüfung ausgeblendet und beim neuen Scan wieder eingeblendet.
+- [x] Dokumentenprüfung nutzt die gesamte Inhaltsbreite.
+- [x] Feste untere Aktionsbereiche für Startseite, Scanziel-Auswahl, Kopieransicht und Scanansicht im Code.
+- [x] Seitenbearbeitung erscheint erst im Prüfmodus; „Weitere Seiten scannen“ und „Fertig“ liegen im Scan-Footer.
+- [ ] Auf 1024×768 im laufenden Tk/X11-System visuell prüfen, einschließlich langer Beschriftungen, Scrollverhalten und modaler Fenster.
+
+### Block 2: Scanfunktionen und Profile
+
+- [x] „Test / Alle Optionen“ als optionales Profil für neue und bestehende SQLite-Konfigurationen; Auswahl bestehender Profile bleibt erhalten.
+- [x] Treiberoptionen werden dynamisch aus SANE angezeigt. Unvereinbare Optionen werden nicht pauschal gleichzeitig aktiviert.
+- [x] Erneutes Scannen verwendet die ursprünglichen Batch-Einstellungen und schaltet für eine einzelne Seite auf ADF Front, soweit unterstützt.
+- [x] Tests für Migration, Auswahl und Erhalt angepasster Testprofile eingecheckt.
+- [ ] Tests tatsächlich erfolgreich ausführen und Scan-/Duplex-Verhalten auf dem N1800 prüfen.
+- [ ] Scanqualität, Seitenreihenfolge, PDF-Abschluss, Leerseiten und Nachscan am Gerät abnehmen.
+
+### Block 3: Tastatur und Splashscreens
+
+- [x] QWERTZ-Tasten und untere Übernehmen/Abbrechen-Aktionen für die Zielauflösung neu angeordnet.
+- [x] Maximale Eingabelänge auch für physische Tastatureingaben begrenzt.
+- [x] Fehlerbehandlung beim X11-Fenstergrab ergänzt.
+- [x] Plymouth-Ladebogen geometrisch an die Tk-Startanzeige angenähert.
+- [ ] Optische Gleichheit und Übergang Plymouth → Tk am Gerät prüfen; Plymouth-Ladebogen bleibt statisch.
+- [ ] Bildschirmtastatur und Touch-Fokus am N1800 durchspielen.
+
+### Block 4: Qualitätskontrolle
+
+- [x] Footer-Konflikt zwischen Statusanzeige und Dokumentaktionen korrigiert.
+- [x] Leere Scanergebnisse setzen die Vorschau zurück.
+- [x] GitHub-Actions-Workflow für Syntaxprüfung, Python-Regressionen und Shell-Syntax angelegt.
+- [ ] Erfolgreichen Workflow-Lauf nachweisen. **Nicht als bestanden markieren, solange kein Ergebnis vorliegt.**
+- [ ] Echte N1800-Abnahme: Hardware, Touch, Splash, Mehrseitenscan, Duplex, Nachscan, PDF.
+
+**Zurückgestellt:** Druckerfunktionalität und GUI-Updateinstallation. Diese Punkte sind keine Voraussetzung für den nächsten lokalen Scantest, aber auch nicht als abgeschlossen zu betrachten.
+
+**Releaseentscheidung:** Entwicklungsarbeiten im Branch eingecheckt. Kein Tag, keine Installation und keine Freigabe, bis Tests und Geräteabnahme tatsächlich erfolgreich sind.
