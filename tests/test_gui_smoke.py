@@ -129,6 +129,80 @@ class TouchGuiTests(unittest.TestCase):
         self.assertFalse(self.app.home.tiles["scan"].winfo_manager())
         self.assertTrue(self.app.home.controls["other"].winfo_manager())
 
+    def add_printer(self):
+        self.app.delivery_queue.db.save_target({
+            "kind": "printer", "name": "OfficeLaser",
+            "address": "ipps://printer.lan/ipp/print"})
+        return next(x for x in self.app.delivery_queue.db.list_targets()
+                    if x["kind"] == "printer")
+
+    def test_copy_screen_large_touch_controls(self):
+        target = self.add_printer()
+        with patch("app.list_queues", return_value=["OfficeLaser"]):
+            self.app.show_copy()
+        self.assertTrue(self.app.copy_screen.visible)
+        self.assertEqual(self.app.copy_screen.selected_id, target["id"])
+        self.app.copy_screen._step(2)
+        self.app.copy_screen._print_sides("two-sided-long-edge")
+        self.app.copy_screen._switch_source()
+        self.assertEqual(self.app.copy_screen.copies, 3)
+        self.assertEqual(self.app.copy_screen.print_sides, "two-sided-long-edge")
+        self.assertEqual(self.app.copy_screen.scan_source, "ADF Duplex")
+        started = []
+        def scan_started():
+            started.append(dict(self.app.pending_print))
+            self.app.busy = True
+        with patch.object(self.app, "start_scan", side_effect=scan_started), \
+             patch("app.list_queues", return_value=["OfficeLaser"]):
+            self.app.copy_screen.start()
+        self.assertEqual(started[0]["target_id"], target["id"])
+        self.assertEqual(started[0]["copies"], 3)
+        self.assertEqual(started[0]["scan_source"], "ADF Duplex")
+        self.assertEqual(self.app._delivery_permission(), "copy")
+        self.assertFalse(self.app.copy_screen.visible)
+
+    def test_front_panel_key_uses_selected_copy_mode(self):
+        self.add_printer()
+        with patch("app.list_queues", return_value=["OfficeLaser"]):
+            self.app.show_copy()
+        with patch.object(self.app.copy_screen, "start") as copier:
+            self.assertEqual(
+                self.app.on_front_scan_key(SimpleNamespace(widget=self.root)),
+                "break")
+        copier.assert_called_once()
+
+    def test_copy_without_cups_queue_is_not_started(self):
+        self.add_printer()
+        with patch("app.list_queues", return_value=[]):
+            self.app.show_copy()
+        self.assertIsNone(self.app.copy_screen.selected_id)
+        self.assertEqual(str(self.app.copy_screen.start_button["state"]),
+                         "disabled")
+        self.assertFalse(self.app.busy)
+
+    def test_copy_only_pin_user_has_access_without_scan_privilege(self):
+        target = self.add_printer()
+        self.enable_pin(permissions=("copy",), profiles=("Foto",))
+        self.unlock()
+        self.assertFalse(self.app._allowed("scan", silent=True))
+        self.assertTrue(self.app._allowed("copy", silent=True))
+        with patch("app.list_queues", return_value=["OfficeLaser"]):
+            self.app.show_copy()
+        self.assertTrue(self.app.copy_screen.visible)
+        def fake_thread():
+            return SimpleNamespace(start=lambda: None)
+        with patch("app.list_queues", return_value=["OfficeLaser"]), \
+             patch("app.threading.Thread", return_value=fake_thread()):
+            self.app.start_copy(target["id"], 2, "one-sided", "ADF Front")
+        self.assertTrue(self.app.busy)
+        self.assertEqual(self.app._delivery_permission(), "copy")
+        self.assertEqual(self.app.format_var.get(), "PDF")
+        self.assertEqual(next(var.get() for opt, var in self.app.fields
+                              if opt["flag"] == "--source"), "ADF Front")
+        if self.app.tempdir:
+            self.app.tempdir.cleanup()
+            self.app.tempdir = None
+
     def test_home_and_detail_toggle(self):
         self.assertTrue(self.app.home.visible)
         self.app.show_scan()
