@@ -42,7 +42,7 @@ def validate_target(data):
     parsed = urlsplit(address)
     schemes = {
         "paperless": {"https", "http"},
-        "printer": {"ipp", "ipps", "http", "https"},
+        "printer": {"ipp", "ipps", "socket", "lpd", "usb"},
         "network": {"smb"},
         "email": {"smtp", "smtps"},
         "usb": {"usb"},
