@@ -79,13 +79,22 @@ def collect(*, home=None, repo=None, discover=True):
     db_path = config / "itomiscan.db"
     if db_path.exists() and not db_path.is_symlink():
         try:
-            from itomiscan.storage.queue import DeliveryQueue
-            queue = DeliveryQueue(db_path)
-            statuses = queue.summary()
-            # Don't touch spool files: limited aggregate database count only.
+            import sqlite3
+            # Strictly read-only: preflight must not create/migrate tables,
+            # write permissions or touch a live delivery lease.
+            with sqlite3.connect(
+                    "file:" + str(db_path) + "?mode=ro", uri=True) as db:
+                if db.execute("PRAGMA quick_check").fetchone()[0] != "ok":
+                    raise ValueError("SQLite-Prüfung fehlgeschlagen.")
+                exists = db.execute(
+                    "SELECT 1 FROM sqlite_master WHERE type='table' "
+                    "AND name='delivery_jobs'").fetchone()
+                statuses = dict(db.execute(
+                    "SELECT status,COUNT(*) FROM delivery_jobs GROUP BY status"
+                ).fetchall()) if exists else {}
             check("queue", True,
                   "Aufträge: " + json.dumps(statuses, sort_keys=True))
-        except (OSError, ValueError, Exception) as exc:
+        except (OSError, ValueError, sqlite3.DatabaseError) as exc:
             check("queue", False, "Datenbank/Aufträge nicht prüfbar: " +
                   type(exc).__name__, blocking=True)
     else:
