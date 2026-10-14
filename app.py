@@ -16,6 +16,7 @@ from tkinter import messagebox, simpledialog, ttk
 
 from itomiscan.core.profiles import ProfileError, ProfileStore
 from itomiscan.gui.keyboard import ask_touch
+from itomiscan.gui.scanner_errors import show_scanner_error, classify_scanner_error
 from itomiscan.gui.home import HomeScreen
 from itomiscan.gui.copy import CopyScreen
 from itomiscan.integrations.printing import list_queues, validate_copy_options, PrintError
@@ -1008,8 +1009,10 @@ class ItomiScan:
                 args=(path, details["target_id"],
                       details["copies"], details["sides"]),
                 daemon=True).start()
-        if warning and "Document feeder out of documents" not in warning:
-            messagebox.showwarning("Scannerhinweis", warning[-600:], parent=self.root)
+        if warning:
+            title, _ = classify_scanner_error(warning)
+            if title == "Scannerfehler":
+                show_scanner_error(self.root, warning)
 
     def scan_failed(self, msg):
         self.pending_delivery = None
@@ -1019,12 +1022,7 @@ class ItomiScan:
         self.scan_button.configure(state="normal")
         self.progress.stop()
         self.status_var.set("Scan fehlgeschlagen")
-        if "document feeder out of documents" in msg.lower():
-            messagebox.showinfo("Kein Dokument eingelegt",
-                                "Bitte lege ein Dokument in den Einzug und starte den Scanvorgang erneut.",
-                                parent=self.root)
-        else:
-            messagebox.showerror("Scannerfehler", msg[-800:], parent=self.root)
+        show_scanner_error(self.root, msg)
 
     def change_page(self, diff):
         if self.pages:
