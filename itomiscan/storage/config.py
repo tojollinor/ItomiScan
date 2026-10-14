@@ -58,9 +58,12 @@ def validate_target(data):
     if port is not None and not 1 <= port <= 65535:
         raise ConfigError("Ungültiger Netzwerkport.")
     if kind == "printer":
-        from itomiscan.integrations.printing import printer_uri, queue_name
-        queue_name(name.strip())
-        printer_uri(address.strip())
+        from itomiscan.integrations.printing import PrintError, printer_uri, queue_name
+        try:
+            queue_name(name.strip())
+            printer_uri(address.strip())
+        except PrintError as exc:
+            raise ConfigError(str(exc)) from exc
     if kind == "paperless" and parsed.scheme != "https":
         raise ConfigError("Paperless benötigt HTTPS.")
     if kind == "usb":
