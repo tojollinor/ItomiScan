@@ -137,6 +137,7 @@ class ItomiScan:
         self.pending_export_path = None
         self.pending_print = None
         self.pages = []
+        self.review_pending = False
         self.page_index = 0
         self.photo = None
         self.tempdir = None
@@ -280,6 +281,17 @@ class ItomiScan:
         nav.pack(pady=8)
         self._btn(nav, "◀  Zurück", lambda: self.change_page(-1)).pack(side="left", padx=9)
         self._btn(nav, "Weiter  ▶", lambda: self.change_page(1)).pack(side="left", padx=9)
+        edit = tk.Frame(right, bg=PANEL)
+        edit.pack(fill="x", padx=14, pady=(0, 6))
+        for label, callback in (
+                ("Drehen", self.rotate_page),
+                ("Löschen", self.delete_page),
+                ("← Seite", lambda: self.move_page(-1)),
+                ("Seite →", lambda: self.move_page(1))):
+            self._btn(edit, label, callback).pack(side="left", expand=True, fill="x", padx=3)
+        self.review_button = self._btn(right, "Fertig · Dokument übernehmen", self.finalize_scan, BLUE)
+        self.review_button.pack(fill="x", padx=18, pady=(0, 8))
+        self.review_button.pack_forget()
         self.path_label = tk.Label(right, text="Noch keine Datei", bg=PANEL, fg=MUTED,
                                    font=("DejaVu Sans", 9), wraplength=590)
         self.path_label.pack(pady=(3, 12))
@@ -985,30 +997,14 @@ class ItomiScan:
         self.scan_button.configure(state="normal")
         self.progress.stop()
         self.pages = list(images)
+        self.review_pending = bool(images)
         self.page_index = 0
         self.output_path = path
         self.path_label.configure(text="Gespeichert: " + str(path))
         self.show_page()
-        self.status_var.set(str(len(images)) + " Bildseite(n) gescannt")
-        if self.pending_delivery is not None:
-            destination = self.pending_delivery
-            exported = self.pending_export_path
-            self.pending_delivery = None
-            self.pending_export_path = None
-            if exported is not None:
-                self.status_var.set("PDF gespeichert. Übergabe an Warteschlange …")
-                threading.Thread(target=self.queue_export,
-                                 args=(exported, destination), daemon=True).start()
-        if self.pending_print is not None:
-            details = self.pending_print
-            self.pending_print = None
-            # The spool makes the copy persistent even if CUPS is offline.
-            self.status_var.set("Kopie gescannt. Druckauftrag wird gesichert …")
-            threading.Thread(
-                target=self.queue_export,
-                args=(path, details["target_id"],
-                      details["copies"], details["sides"]),
-                daemon=True).start()
+        self.status_var.set(str(len(images)) + " Bildseite(n) erfasst · Bitte prüfen")
+        if self.review_pending:
+            self.review_button.pack(fill="x", padx=18, pady=(0, 8))
         if warning:
             title, _ = classify_scanner_error(warning)
             if title == "Scannerfehler":
