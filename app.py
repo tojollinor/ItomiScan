@@ -140,6 +140,7 @@ class ItomiScan:
         self.review_pending = False
         self.appending_pages = False
         self.batch_settings = None
+        self.last_scan_settings = None
         self.page_index = 0
         self.photo = None
         self.thumbnail_photos = []
@@ -573,7 +574,7 @@ class ItomiScan:
                      {"--df-action", "--df-thickness", "--df-length", "--df-skew"}))),
                  "Ultraschall-Erkennung: nicht separat verifiziert",
                  "Letzte Scanparameter: " + (
-                     " ".join(self.batch_settings[0]) if self.batch_settings else "keine"),
+                     " ".join(self.last_scan_settings[0]) if self.last_scan_settings else "keine"),
                  "", "Erkannte SANE-Optionen:"]
         lines.extend(LABELS.get(o["flag"], o["flag"]) + " (" +
                      ("inaktiv" if o["inactive"] else "aktiv") + ") " +
@@ -1120,6 +1121,7 @@ class ItomiScan:
         scan_mode = next((variable.get().strip() for opt, variable in self.fields
                           if opt["flag"] == "--mode" and not opt["inactive"]), "")
         self.batch_settings = (list(settings), scan_mode, self.format_var.get())
+        self.last_scan_settings = self.batch_settings
         threading.Thread(target=self.scan_worker,
                          args=(settings, self.format_var.get(), scan_mode),
                          daemon=True).start()
@@ -1138,6 +1140,7 @@ class ItomiScan:
             settings, scan_mode, output_format = self.batch_settings
         else:
             output_format = self.format_var.get()
+        self.last_scan_settings = (list(settings), scan_mode, output_format)
         self.appending_pages = True
         self.busy = True
         self.scan_button.configure(state="disabled")
