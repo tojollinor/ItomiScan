@@ -115,7 +115,7 @@ ok "Webadmin vorbereitet; LAN-IP: $LAN_IP"
 step "ItomiScan-Dienste"
 if [[ ! -e /etc/systemd/system/itomiscan-web.service ]]; then bash "$PROJECT/setup-web.sh" "$USER_NAME" "$LAN_IP"; else systemctl restart itomiscan-web.service; fi
 if [[ ! -e /etc/systemd/system/itomiscan-delivery.service ]]; then bash "$PROJECT/setup-delivery.sh" "$USER_NAME"; else systemctl restart itomiscan-delivery.service; fi
-if ! systemctl is-active --quiet cups.service; then bash "$PROJECT/setup-printing.sh" "$USER_NAME"; fi
+bash "$PROJECT/setup-printing.sh" "$USER_NAME"
 ok "Web, Zustellung und CUPS eingerichtet."
 
 step "Funktionstests"
@@ -126,7 +126,7 @@ check "CUPS ist aktiv" systemctl is-active --quiet cups.service
 check "Webdienst ist aktiv" systemctl is-active --quiet itomiscan-web.service
 check "Zustelldienst ist aktiv" systemctl is-active --quiet itomiscan-delivery.service
 check "HTTPS-Port 8443 lauscht" bash -c 'exec 3<>/dev/tcp/'"$LAN_IP"'/8443'
-if timeout 35s runuser -u "$USER_NAME" -- scanimage -L 2>&1 | grep -qi 'device'; then ok "SANE erkennt mindestens einen Scanner."; else echo "[WARNUNG] SANE erkennt aktuell keinen Scanner. Hardware/USB pruefen."; fi
+if timeout 35s runuser -u "$USER_NAME" -- scanimage -L 2>&1 | grep -Eq "^device .+ is a "; then ok "SANE erkennt mindestens einen Scanner."; else echo "[WARNUNG] SANE erkennt aktuell keinen Scanner. Hardware/USB pruefen."; fi
 [[ $FAILURES -eq 0 ]] || fail "$FAILURES kritische Funktionstest(s) fehlgeschlagen. Details: $LOG"
 
 echo
