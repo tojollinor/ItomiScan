@@ -25,7 +25,7 @@ Die lokale Scannerberechtigung `scan` und die Berechtigung `copy` sind unterschi
 4. Der separat gestartete Zustelldienst nimmt Druckaufträge auf und ruft `lp -d <name> -n <kopien> -o sides=<modus> <pdf>` als Argumentliste auf, ohne Shellausführung. Erfolgreiche CUPS-Bestätigung bedeutet **Auftrag in CUPS angenommen**, noch **nicht** Papierausgabe bestätigt.
 5. Ein unklarer oder unterbrochener Druckvorgang wird mit Status **Prüfen** abgelegt. Er wird nicht automatisch erneut gedruckt. Die Webadministration kann nach Kontrolle der CUPS-Aufträge eine bewusste Wiederholung auslösen. Der PDF-Originalscan und die Spooldatei bleiben erhalten.
 
-**Grenzen:** Papiermangel, Drucker-Stau, exakte Papierausgabe, Duplexreihenfolge, Scan-/Kopiergeschwindigkeit, CUPS-Autokonvertierung, Drucker-LAN-Erreichbarkeit sowie Verhalten auf Atom N270/1 GiB sind am Gerät noch zu prüfen. Die Kopieransicht zeigt bis zu sechs Drucker gleichzeitig; weitere Drucker können über die Weboberfläche konfiguriert werden, aber eine Paginierung der lokalen Druckerauswahl steht noch aus. Eine Druckerwarteschlange muss existieren, bevor kopiert werden kann.
+**Grenzen:** Papiermangel, Drucker-Stau, exakte Papierausgabe, Duplexreihenfolge, Scan-/Kopiergeschwindigkeit, CUPS-Autokonvertierung, Drucker-LAN-Erreichbarkeit sowie Verhalten auf Atom N270/1 GiB sind am Gerät noch zu prüfen. Die Kopieransicht zeigt bis zu sechs Drucker gleichzeitig; für weitere Drucker gibt es eine einfache Seitennavigation mit großen Pfeilen. Eine Druckerwarteschlange muss existieren, bevor kopiert werden kann.
 
 ## Vorbereitung erst nach ausdrücklicher Deployment-Freigabe
 
