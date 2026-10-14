@@ -19,7 +19,7 @@ class ReviewWorkflowTests(unittest.TestCase):
                 chosen_args=Mock(side_effect=AssertionError("changed UI must not be read")),
                 fields=[], format_var=Mock(), scan_button=Mock(),
                 progress=Mock(), status_var=Mock(), tempdir=None,
-                device="fujitsu:test")
+                device="fujitsu:test", scan_worker=Mock())
             with patch("app.threading.Thread") as thread:
                 ItomiScan.append_pages(obj)
             self.assertTrue(obj.busy)
