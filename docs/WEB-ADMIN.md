@@ -68,3 +68,7 @@ Der neue Tab **Aufträge** zeigt wartende, zugestellte, erneut versuchte und zu 
 ## Block 7: Netzwerkdrucker im Browser
 
 Der Tab **Drucker** ermöglicht nach der einmaligen, ausdrücklich freigegebenen CUPS-Ersteinrichtung die Verwaltung von IPP-/IPPS-Zielen, die Registrierung als CUPS-Queue und eine Testseite. CUPS selbst bleibt lokal, die Webadministration geschützt. Das Skript `setup-printing.sh` gibt dem Scannerbenutzer bewusst `lpadmin`-Gruppenrechte; dies erlaubt die Verwaltung lokaler CUPS-Queues und ist deshalb ein zusätzlicher Sicherheitsentscheid. Die bestehenden PDF-/Druckaufträge sind im Tab **Aufträge** sichtbar. Unklare CUPS-Übergaben erhalten Status **Prüfen** und werden nicht automatisch ein zweites Mal gedruckt. Einzelheiten in [PRINTING.md](PRINTING.md).
+
+## Block 8: Vollsicherung und Freigabe
+
+Das JSON-Backup im Browser sichert **nicht** die vertraulichen PINs, Zugangsdaten und Dokumente. Die neue vollständige Sicherung ist ausschließlich als Offline-Kommandozeilenprozess verfügbar. Sie enthält unverschlüsselte, hochsensible Dateien und muss auf einem verschlüsselten Datenträger geschützt werden. Der Restaurierungsbefehl extrahiert nur in ein neues Verzeichnis; eine laufende Web-/Datenbank-Installation wird nicht überschrieben. Hardware- und Web-Abnahme weiterhin offen. Siehe `docs/RELEASE-READINESS-1.0.0.md`.
