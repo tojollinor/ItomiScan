@@ -6,12 +6,17 @@ on:
       - develop/1.0.0
   workflow_dispatch:
 
+concurrency:
+  group: itomiscan-development-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
 jobs:
   offline-tests:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - name: Install lightweight GUI test dependencies
@@ -37,7 +42,7 @@ jobs:
           /usr/bin/python3 -m unittest discover -s tests -p test_scaffold.py -v
       - name: Touchscreen smoke tests in isolated X process
         run: |
-          xvfb-run -a /usr/bin/python3 -m unittest discover -s tests -p test_touch_ui.py -v
-          xvfb-run -a /usr/bin/python3 -m unittest discover -s tests -p test_gui_smoke.py -v
+          timeout --signal=TERM --kill-after=10s 180s xvfb-run -a /usr/bin/python3 -u -m unittest discover -s tests -p test_touch_ui.py -v
+          timeout --signal=TERM --kill-after=10s 180s xvfb-run -a /usr/bin/python3 -u -m unittest discover -s tests -p test_gui_smoke.py -v
       - name: Web administration security tests in separate process
         run: /usr/bin/python3 -m unittest discover -s tests -p test_web.py -v
