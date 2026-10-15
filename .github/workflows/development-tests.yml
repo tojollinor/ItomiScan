@@ -26,6 +26,7 @@ jobs:
       - name: Offline configuration, startup and package tests
         run: |
           /usr/bin/python3 -m unittest discover -s tests -p test_branding.py -v
+          /usr/bin/python3 -m unittest discover -s tests -p test_system_status.py -v
           /usr/bin/python3 -m unittest discover -s tests -p test_profiles.py -v
           /usr/bin/python3 -m unittest discover -s tests -p test_users.py -v
           /usr/bin/python3 -m unittest discover -s tests -p test_delivery.py -v
