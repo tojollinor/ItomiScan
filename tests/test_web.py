@@ -78,6 +78,69 @@ class WebAdminTests(unittest.TestCase):
                                   headers={"Origin":"https://evil.invalid"})[0], 403)
         self.assertEqual(self.req("GET", "/")[0], 200)
 
+    def test_opaque_origin_user_creation_keeps_session_and_csrf_protection(self):
+        self.login()
+        payload = {
+            "csrf": self.csrf, "name": "Testkonto", "pin": "2468",
+            "active": "yes", "assigned_profiles": "Dokument",
+            "default_profile": "Dokument", "perm_scan": "yes",
+        }
+        # An authenticated browser may send Origin:null on self-signed TLS.
+        self.assertEqual(self.req(
+            "POST", "/users/save", payload,
+            headers={"Origin": "null"})[0], 303)
+        self.assertEqual(self.server.users.list_users()[0]["name"], "Testkonto")
+        payload["csrf"] = "invalid"
+        self.assertEqual(self.req(
+            "POST", "/users/save", payload,
+            headers={"Origin": "null"})[0], 403)
+        payload["csrf"] = self.csrf
+        self.assertEqual(self.req(
+            "POST", "/users/save", payload,
+            headers={"Origin": "https://not-the-scanner.example"})[0], 403)
+        self.assertEqual(len(self.server.users.list_users()), 1)
+
+    def test_opaque_origin_login_still_needs_explicit_opt_in(self):
+        self.assertEqual(self.req(
+            "POST", "/login", {"password": "VeryStrongExamplePassword_2026"},
+            headers={"Origin": "null"})[0], 403)
+        with patch("itomiscan.web.server.Path.home",
+                   return_value=Path(self.tmp.name)):
+            flag = Path(self.tmp.name) / ".config" / "itomiscan" / "allow-null-origin"
+            flag.parent.mkdir(parents=True, exist_ok=True)
+            flag.write_text("")
+            self.assertEqual(self.req(
+                "POST", "/login",
+                {"password": "VeryStrongExamplePassword_2026"},
+                headers={"Origin": "null"})[0], 303)
+
+    def test_branding_and_authenticated_live_status(self):
+        self.assertEqual(self.req("GET", "/api/status")[0], 303)
+        self.assertEqual(self.req("GET", "/assets/status.js")[0], 303)
+        self.login()
+        for route in ("/", "/system", "/users"):
+            with self.subTest(route=route):
+                code, _, page = self.req("GET", route)
+                self.assertEqual(code, 200)
+                self.assertIn('<svg class="brand-icon"', page)
+                self.assertIn("Itomi<b>Scan</b>", page)
+                if route in ("/", "/system"):
+                    self.assertIn("data-status-key=\"cpu\"", page)
+                    self.assertIn("data-status-key=\"disk", page)
+                    self.assertIn("/assets/status.js", page)
+        code, headers, body = self.req("GET", "/api/status")
+        self.assertEqual(code, 200)
+        state = json.loads(body)
+        for key in ("cpu", "ram", "ram_total", "ram_free", "disk_total",
+                    "disk_used", "disk_free", "uptime", "web_service",
+                    "delivery_service", "jobs_pending", "jobs_review"):
+            self.assertIn(key, state)
+        code, headers, script = self.req("GET", "/assets/status.js")
+        self.assertEqual(code, 200)
+        self.assertIn("javascript", headers["Content-Type"])
+        self.assertIn("setInterval(refresh, 30000)", script)
+        self.assertIn("script-src 'self'", headers["Content-Security-Policy"])
+
     def test_profile_and_targets_saved_in_shared_database(self):
         self.login()
         fields = {"csrf":self.csrf,"name":"Steuerunterlagen",
