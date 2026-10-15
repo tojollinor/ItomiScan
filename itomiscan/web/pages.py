@@ -67,7 +67,7 @@ CSS = """
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font-family:system-ui,-apple-system,DejaVu Sans,sans-serif;line-height:1.45}
 .wrap{max-width:1120px;margin:auto;padding:22px 22px 50px}
 header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;border-bottom:1px solid var(--line);padding-bottom:14px}
-.brand{display:flex;align-items:center;gap:11px;font-size:1.8rem;font-weight:800;letter-spacing:-.035em}.brand b{color:var(--accent)}.brand-icon{flex:none;border-radius:8px}.brand-name{white-space:nowrap}
+.brand{display:flex;align-items:center;gap:11px;font-size:1.8rem;font-weight:800;letter-spacing:-.035em}.brand b{color:#42bfea}.brand-icon{flex:none;border-radius:8px}.brand-name{white-space:nowrap}
 nav{display:flex;flex-wrap:wrap;gap:9px;align-items:center}a{color:var(--accent)}nav a{padding:10px 9px;text-decoration:none;color:var(--fg);border-radius:9px}
 nav a:hover,nav a.active{background:#2a4560}h1{font-size:1.65rem;margin:28px 0 10px}h2{font-size:1.15rem;margin:4px 0 14px}
 p{color:var(--soft)}small,.muted{color:var(--soft)}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(285px,1fr));gap:16px}
