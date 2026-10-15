@@ -2,6 +2,19 @@
 
 **Stand 14.10.2026:** Die Entwicklung der Blöcke 1–8 befindet sich ausschließlich auf `develop/1.0.0`. Dies ist **kein** freigegebener Stable-Release. `main` und der auf dem Scanner verwendete Prototyp bleiben unverändert. GitHub Actions ersetzen keinen echten N1800-Hardwaretest.
 
+## Zusätzliche UI-/Web-Korrekturrunde (15.10.2026)
+
+Die zehn nachträglich beauftragten Korrekturen zu Boot-/App-Splash, Touchoberfläche,
+Vollbildmenü/Bildschirmschoner, Mauszeiger/Touchpuls, Benutzerverwaltung und
+Web-Systemdiagnose wurden im Entwicklungszweig bearbeitet. Maßgeblicher
+Abnahmeplan mit vollständigen Gerätenachweisen:
+[`docs/ACCEPTANCE-UI-WEB-2026-10-15.md`](ACCEPTANCE-UI-WEB-2026-10-15.md).
+
+**Abnahme weiter gesperrt:** Die Korrekturen gelten nicht allein durch Commits,
+CI-Warteschlangen oder Quellcodeprüfung als bestätigt. Boot-Plymouth muss
+separat installiert werden; ein normales GUI-Update reicht nicht.
+`main`, Stable-Tag und auf dem N1800 installierte Version bleiben unberührt.
+
 ## Lieferumfang und Grenzen
 
 - Originale SANE-Scanpipeline mit schnellem JPEG/PDF-Pfad, Splash, großer Touchstartseite, konfigurierbaren Scanprofilen und vollständiger Expertenansicht.
