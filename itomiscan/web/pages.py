@@ -1,14 +1,65 @@
-"""Server-rendered, dependency-free ItomiScan administration pages.
+"""Dependency-free ItomiScan administration pages.
 
-All untrusted values are escaped before inclusion in markup. Browser receives
-no JavaScript, no external assets and no stored secrets.
+All untrusted values are escaped. Only system metrics use a tiny same-origin
+script; forms and authentication do not require JavaScript.
 """
 from html import escape
 import json
 
+from itomiscan import branding
+
 
 def e(value):
     return escape(str(value), quote=True)
+
+
+def logo_svg(size=44):
+    """Use the same icon geometry and palette as the physical scanner."""
+    polygon = " ".join(f"{x},{y}" for x, y in
+                       zip(branding.DOCUMENT[::2], branding.DOCUMENT[1::2]))
+    corners = "".join(
+        f'<path d="M {x} {y+dy} L {x} {y} L {x+dx} {y}" '
+        f'stroke="{branding.CYAN}" stroke-width="4" fill="none"/>'
+        for x, y, dx, dy in branding.CORNERS
+    )
+    return (f'<svg class="brand-icon" width="{int(size)}" height="{int(size)}" '
+            'viewBox="0 0 72 72" aria-hidden="true" focusable="false">'
+            f'<rect x="1" y="1" width="70" height="70" fill="{branding.BLUE}"/>'
+            f'<polygon points="{polygon}" fill="#fff"/>'
+            f'<rect x="{branding.LINE_LEFT}" y="{branding.LINE_START}" '
+            f'width="{branding.LINE_RIGHT-branding.LINE_LEFT}" '
+            f'height="{branding.LINE_HEIGHT}" fill="{branding.CYAN}"/>'
+            + corners + '</svg>')
+
+
+# Only static same-origin asset. No third-party libraries or sensitive data.
+STATUS_JS = """(() => {
+  const elements = document.querySelectorAll('[data-status-key]');
+  if (!elements.length) return;
+  async function refresh() {
+    try {
+      const response = await fetch('/api/status', {cache: 'no-store',
+                                                   credentials: 'same-origin'});
+      if (!response.ok) return;
+      const status = await response.json();
+      for (const element of elements) {
+        const key = element.getAttribute('data-status-key');
+        if (Object.prototype.hasOwnProperty.call(status, key)) {
+          element.textContent = String(status[key]);
+        }
+      }
+    } catch (_error) {
+      // Display the last known values if the scanner is temporarily offline.
+    }
+  }
+  window.setInterval(refresh, 30000);
+})();
+"""
+
+
+def metric(key, value, *, inline=False):
+    tag = "span" if inline else "strong"
+    return f'<{tag} data-status-key="{e(key)}">{e(value)}</{tag}>'
 
 
 CSS = """
@@ -16,7 +67,7 @@ CSS = """
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font-family:system-ui,-apple-system,DejaVu Sans,sans-serif;line-height:1.45}
 .wrap{max-width:1120px;margin:auto;padding:22px 22px 50px}
 header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;border-bottom:1px solid var(--line);padding-bottom:14px}
-.brand{font-size:1.8rem;font-weight:800;letter-spacing:-.035em}.brand b{color:var(--accent)}
+.brand{display:flex;align-items:center;gap:11px;font-size:1.8rem;font-weight:800;letter-spacing:-.035em}.brand b{color:var(--accent)}.brand-icon{flex:none;border-radius:8px}.brand-name{white-space:nowrap}
 nav{display:flex;flex-wrap:wrap;gap:9px;align-items:center}a{color:var(--accent)}nav a{padding:10px 9px;text-decoration:none;color:var(--fg);border-radius:9px}
 nav a:hover,nav a.active{background:#2a4560}h1{font-size:1.65rem;margin:28px 0 10px}h2{font-size:1.15rem;margin:4px 0 14px}
 p{color:var(--soft)}small,.muted{color:var(--soft)}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(285px,1fr));gap:16px}
@@ -29,7 +80,7 @@ button,.action{display:inline-block;background:#2a75c1;color:white;border:0;bord
 button:hover,.action:hover{background:#3586d7}.secondary{background:#30485f}.danger{background:#8c4050}
 .notice{background:#153b3a;border:1px solid #337869;padding:13px 17px;border-radius:9px;margin:18px 0}
 .alert{background:#4b2834;border:1px solid #a05d6b;padding:13px 17px;border-radius:9px;margin:18px 0}
-.pill{display:inline-block;padding:4px 10px;border-radius:20px;color:var(--ok);background:#1c3938;font-weight:600}
+.pill{display:inline-block;padding:4px 10px;border-radius:20px;color:var(--ok);background:#1c3938;font-weight:600}.status-key{margin-bottom:4px}.status-metric{font-size:1.3rem;font-weight:700;color:var(--fg)}.status-note{font-size:.88rem;color:var(--soft)}
 .inline{display:inline-block;margin:0}.data{background:#0d1a2a;padding:14px;border-radius:10px;white-space:pre-wrap;overflow-wrap:anywhere;max-height:270px;overflow:auto;font-size:.92rem}
 table{width:100%;border-collapse:collapse}td,th{padding:10px;text-align:left;border-bottom:1px solid var(--line);word-break:break-word}
 .end{margin-top:24px;border-top:1px solid var(--line);padding-top:13px}
@@ -38,7 +89,7 @@ table{width:100%;border-collapse:collapse}td,th{padding:10px;text-align:left;bor
 """
 
 
-def layout(title, body, *, active="", csrf="", notice="", error="", logged=True):
+def layout(title, body, *, active="", csrf="", notice="", error="", logged=True, live=False):
     navigation = ""
     if logged:
         links = (("/", "Übersicht"), ("/profiles", "Scanprofile"),
@@ -55,10 +106,13 @@ def layout(title, body, *, active="", csrf="", notice="", error="", logged=True)
     return ('<!doctype html><html lang="de"><head><meta charset="utf-8">'
             '<meta name="viewport" content="width=device-width,initial-scale=1">'
             f'<title>{e(title)} · ItomiScan</title><style>{CSS}</style></head>'
-            '<body><main class="wrap"><header><div class="brand">Itomi<b>Scan</b>'
+            '<body><main class="wrap"><header><div class="brand">'
+            + logo_svg() + '<div class="brand-name">Itomi<b>Scan</b></div>'
             f'</div>{navigation}</header>{messages}{body}'
             '<div class="end muted">ItomiScan 1.0.0 Entwicklung · '
-            'Webadministration nur im geschützten LAN/VPN</div></main></body></html>')
+            'Webadministration nur im geschützten LAN/VPN</div></main>'
+            + ('<script defer src="/assets/status.js"></script>' if live else '')
+            + '</body></html>')
 
 
 def token(csrf):
@@ -96,10 +150,33 @@ def overview(status, counts, csrf, notice=""):
          "Entwicklung ist kein Release."),
     )
     body += '<section class="grid">' + "".join(
-        f'<article class="card"><h2>{e(name)}</h2><p class="pill">{e(value)}</p>'
-        f'<p>{e(description)}</p></article>' for name, value, description in items
+        f'<article class="card"><h2>{e(name)}</h2>'
+        + (f'<p class="pill">{metric("scanner", value)}</p>' if name == "Scanner"
+           else f'<p class="pill">{e(value)}</p>')
+        + f'<p>{e(description)}</p></article>' for name, value, description in items
     ) + '</section>'
-    return layout("Übersicht", body, active="/", csrf=csrf, notice=notice)
+    body += '<h2>Systemauslastung</h2><section class="grid">'
+    for heading, key, hint in (
+        ("CPU-Auslastung", "cpu", "Aktuelle Auslastung seit der letzten Messung"),
+        ("Arbeitsspeicher", "ram", "Belegt / gesamt"),
+        ("Datenträger", "disk", "Belegt / Gesamtkapazität"),
+    ):
+        body += (f'<article class="card"><h2>{e(heading)}</h2>'
+                 f'<p class="status-metric">{metric(key, status.get(key, "Nicht verfügbar"))}</p>'
+                 f'<p class="status-note">{e(hint)}</p></article>')
+    body += '</section><h2>Gerätezustand</h2><section class="grid">'
+    for heading, key in (
+        ("Web-Admin-Dienst", "web_service"),
+        ("Zustelldienst", "delivery_service"),
+        ("Wartende Aufträge", "jobs_pending"),
+        ("Zu prüfende Aufträge", "jobs_review"),
+    ):
+        body += (f'<article class="card"><h2>{e(heading)}</h2>'
+                 f'<p class="status-metric">{metric(key, status.get(key, "Nicht verfügbar"))}</p></article>')
+    body += '</section><p class="status-note">Statusaktualisierung alle 30 Sekunden, '
+    body += 'ohne Seitenwechsel oder automatischen Scannertest.</p>'
+    return layout("Übersicht", body, active="/", csrf=csrf, notice=notice,
+                  live=True)
 
 
 def profiles_page(profiles, selected, csrf, notice=""):
@@ -164,18 +241,46 @@ def targets_page(targets, csrf, notice=""):
 
 
 def system_page(state, settings, csrf, diagnostic="", notice=""):
-    body = '<h1>System und Diagnose</h1><section class="grid"><article class="card"><h2>Gerätestatus</h2>'
-    for title, key in (("Host", "hostname"), ("IP", "ip"), ("System", "platform"),
-                       ("Git-Zweig", "branch"), ("Commit", "commit"),
-                       ("Uptime", "uptime"), ("Freier Speicher", "free_space")):
-        body += f'<p><strong>{e(title)}:</strong> {e(state.get(key, "Nicht verfügbar"))}</p>'
-    body += ('</article><article class="card"><h2>Geräteeinstellungen</h2>'
+    body = '<h1>System und Diagnose</h1><section class="grid">'
+    body += '<article class="card"><h2>Geräteinformationen</h2>'
+    for title, key in (
+        ("Host", "hostname"), ("IP", "ip"), ("System", "platform"),
+        ("Git-Zweig", "branch"), ("Commit", "commit"), ("Uptime", "uptime"),
+        ("Scanner", "scanner"),
+    ):
+        body += (f'<p><strong>{e(title)}:</strong> '
+                 f'{metric(key, state.get(key, "Nicht verfügbar"), inline=True)}</p>')
+    body += '</article><article class="card"><h2>CPU und Arbeitsspeicher</h2>'
+    for title, key in (
+        ("CPU-Auslastung", "cpu"), ("RAM gesamt", "ram_total"),
+        ("RAM belegt", "ram_used"), ("RAM verfügbar", "ram_free"),
+    ):
+        body += (f'<p><strong>{e(title)}:</strong> '
+                 f'{metric(key, state.get(key, "Nicht verfügbar"), inline=True)}</p>')
+    body += '</article><article class="card"><h2>Datenträger</h2>'
+    for title, key in (
+        ("Gesamtkapazität", "disk_total"), ("Belegt", "disk_used"),
+        ("Frei", "disk_free"),
+    ):
+        body += (f'<p><strong>{e(title)}:</strong> '
+                 f'{metric(key, state.get(key, "Nicht verfügbar"), inline=True)}</p>')
+    body += '</article><article class="card"><h2>Dienste und Zustellung</h2>'
+    for title, key in (
+        ("Web-Admin", "web_service"), ("Zustelldienst", "delivery_service"),
+        ("Wartende Aufträge", "jobs_pending"), ("Zu prüfende Aufträge", "jobs_review"),
+    ):
+        body += (f'<p><strong>{e(title)}:</strong> '
+                 f'{metric(key, state.get(key, "Nicht verfügbar"), inline=True)}</p>')
+    body += '</article></section>'
+    body += '<p class="status-note">Systemwerte werden alle 30 Sekunden aktualisiert. '
+    body += 'Nicht gespeicherte Formulare bleiben unberührt.</p>'
+    body += ('<article class="card"><h2>Geräteeinstellungen</h2>'
              '<p>Änderungen des Bildschirmschoners greifen am Display spätestens '
              'nach einem Neustart der Oberfläche.</p>'
              '<form method="post" action="/system/settings">' + token(csrf)
              + f'<label>Gerätename</label><input maxlength="48" name="device_label" value="{e(settings["device_label"])}">'
              + f'<label>Bildschirmschoner (Minuten)</label><input type="number" name="screensaver_minutes" min="1" max="60" value="{e(settings["screensaver_minutes"])}">'
-             + '<button>Einstellungen speichern</button></form></article></section>')
+             + '<button>Einstellungen speichern</button></form></article>')
     body += ('<article class="card" style="margin-top:16px"><h2>SANE-Scannererkennung</h2>'
              '<p>Diese Diagnose startet ausschließlich <code>scanimage -L</code>. '
              'Ein laufender Scan sollte vorher abgeschlossen sein.</p>'
@@ -187,9 +292,9 @@ def system_page(state, settings, csrf, diagnostic="", notice=""):
              + '<label>Aktuelles Passwort</label><input type="password" name="current_password" autocomplete="current-password" required>'
              + '<label>Neues Passwort (mindestens 10 Zeichen)</label><input type="password" name="new_password" minlength="10" maxlength="128" autocomplete="new-password" required>'
              + '<label>Neues Passwort wiederholen</label><input type="password" name="confirm_password" minlength="10" maxlength="128" autocomplete="new-password" required>'
-             + '<button>Passwort ändern</button></form></article>')
-    return layout("System", body, active="/system", csrf=csrf, notice=notice)
-
+             '<button>Passwort ändern</button></form></article>')
+    return layout("System", body, active="/system", csrf=csrf, notice=notice,
+                  live=True)
 
 def backup_page(csrf, notice=""):
     body = ('<h1>Konfiguration sichern</h1><section class="grid"><article class="card">'
