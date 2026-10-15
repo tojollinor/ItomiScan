@@ -27,6 +27,7 @@ from itomiscan.core.profiles import validate_profile
 from itomiscan.storage.config import ConfigError, ConfigStore
 from itomiscan.storage.users import PERMISSIONS, PinError, UserStore
 from itomiscan.web import pages, user_pages, delivery_pages, printing_pages
+from itomiscan.web.system_status import StatusSampler
 from itomiscan.integrations.printing import (
     PrintError, list_queues, install_queue, uninstall_queue, test_page,
     discover_printers, set_default_printer, printer_uri, queue_name, address_from_host,
@@ -43,7 +44,8 @@ COOKIE = "itomiscan_session"
 LOG = logging.getLogger("itomiscan.web")
 
 
-def inspect_system(store, bind):
+def inspect_system(store, bind, sampler=None, queue=None, diagnostic=""):
+    """Expose limited, read-only system metrics to authenticated administrators."""
     root = Path(__file__).resolve().parents[2]
     result = {
         "hostname": socket.gethostname(),
@@ -51,9 +53,9 @@ def inspect_system(store, bind):
         "platform": "Debian/Linux",
         "branch": "Unbekannt",
         "commit": "Unbekannt",
-        "scanner": "Bitte Diagnose starten",
-        "uptime": "Nicht verfügbar",
-        "free_space": "Nicht verfügbar",
+        "scanner": ("Scanner gefunden" if "fujitsu:" in diagnostic.lower()
+                    else "Nicht geprüft" if not diagnostic.strip()
+                    else "Diagnose beachten"),
     }
     for key, args in (
         ("branch", ["git", "-C", str(root), "branch", "--show-current"]),
@@ -66,15 +68,17 @@ def inspect_system(store, bind):
                 result[key] = process.stdout.strip()[:64]
         except (OSError, subprocess.TimeoutExpired):
             pass
-    try:
-        seconds = int(float(Path("/proc/uptime").read_text().split()[0]))
-        result["uptime"] = f"{seconds // 3600} Std. {(seconds % 3600) // 60} Min."
-    except (OSError, ValueError, IndexError):
-        pass
-    try:
-        result["free_space"] = f"{shutil.disk_usage(store.path.parent).free // (1024 * 1024)} MiB"
-    except OSError:
-        pass
+    result.update((sampler or StatusSampler()).collect(store.path.parent))
+    result["jobs_pending"] = "Nicht verfügbar"
+    result["jobs_review"] = "Nicht verfügbar"
+    if queue is not None:
+        try:
+            counts = queue.summary()
+            result["jobs_pending"] = str(sum(counts.get(k, 0) for k in
+                                             ("queued", "pending", "retry", "leased")))
+            result["jobs_review"] = str(counts.get("review", 0))
+        except (OSError, ValueError, ConfigError):
+            pass
     return result
 
 
@@ -149,6 +153,7 @@ class AdminServer(ThreadingHTTPServer):
         self.queue = DeliveryQueue(store.path)
         self.secrets = SecretStore(store.path)
         self.diagnostic = ""
+        self.status_sampler = StatusSampler()
 
 
 class AdminHandler(BaseHTTPRequestHandler):
@@ -187,14 +192,13 @@ class AdminHandler(BaseHTTPRequestHandler):
         origin = self.headers.get("Origin", "")
         if not origin:
             return True
-        # Explicit, reversible local opt-in for browsers using an opaque
-        # origin with an untrusted self-signed TLS certificate.
-        # Scope this exception to login only; authenticated admin actions
-        # retain the normal same-origin and CSRF protections.
-        if origin == "null" and urlsplit(self.path).path == "/login":
+        # Self-signed TLS can produce Origin: null on some kiosk browsers.
+        # The opt-in flag already permits LOGIN. Apply it consistently to
+        # authenticated admin POSTs; session plus CSRF are still mandatory.
+        # Never accept arbitrary foreign origins or null without explicit opt-in.
+        if origin == "null":
             flag = Path.home() / ".config" / "itomiscan" / "allow-null-origin"
-            if flag.is_file():
-                return True
+            return flag.is_file()
         scheme = "https" if self.server.secure else "http"
         expected = f"{scheme}://{self.server.bind_ip}:{self.server.server_address[1]}"
         return origin == expected
@@ -213,6 +217,7 @@ class AdminHandler(BaseHTTPRequestHandler):
         self.send_header("Referrer-Policy", "no-referrer")
         self.send_header("Content-Security-Policy",
                          "default-src 'none'; style-src 'unsafe-inline'; "
+                         "script-src 'self'; connect-src 'self'; "
                          "form-action 'self'; frame-ancestors 'none'; base-uri 'none'")
         if location:
             self.send_header("Location", location)
@@ -264,8 +269,14 @@ class AdminHandler(BaseHTTPRequestHandler):
             return self._redirect("/login")
         notice = parse_qs(urlsplit(self.path).query).get("ok", [""])[0][:180]
         try:
+            if path == "/assets/status.js":
+                return self._response(
+                    200, pages.STATUS_JS,
+                    mime="text/javascript; charset=utf-8")
             if path == "/":
-                status = inspect_system(self.server.store, self.server.bind_ip)
+                status = inspect_system(
+                    self.server.store, self.server.bind_ip,
+                    self.server.status_sampler, self.server.queue, self.server.diagnostic)
                 profiles, _selected = self.server.store.list_profiles()
                 targets = self.server.store.list_targets()
                 html = pages.overview(status, {
@@ -302,7 +313,10 @@ class AdminHandler(BaseHTTPRequestHandler):
                                                 self.server.queue.summary(), csrf, notice)
             elif path == "/system":
                 html = pages.system_page(
-                    inspect_system(self.server.store, self.server.bind_ip),
+                    inspect_system(
+                        self.server.store, self.server.bind_ip,
+                        self.server.status_sampler, self.server.queue,
+                        self.server.diagnostic),
                     self.server.store.get_settings(), csrf,
                     self.server.diagnostic, notice)
             elif path == "/backups":
@@ -315,7 +329,9 @@ class AdminHandler(BaseHTTPRequestHandler):
                     attachment='attachment; filename="itomiscan-konfiguration.json"')
             elif path == "/api/status":
                 data = json.dumps(inspect_system(
-                    self.server.store, self.server.bind_ip), ensure_ascii=False)
+                    self.server.store, self.server.bind_ip,
+                    self.server.status_sampler, self.server.queue,
+                    self.server.diagnostic), ensure_ascii=False)
                 return self._response(200, data, mime="application/json; charset=utf-8")
             else:
                 return self._error(404, "Seite nicht gefunden.")
