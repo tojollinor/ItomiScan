@@ -7,19 +7,24 @@ on:
   pull_request:
   workflow_dispatch:
 
+concurrency:
+  group: itomiscan-beta-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   static-and-unit:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - name: Install Python test prerequisites
         run: |
           sudo apt-get update
-          sudo apt-get install -y python3-tk python3-pil python3-pil.imagetk
+          sudo apt-get install -y python3-tk python3-pil python3-pil.imagetk xvfb xauth
       - name: Check Python syntax
         run: python3 -m compileall -q app.py itomiscan tests
       - name: Check shell syntax
         run: |
           find . -maxdepth 2 -type f -name '*.sh' -print0 | xargs -0 -r -n1 bash -n
       - name: Run unit tests
-        run: PYTHONPATH=. python3 -m unittest discover -s tests -p 'test*.py' -v
+        run: timeout --signal=TERM --kill-after=10s 300s xvfb-run -a env PYTHONPATH=. python3 -u -m unittest discover -s tests -p 'test*.py' -v
