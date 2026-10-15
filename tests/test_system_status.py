@@ -9,6 +9,13 @@ from itomiscan.web import system_status
 
 
 class StatusSamplerTests(unittest.TestCase):
+    def test_proc_stat_parser_ignores_guest_counters(self):
+        proc = "cpu  100 0 50 750 10 0 0 0 42 20\n"
+        with patch.object(system_status.Path, "read_text", return_value=proc):
+            total, idle = system_status._cpu_times()
+        self.assertEqual(total, 910)
+        self.assertEqual(idle, 760)
+
     def test_cpu_usage_uses_successive_counters_without_sleep(self):
         clock = [1.0]
         sampler = system_status.StatusSampler(clock=lambda: clock[0])
