@@ -28,7 +28,7 @@ def _cpu_times():
     parts = Path("/proc/stat").read_text().splitlines()[0].split()
     if parts[0] != "cpu" or len(parts) < 5:
         raise ValueError("/proc/stat hat kein CPU-Gesamtprofil")
-    counters = [int(value) for value in parts[1:]]
+    # Linux guest and guest_nice are already included in user/nice.\n    # Count only the first eight /proc/stat fields to avoid double counting.\n    counters = [int(value) for value in parts[1:9]]
     # idle + iowait are time without CPU work.
     idle = counters[3] + (counters[4] if len(counters) > 4 else 0)
     return sum(counters), idle
