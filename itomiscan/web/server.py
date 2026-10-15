@@ -192,13 +192,16 @@ class AdminHandler(BaseHTTPRequestHandler):
         origin = self.headers.get("Origin", "")
         if not origin:
             return True
-        # Self-signed TLS can produce Origin: null on some kiosk browsers.
-        # The opt-in flag already permits LOGIN. Apply it consistently to
-        # authenticated admin POSTs; session plus CSRF are still mandatory.
-        # Never accept arbitrary foreign origins or null without explicit opt-in.
+        # Some browsers send an opaque Origin for self-signed TLS.
+        # Login has no CSRF token, so its explicit opt-in remains mandatory.
+        # Authenticated mutations may use Origin:null, but only after the
+        # session is verified here AND a matching CSRF token in do_POST.
+        # A foreign non-null origin is never allowed.
         if origin == "null":
-            flag = Path.home() / ".config" / "itomiscan" / "allow-null-origin"
-            return flag.is_file()
+            if urlsplit(self.path).path == "/login":
+                flag = Path.home() / ".config" / "itomiscan" / "allow-null-origin"
+                return flag.is_file()
+            return bool(self._authenticated())
         scheme = "https" if self.server.secure else "http"
         expected = f"{scheme}://{self.server.bind_ip}:{self.server.server_address[1]}"
         return origin == expected
