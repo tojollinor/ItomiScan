@@ -9,6 +9,10 @@ on:
       - develop/1.0.0
   workflow_dispatch:
 
+concurrency:
+  group: itomiscan-scan-quality-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
@@ -30,7 +34,7 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install Pillow
       - name: Run regression tests with virtual display
-        run: xvfb-run -a python -m unittest discover -s tests -p 'test_*.py' -v
+        run: timeout --signal=TERM --kill-after=10s 300s xvfb-run -a python -u -m unittest discover -s tests -p 'test_*.py' -v
       - name: Validate shell script syntax
         run: |
           bash -n setup-boot-splash.sh
