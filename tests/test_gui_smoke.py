@@ -73,10 +73,13 @@ class TouchGuiTests(unittest.TestCase):
         self.enable_pin(permissions=("copy",))
         self.unlock()
         self.assertEqual(self.app.home.tiles["scan"].winfo_manager(), "")
-        self.assertEqual(self.app.home.tiles["paperless"].winfo_manager(), "")
         self.assertNotEqual(self.app.home.tiles["copy"].winfo_manager(), "")
         self.assertEqual(self.app.home.controls["shutdown"].winfo_manager(), "")
-        self.assertEqual(self.app.home.controls["update"].winfo_manager(), "")
+        self.app.show_device_menu()
+        self.assertNotIn("Updates", self.app.device_menu.buttons)
+        self.assertNotIn("Neustarten", self.app.device_menu.buttons)
+        self.assertNotIn("Ausschalten", self.app.device_menu.buttons)
+        self.app.device_menu.hide()
         with patch("app.messagebox.showwarning"):
             self.app.start_scan()
             self.app.show_scan()
@@ -126,8 +129,12 @@ class TouchGuiTests(unittest.TestCase):
         self.unlock()
         self.assertFalse(self.app._allowed("scan", silent=True))
         self.assertTrue(self.app._allowed("usb", silent=True))
-        self.assertFalse(self.app.home.tiles["scan"].winfo_manager())
-        self.assertTrue(self.app.home.controls["other"].winfo_manager())
+        # The single scan entry opens the destination chooser, where USB
+        # appears even without the permission for direct local scanning.
+        self.assertTrue(self.app.home.tiles["scan"].winfo_manager())
+        self.app.home.show_destinations()
+        self.assertTrue(self.app.home.destination_page.winfo_manager())
+        self.app.home.close_destinations()
 
     def add_printer(self):
         self.app.delivery_queue.db.save_target({
