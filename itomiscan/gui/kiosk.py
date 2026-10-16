@@ -144,6 +144,8 @@ class KioskStartup:
 def main():
     _boot_marker("kiosk_start")
     root = tk.Tk()
+    from itomiscan.gui.touch import park_pointer
+    park_pointer()
     KioskStartup(root)
     root.mainloop()
 
