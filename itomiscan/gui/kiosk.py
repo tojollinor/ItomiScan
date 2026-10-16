@@ -22,7 +22,7 @@ def _boot_marker(stage):
         path = Path.home() / ".local" / "state" / "itomiscan" / "boot-timing.log"
         path.parent.mkdir(parents=True, exist_ok=True)
         with path.open("a", encoding="utf-8") as log:
-            log.write(f"{time.strftime('%Y-%m-%d %H:%M:%S')} uptime={uptime:.3f}s {stage}\\n")
+            log.write(f"{time.strftime('%Y-%m-%d %H:%M:%S')} uptime={uptime:.3f}s {stage}\n")
         LOG.info("Bootmessung: %s nach %.3fs", stage, uptime)
     except (OSError, ValueError) as exc:
         LOG.warning("Bootzeitmarke nicht verfuegbar: %s", exc)
