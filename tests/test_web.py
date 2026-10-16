@@ -394,6 +394,54 @@ class WebAdminTests(unittest.TestCase):
         self.assertTrue(any(x["id"] == target["id"]
                             for x in self.server.store.list_targets()))
 
+    def test_authenticated_remote_actions_and_csrf(self):
+        self.assertEqual(self.req("GET", "/remote")[0], 303)
+        self.assertEqual(self.req("GET", "/api/remote-status")[0], 303)
+        self.login()
+        code, _, html = self.req("GET", "/remote")
+        self.assertEqual(code, 200)
+        self.assertIn("Scanner fernbedienen", html)
+        self.assertIn("csrf", html)
+        self.assertIn("/assets/remote.js", html)
+        code, _, script = self.req("GET", "/assets/remote.js")
+        self.assertEqual(code, 200)
+        self.assertIn("confirm(", script)
+        self.assertEqual(self.req("POST", "/remote/command",
+                         {"csrf": "wrong", "action": "scan"})[0], 403)
+        self.assertEqual(self.req("POST", "/remote/command",
+                         {"csrf": self.csrf, "action": "systemctl"})[0], 400)
+        self.assertEqual(self.req("POST", "/remote/command",
+                         {"csrf": self.csrf, "action": "restart"})[0], 400)
+        self.assertEqual(self.req("POST", "/remote/command",
+                         {"csrf": self.csrf, "action": "home"})[0], 303)
+        self.assertEqual(self.server.remote_commands.latest()["action"], "home")
+        self.assertEqual(self.req("POST", "/remote/command",
+                         {"csrf": self.csrf, "action": "scan"})[0], 400)
+        code, _, body = self.req("GET", "/api/remote-status")
+        self.assertEqual(code, 200)
+        self.assertEqual(json.loads(body)["status"], "pending")
+
+    def test_profile_printer_assignment(self):
+        self.login()
+        self.server.store.save_target({
+            "kind": "printer", "name": "OfficePrinter",
+            "address": "ipp://192.168.2.20/ipp/print"})
+        printer = next(t for t in self.server.store.list_targets()
+                       if t["name"] == "OfficePrinter")
+        profile = self.server.store.list_profiles()[0][0]["name"]
+        code, _, html = self.req("GET", "/profiles")
+        self.assertEqual(code, 200)
+        self.assertIn("Bevorzugter Drucker", html)
+        self.assertEqual(self.req("POST", "/profiles/printer", {
+            "csrf": self.csrf, "name": profile,
+            "target_id": str(printer["id"])})[0], 303)
+        self.assertEqual(self.server.store.get_profile_printer(profile),
+                         printer["id"])
+        backup = self.server.store.backup()
+        self.assertEqual(backup["profile_printers"][profile], "OfficePrinter")
+        self.server.store.restore(backup)
+        self.assertIsNotNone(self.server.store.get_profile_printer(profile))
+
     def test_logout_clears_session(self):
         self.login()
         code, hdrs, _ = self.req("POST","/logout",{"csrf":self.csrf})
