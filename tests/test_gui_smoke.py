@@ -249,6 +249,40 @@ class TouchGuiTests(unittest.TestCase):
         self.app.on_front_scan_key(SimpleNamespace(widget=self.root))
         self.assertEqual(calls, ["scan"])
 
+    def test_early_scan_waits_for_live_device_and_can_cancel(self):
+        self.app.device = None
+        self.app.scanner_preparing = True
+        self.app.scanner_retry = lambda: None
+        started = []
+        self.app.start_scan = lambda: started.append("scan")
+        self.app.quick_scan()
+        self.assertEqual(started, [])
+        self.assertEqual(self.app.pending_early_scan, "quick")
+        self.assertIsNotNone(self.app.scanner_wait_panel)
+        self.app._cancel_early_scan()
+        self.assertIsNone(self.app.pending_early_scan)
+        self.assertIsNone(self.app.scanner_wait_panel)
+        self.app.quick_scan()
+        self.assertEqual(started, [])
+        self.app.scanner_ready("fujitsu:fi-6110dj:test", OPTIONS)
+        self.root.update()
+        self.assertEqual(started, ["scan"])
+        self.assertIsNone(self.app.pending_early_scan)
+
+    def test_cached_capabilities_do_not_authorize_scanning(self):
+        self.app.device = None
+        self.app.options = list(OPTIONS)
+        self.app.scanner_preparing = True
+        self.app.scanner_retry = lambda: None
+        calls = []
+        self.app.start_scan = lambda: calls.append("unreachable")
+        self.app.quick_scan()
+        self.assertEqual(calls, [])
+        self.app.scanner_failed("Fujitsu USB-Gerät nicht gefunden")
+        self.assertIsNone(self.app.pending_early_scan)
+        self.assertIsNone(self.app.scanner_wait_panel)
+        self.assertIsNone(self.app.device)
+
     def test_quick_scan_reuses_profile(self):
         self.app.select_profile("Text")
         calls = []
