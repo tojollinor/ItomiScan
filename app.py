@@ -949,7 +949,13 @@ class ItomiScan:
         if self.home:
             self.home.hide()
         self.scan_view.place_forget()
-        self.copy_screen.show()
+        try:
+            current = (self.session_profile if self.users.settings()["enabled"]
+                       else self.profile_store.current()["name"])
+            preferred_id = self.profile_store.db.get_profile_printer(current)
+        except (OSError, ValueError, AttributeError):
+            preferred_id = None
+        self.copy_screen.show(preferred_id=preferred_id)
 
     def start_copy(self, printer_id, copies, sides, scan_source):
         if self.busy or not self._allowed("copy"):
