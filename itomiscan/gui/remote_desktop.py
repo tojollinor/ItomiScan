@@ -104,7 +104,10 @@ class RemoteDesktop:
             fd = os.open(str(temporary), os.O_CREAT | os.O_WRONLY | os.O_TRUNC, 0o600)
             with os.fdopen(fd, "wb") as output:
                 output.write(blob)
-            os.replace(temporary, path)
+            if self.live.active():
+                os.replace(temporary, path)
+            else:
+                os.unlink(temporary)
         except (OSError, ValueError, ImportError) as exc:
             LOG.warning("Fernbild nicht verfügbar: %s", exc)
         finally:
