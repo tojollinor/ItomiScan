@@ -86,6 +86,19 @@ STATUS_JS = """(() => {
 })();"""
 
 
+PRINTER_CHOOSE_JS = """(() => {
+  document.addEventListener('click', event => {
+    const button = event.target.closest('[data-select-printer]');
+    if (!button) return;
+    const field = document.querySelector('form[action="/printers/save"] input[name="address"]');
+    if (field) {
+      field.value = button.dataset.selectPrinter;
+      field.focus();
+    }
+  });
+})();"""
+
+
 DIALOG_JS = """(() => {
   document.addEventListener('click', event => {
     const open = event.target.closest('[data-dialog-open]');
