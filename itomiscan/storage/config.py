@@ -166,6 +166,10 @@ class ConfigStore:
                     kind TEXT NOT NULL, name TEXT NOT NULL,
                     address TEXT NOT NULL, UNIQUE(kind,name)
                 );
+                CREATE TABLE IF NOT EXISTS profile_printers (
+                    profile_name TEXT PRIMARY KEY,
+                    target_id INTEGER NOT NULL
+                );
             """)
             stored = db.execute("SELECT value FROM meta WHERE key='schema_version'").fetchone()
             if stored and int(stored[0]) != SCHEMA_VERSION:
@@ -230,6 +234,32 @@ class ConfigStore:
                        (item["name"], json.dumps(item, ensure_ascii=False)))
             db.execute("INSERT OR REPLACE INTO settings(key,value) VALUES (?,?)",
                        ("selected_profile", json.dumps(item["name"])))
+
+    def get_profile_printer(self, profile_name):
+        with self._connection() as db:
+            row = db.execute(
+                "SELECT pp.target_id FROM profile_printers pp "
+                "JOIN targets t ON t.id=pp.target_id AND t.kind='printer' "
+                "WHERE pp.profile_name=?", (profile_name,)).fetchone()
+        return row[0] if row else None
+
+    def set_profile_printer(self, profile_name, target_id):
+        with self._connection(write=True) as db:
+            if not db.execute("SELECT 1 FROM profiles WHERE name=?",
+                              (profile_name,)).fetchone():
+                raise ConfigError("Unbekanntes Scanprofil.")
+            if target_id is None:
+                db.execute("DELETE FROM profile_printers WHERE profile_name=?",
+                           (profile_name,))
+            else:
+                target = db.execute(
+                    "SELECT 1 FROM targets WHERE id=? AND kind='printer'",
+                    (target_id,)).fetchone()
+                if target is None:
+                    raise ConfigError("Druckerziel nicht eingerichtet.")
+                db.execute("INSERT OR REPLACE INTO profile_printers "
+                           "(profile_name,target_id) VALUES (?,?)",
+                           (profile_name, target_id))
 
     def get_settings(self):
         with self._connection() as db:
