@@ -13,12 +13,12 @@ LABELS = {"paperless": "Paperless", "network": "SMB-Netzwerkordner",
           "email": "E-Mail", "usb": "USB-Datenträger", "printer": "Drucker"}
 
 
-def targets_page(targets, csrf, configured, notice="", *, discovered=None):
+def targets_page(targets, csrf, configured, notice="", *, discovered=None, searched=False):
     body = ('<h1>Dokumentenziele</h1><p>Paperless, SMB-Netzwerkordner, '
             'E-Mail und USB sind als Zustellziele vorbereitet. '
             'Für den tatsächlichen Versand muss der separate '
             'ItomiScan-Zustelldienst gestartet sein. '
-            'Drucker kommen in Block 7 hinzu.</p>'
+            'Drucker werden im separaten Menü eingerichtet.</p>'
             '<section class="entry-list">')
     for index, entry in enumerate(targets):
         kind, tid = entry["kind"], entry["id"]
@@ -62,13 +62,33 @@ def targets_page(targets, csrf, configured, notice="", *, discovered=None):
              'maxlength="60" required><label>Zieladresse</label>'
              '<input name="address" list="paperless-candidates" maxlength="350" required>'
              '<button>Ziel speichern</button></form></section>')
+    body += ('<section class="card" style="margin-top:16px">'
+             '<h2>Paperless im Netzwerk suchen</h2>'
+             '<p>Findet lokal angekündigte Paperless-Dienste über mDNS/DNS-SD. '
+             'Nicht angekündigte Instanzen werden nicht erkannt; '
+             'die manuelle Eingabe bleibt jederzeit möglich.</p>'
+             '<form method="get" action="/targets">'
+             '<button type="submit" name="search" value="1">Paperless suchen</button>'
+             '</form>')
+    if searched:
+        if discovered:
+            body += '<div class="entry-list">'
+            for uri in discovered:
+                body += ('<div class="entry-row"><div><strong>Paperless-Kandidat</strong>'
+                         '<p class="muted">' + e(uri) + '</p></div>'
+                         '<button type="button" class="secondary" data-select-paperless="' +
+                         e(uri) + '">Übernehmen</button></div>')
+            body += '</div>'
+        else:
+            body += ('<p role="status">Keine angekündigte Paperless-Instanz gefunden. '
+                     'Bitte Netzwerk-Ankündigung prüfen oder Adresse manuell eintragen.</p>')
+        body += ('<p class="status-note">Suchtreffer sind nur Vorschläge. '
+                 'HTTPS-Zertifikat, API und Zugangsdaten werden dadurch nicht bestätigt.</p>')
+    body += '</section>'
     if discovered:
         body += '<datalist id="paperless-candidates">' + "".join(
             '<option value="' + e(uri) + '"></option>' for uri in discovered
         ) + '</datalist>'
-        body += ('<p class="muted">Mögliche Paperless-Dienste im LAN: '
-                 + ", ".join(e(uri) for uri in discovered) +
-                 '. Die Erkennung bestätigt noch keine erreichbare Paperless-API.</p>')
     body += '<section class="card" style="margin-top:16px"><h2>Adressbeispiele</h2>'
     for kind, example in HELP.items():
         body += '<p><strong>' + e(LABELS[kind]) + ':</strong> ' + e(example) + '</p>'
