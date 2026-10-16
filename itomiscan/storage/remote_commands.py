@@ -6,6 +6,7 @@ Commands cannot execute shell code or access arbitrary files.
 """
 import sqlite3
 import time
+from contextlib import contextmanager
 
 ACTIONS = frozenset(("scan", "open_scan", "home", "restart", "poweroff"))
 MAX_AGE = 30
@@ -26,10 +27,18 @@ class RemoteCommands:
                 )
             """)
 
+    @contextmanager
     def _connect(self):
         db = sqlite3.connect(self.db_path, timeout=5)
         db.row_factory = sqlite3.Row
-        return db
+        try:
+            yield db
+            db.commit()
+        except Exception:
+            db.rollback()
+            raise
+        finally:
+            db.close()
 
     def request(self, action):
         if action not in ACTIONS:
