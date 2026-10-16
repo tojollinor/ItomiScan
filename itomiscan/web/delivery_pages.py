@@ -59,8 +59,9 @@ def targets_page(targets, csrf, configured, notice="", *, discovered=None, searc
              + '<label>Art</label><select name="kind">'
              + options(("paperless", "network", "email", "usb", "printer"), "paperless")
              + '</select><label for="target-name">Anzeigename</label><input id="target-name" name="name" '
-             'maxlength="60" required><label>Zieladresse</label>'
+             'maxlength="60" required><label id="target-address-label">Zieladresse</label>'
              '<input name="address" list="paperless-candidates" maxlength="350" required>'
+             '<p id="target-address-help" class="status-note"></p>'
              '<button>Ziel speichern</button></form></section>')
     body += ('<section class="card" style="margin-top:16px">'
              '<h2>Paperless im Netzwerk suchen</h2>'
