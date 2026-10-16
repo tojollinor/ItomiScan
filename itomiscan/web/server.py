@@ -322,8 +322,10 @@ class AdminHandler(BaseHTTPRequestHandler):
             elif path == "/targets":
                 targets = self.server.store.list_targets()
                 flags = {item["id"]: bool(self.server.secrets.get(item["id"])) for item in targets}
+                searching = parse_qs(urlsplit(self.path).query).get("search", [""])[0] == "1"
+                found = discover_paperless() if searching else []
                 html = delivery_pages.targets_page(targets, csrf, flags, notice,
-                                                  discovered=discover_paperless())
+                                                  discovered=found, searched=searching)
             elif path == "/printers":
                 try:
                     cups = list_queues()
@@ -332,13 +334,19 @@ class AdminHandler(BaseHTTPRequestHandler):
                     cups, issue = [], str(exc)
                 targets = [x for x in self.server.store.list_targets()
                            if x["kind"] == "printer"]
-                try:
-                    discovered = discover_printers()
-                except PrintError:
-                    discovered = []
+                searching = parse_qs(urlsplit(self.path).query).get("search", [""])[0] == "1"
+                discovered = []
+                if searching:
+                    try:
+                        discovered = discover_printers()
+                    except PrintError as exc:
+                        issue = (issue + " " + str(exc)).strip()
+                    from itomiscan.integrations.discovery import discover_ipp_printers
+                    discovered = list(dict.fromkeys(
+                        discovered + discover_ipp_printers()))[:50]
                 html = printing_pages.printers_page(
                     targets, cups, csrf, notice=notice, issue=issue,
-                    discovered=discovered)
+                    discovered=discovered, searched=searching)
             elif path == "/jobs":
                 html = delivery_pages.jobs_page(self.server.queue.all(),
                                                 self.server.queue.summary(), csrf, notice)
