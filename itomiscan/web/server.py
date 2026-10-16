@@ -29,6 +29,7 @@ from itomiscan.storage.users import PERMISSIONS, PinError, UserStore
 from itomiscan.web import pages, user_pages, delivery_pages, printing_pages, remote_pages
 from itomiscan.web.system_status import StatusSampler
 from itomiscan.integrations.discovery import discover_paperless
+from itomiscan.web.target_forms import target_from_form
 from itomiscan.integrations.printing import (
     PrintError, list_queues, install_queue, uninstall_queue, test_page,
     discover_printers, set_default_printer, printer_uri, queue_name, address_from_host,
@@ -507,9 +508,7 @@ class AdminHandler(BaseHTTPRequestHandler):
                 self.server.store.select_profile(form.get("name", ""))
                 return self._redirect("/profiles?ok=Standardprofil%20gewechselt")
             if path == "/targets/save":
-                self.server.store.save_target({
-                    "kind": form.get("kind", ""), "name": form.get("name", ""),
-                    "address": form.get("address", "")})
+                self.server.store.save_target(target_from_form(form))
                 return self._redirect("/targets?ok=Ziel%20gespeichert")
             if path == "/targets/delete":
                 target_id = int(form.get("id", ""))
