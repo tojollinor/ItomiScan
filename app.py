@@ -123,7 +123,8 @@ def read_options(device, timeout=25):
 
 
 class ItomiScan:
-    def __init__(self, root, initial_device=None, initial_options=None):
+    def __init__(self, root, initial_device=None, initial_options=None, *,
+                 defer_scanner=False, scanner_retry=None):
         self.root = root
         self.root.title("ItomiScan")
         self.root.configure(bg=BASE, cursor="none")
@@ -135,6 +136,10 @@ class ItomiScan:
         self.busy = False
         self.device = initial_device
         self.options = list(initial_options or [])
+        self.scanner_preparing = bool(defer_scanner and not initial_device)
+        self.scanner_retry = scanner_retry
+        self.pending_early_scan = None
+        self.scanner_wait_panel = None
         self.fields = []
         self.pending_delivery = None
         self.pending_export_path = None
@@ -184,6 +189,11 @@ class ItomiScan:
             self.render_options()
             self.apply_profile(self.profile_store.current())
             self.status_var.set("Bereit")
+        elif defer_scanner:
+            if self.options:
+                self.render_options()
+                self.apply_profile(self.profile_store.current())
+            self.status_var.set("Scanner wird im Hintergrund vorbereitet …")
         else:
             # Preserve the original behavior for direct app.py invocations.
             self.root.after(200, self.load_scanner)
@@ -209,7 +219,7 @@ class ItomiScan:
         self.touch_feedback = install_touch_feedback(self.root)
         if self.login_enabled:
             self.show_login()
-        elif self.device and self.options:
+        elif defer_scanner or (self.device and self.options):
             self.show_home()
         self.root.after(250, self.refresh_ip)
         self.root.after(2000, self.auth_tick)
@@ -901,8 +911,11 @@ class ItomiScan:
         if self.busy or not self._allowed("scan"):
             return
         if not self.device:
-            messagebox.showwarning("Scanner", "Scanner ist noch nicht bereit.",
-                                   parent=self.root)
+            if self.scanner_preparing:
+                self._queue_early_scan("quick")
+            else:
+                messagebox.showwarning("Scanner", "Scanner ist noch nicht bereit.",
+                                       parent=self.root)
             return
         if self.users.settings()["enabled"]:
             profile = self._profile_record(self.session_profile)
@@ -1163,6 +1176,65 @@ class ItomiScan:
         self.ip_var.set("IP: " + (ip or "nicht verbunden"))
         self.root.after(30000, self.refresh_ip)
 
+    def _queue_early_scan(self, mode):
+        """Keep one pending scan request until SANE verifies readiness."""
+        self.pending_early_scan = mode
+        if self.scanner_wait_panel is not None:
+            self.scanner_wait_panel.lift()
+            return
+        panel = tk.Frame(self.root, bg=BASE, highlightthickness=0)
+        panel.place(x=0, y=0, relwidth=1, relheight=1)
+        tk.Label(panel, text="Scanner wird vorbereitet", bg=BASE, fg=FG,
+                 font=("DejaVu Sans", 24, "bold")).place(relx=.5, rely=.40, anchor="center")
+        tk.Label(panel, text="Der Scan startet automatisch, sobald der Scanner bereit ist.",
+                 bg=BASE, fg=MUTED, font=("DejaVu Sans", 14),
+                 wraplength=740).place(relx=.5, rely=.49, anchor="center")
+        tk.Button(panel, text="Abbrechen", command=self._cancel_early_scan,
+                  bg=PANEL, fg=FG, font=("DejaVu Sans", 16, "bold"),
+                  padx=35, pady=13, relief="flat", cursor="none").place(
+                      relx=.5, rely=.61, anchor="center")
+        self.scanner_wait_panel = panel
+        panel.lift()
+
+    def _cancel_early_scan(self):
+        self.pending_early_scan = None
+        if self.scanner_wait_panel is not None:
+            self.scanner_wait_panel.destroy()
+            self.scanner_wait_panel = None
+
+    def scanner_stage(self, message):
+        if self.device is None:
+            self.status_var.set(message)
+
+    def scanner_failed(self, message):
+        self.scanner_preparing = False
+        self._cancel_early_scan()
+        self.status_var.set("Scanner nicht bereit: " + str(message)[:150])
+
+    def scanner_ready(self, device, options):
+        """Revalidate live hardware before enabling any cached scan controls."""
+        if not device or not options or not str(device).startswith(DEVICE_PREFIX):
+            self.scanner_failed("Ungültige Scannerantwort")
+            return
+        self.device = device
+        self.options = list(options)
+        self.scanner_preparing = False
+        self.render_options()
+        if self.users.settings()["enabled"] and self.current_user:
+            profile = self._profile_record(self.session_profile)
+        else:
+            profile = self.profile_store.current()
+        if profile:
+            self.apply_profile(profile)
+        self.status_var.set("Scanner bereit")
+        early = self.pending_early_scan
+        self._cancel_early_scan()
+        if early and not self.review_pending:
+            if early == "quick":
+                self.root.after_idle(self.quick_scan)
+            else:
+                self.root.after_idle(self.start_scan)
+
     def load_scanner(self):
         try:
             self.device = find_device()
@@ -1256,7 +1328,11 @@ class ItomiScan:
             pass
 
     def start_scan(self):
-        if self.busy or not self.device:
+        if self.busy:
+            return
+        if not self.device:
+            if self.scanner_preparing and self._allowed(self._delivery_permission()):
+                self._queue_early_scan("normal")
             return
         if self.review_pending:
             messagebox.showinfo("Dokument prüfen",
