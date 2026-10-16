@@ -200,6 +200,35 @@ class WebAdminTests(unittest.TestCase):
         self.assertEqual(self.req("POST", "/targets/save", target)[0],303)
         self.assertEqual(len(ConfigStore(self.server.store.path).list_targets()),1)
 
+    def test_destination_specific_form_save_preserves_existing_store(self):
+        self.login()
+        cases = [
+            ("paperless", {"paperless_url": "https://paperless.lan"},
+             "https://paperless.lan"),
+            ("network", {"network_host": "nas.lan", "network_share": "Scans",
+                         "network_directory": "Eingang/2026"},
+             "smb://nas.lan/Scans/Eingang/2026"),
+            ("email", {"email_host": "smtp.lan", "email_security": "starttls",
+                       "email_port": "", "email_recipient": "scan@example.org"},
+             "smtp://smtp.lan:587/scan@example.org"),
+            ("usb", {"usb_volume": "SCANSTICK", "usb_directory": "Dokumente"},
+             "usb://SCANSTICK/Dokumente"),
+        ]
+        for index, (kind, fields, expected) in enumerate(cases):
+            with self.subTest(kind=kind):
+                code, _, _ = self.req("POST", "/targets/save", {
+                    "csrf": self.csrf, "kind": kind, "name": "Ziel" + str(index),
+                    **fields})
+                self.assertEqual(code, 303)
+                found = next(x for x in self.server.store.list_targets()
+                             if x["name"] == "Ziel" + str(index))
+                self.assertEqual(found["address"], expected)
+        code, _, _ = self.req("POST", "/targets/save", {
+            "csrf": self.csrf, "kind": "network", "name": "Bad",
+            "network_host": "nas.lan", "network_share": ".."})
+        self.assertEqual(code, 400)
+        self.assertEqual(len(self.server.store.list_targets()), len(cases))
+
     def test_target_html_escaped_and_secrets_not_exported(self):
         self.login()
         self.server.store.save_target({
