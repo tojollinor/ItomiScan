@@ -299,7 +299,14 @@ class AdminHandler(BaseHTTPRequestHandler):
                     "profiles": len(profiles), "targets": len(targets)}, csrf, notice)
             elif path == "/profiles":
                 profiles, selected = self.server.store.list_profiles()
-                html = pages.profiles_page(profiles, selected, csrf, notice)
+                printers = [t for t in self.server.store.list_targets()
+                            if t["kind"] == "printer"]
+                printer_selections = {
+                    p["name"]: self.server.store.get_profile_printer(p["name"])
+                    for p in profiles}
+                html = pages.profiles_page(
+                    profiles, selected, csrf, notice, printers=printers,
+                    printer_selections=printer_selections)
             elif path == "/remote":
                 profiles, selected = self.server.store.list_profiles()
                 html = remote_pages.remote_page(
@@ -477,6 +484,11 @@ class AdminHandler(BaseHTTPRequestHandler):
                     "output": form.get("output", ""), "settings": advanced})
                 self.server.store.save_profile(item)
                 return self._redirect("/profiles?ok=Profil%20gespeichert")
+            if path == "/profiles/printer":
+                target_id = int(form.get("target_id", "0"))
+                self.server.store.set_profile_printer(
+                    form.get("name", ""), target_id if target_id else None)
+                return self._redirect("/profiles?ok=Drucker%20zugeordnet")
             if path == "/profiles/select":
                 self.server.store.select_profile(form.get("name", ""))
                 return self._redirect("/profiles?ok=Standardprofil%20gewechselt")
