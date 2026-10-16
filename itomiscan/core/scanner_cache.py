@@ -27,7 +27,7 @@ def _valid_options(options):
             return False
         if not isinstance(item.get("section"), str) or len(item["section"]) > 80:
             return False
-        if not isinstance(item.get("kind"), str) or item["kind"] not in ("enum", "bool", "number", "string"):
+        if not isinstance(item.get("kind"), str) or item["kind"] not in ("enum", "bool", "number", "text"):
             return False
         if type(item.get("inactive")) is not bool:
             return False
