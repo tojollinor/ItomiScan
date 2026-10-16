@@ -38,7 +38,6 @@ class DiscoveryTests(unittest.TestCase):
         self.assertIn("data-select-paperless", html)
         self.assertIn("&quot;onmouseover=&quot;", html)
         self.assertIn('action="/targets/save"', html)
-        self.assertIn("Die Erkennung", html) if False else None
         self.assertIn("Suchtreffer sind nur Vorschläge", html)
         self.assertNotIn('data-select-paperless="https://malicious.example/"onmouseover', html)
 
