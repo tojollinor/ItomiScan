@@ -250,9 +250,7 @@ class ItomiScan:
                     if self._allowed("shutdown", silent=True):
                         # Do not run privileged commands from the web service.
                         # The kiosk uses the exact existing sudoers allowlist.
-                        self.remote_commands.finish(
-                            command_id, "done", "Systemaktion an Kiosk übergeben.")
-                        self._remote_power(action)
+                        self._remote_power(action, command_id)
                         request = None
                     else:
                         detail = "Keine lokale Berechtigung zum Herunterfahren."
@@ -263,16 +261,21 @@ class ItomiScan:
             pass
         self.root.after(1000, self.remote_tick)
 
-    def _remote_power(self, action):
-        """Browser already confirmed the action; keep the kiosk safety gates."""
+    def _remote_power(self, action, command_id):
+        """Acknowledge execution separately from the browser request."""
         if self.busy or self.review_pending:
+            self.remote_commands.finish(
+                command_id, "rejected", "Scanner beschäftigt.")
             return
         command = "reboot" if action == "restart" else "poweroff"
         try:
             result = shell(["sudo", "-n", "/usr/bin/systemctl", command], timeout=15)
             if result.returncode:
                 raise RuntimeError("Systemberechtigung fehlt.")
+            self.remote_commands.finish(
+                command_id, "accepted", "Systembefehl angenommen, Abschluss nicht bestätigt.")
         except (OSError, RuntimeError, subprocess.TimeoutExpired) as exc:
+            self.remote_commands.finish(command_id, "error", str(exc))
             self.status_var.set("Fernaktion fehlgeschlagen: " + str(exc))
 
     def _refresh_busy_logos(self):
