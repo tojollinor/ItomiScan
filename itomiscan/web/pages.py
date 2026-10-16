@@ -86,6 +86,37 @@ STATUS_JS = """(() => {
 })();"""
 
 
+REMOTE_JS = """(() => {
+  const status = document.getElementById('remote-command-status');
+  document.querySelectorAll('[data-power-confirm]').forEach(form => {
+    form.addEventListener('click', event => {
+      const button = event.target.closest('button[name="action"]');
+      if (!button) return;
+      const action = button.value === 'restart' ? 'neu starten' : 'herunterfahren';
+      if (!window.confirm('ItomiScan wirklich ' + action + '?')) {
+        event.preventDefault();
+      }
+    });
+  });
+  if (!status) return;
+  async function refresh() {
+    if (document.hidden) return;
+    try {
+      const response = await fetch('/api/remote-status',
+          {cache:'no-store', credentials:'same-origin'});
+      if (!response.ok) return;
+      const item = await response.json();
+      status.textContent = item ? 'Letzter Auftrag #' + item.id + ': ' +
+          item.action + ' · ' + item.status + ' · ' + item.detail :
+          'Noch kein Fernauftrag';
+    } catch (_error) {}
+  }
+  refresh();
+  const timer = window.setInterval(refresh, 2500);
+  window.addEventListener('pagehide', () => clearInterval(timer), {once:true});
+})();"""
+
+
 PRINTER_CHOOSE_JS = """(() => {
   document.addEventListener('click', event => {
     const button = event.target.closest('[data-select-printer]');
@@ -181,7 +212,7 @@ def layout(title, body, *, active="", csrf="", notice="", error="", logged=True,
     navigation = ""
     if logged:
         links = (("/", "Übersicht"), ("/profiles", "Scanprofile"),
-                 ("/users", "Benutzer"), ("/targets", "Zielsysteme"), ("/printers", "Drucker"), ("/jobs", "Aufträge"), ("/system", "System"),
+                 ("/users", "Benutzer"), ("/remote", "Fernbedienung"), ("/targets", "Zielsysteme"), ("/printers", "Drucker"), ("/jobs", "Aufträge"), ("/system", "System"),
                  ("/backups", "Sicherung"))
         navigation = '<nav aria-label="Hauptnavigation">' + '<a class="nav-home-brand" href="/" aria-label="ItomiScan Übersicht">' + logo_svg(28) + '<span>Itomi<b>Scan</b></span></a>' + "".join(
             f'<a class="{("active" if url == active else "")}" href="{url}">{e(label)}</a>'
