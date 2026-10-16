@@ -313,7 +313,9 @@ def overview(status, counts, csrf, notice=""):
                   live=True)
 
 
-def profiles_page(profiles, selected, csrf, notice=""):
+def profiles_page(profiles, selected, csrf, notice="", *, printers=None, printer_selections=None):
+    printers = printers or []
+    printer_selections = printer_selections or {}
     body = '<h1>Scanprofile</h1><p>Die Änderungen stehen dem Touchdisplay beim nächsten Profilaufruf zur Verfügung.</p>'
     body += '<section class="entry-list">'
     for index, item in enumerate(profiles):
@@ -335,7 +337,16 @@ def profiles_page(profiles, selected, csrf, notice=""):
                  '<button>Profil speichern</button></form>'
                  '<form method="post" action="/profiles/select">'
                  + token(csrf) + f'<input type="hidden" name="name" value="{e(name)}">'
-                 '<button class="secondary">Als Standard verwenden</button></form></article>')
+                 '<button class="secondary">Als Standard verwenden</button></form>'
+                 '<form method="post" action="/profiles/printer">' + token(csrf)
+                 + '<input type="hidden" name="name" value="' + e(name) + '">'
+                 '<label>Bevorzugter Drucker für Kopieren</label>'
+                 '<select name="target_id"><option value="0">Kein bevorzugter Drucker</option>'
+                 + "".join('<option value="' + e(p["id"]) + '"' +
+                           (' selected' if printer_selections.get(name) == p["id"] else '') +
+                           '>' + e(p["name"]) + '</option>' for p in printers)
+                 + '</select><button class="secondary">Druckerzuordnung speichern</button>'
+                 '</form></article>')
         body += detail_dialog(f'profile-{index}', name,
                               f'{item["mode"]} · {item["resolution"]} DPI · {item["source"]}', detail)
     body += '</section><div class="card" style="margin-top:16px"><h2>Neues Profil</h2>'
