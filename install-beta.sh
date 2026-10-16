@@ -42,7 +42,7 @@ ok "Debian 12, Benutzer, Home, Speicher und DNS geprueft."
 step "Basispakete"
 export DEBIAN_FRONTEND=noninteractive
 apt-get update
-apt-get install -y --no-install-recommends xserver-xorg-core xserver-xorg-input-libinput xserver-xorg-video-intel xinit x11-xserver-utils xauth python3 python3-tk python3-pil python3-pil.imagetk sane-utils img2pdf git ca-certificates fonts-dejavu-core sudo openssl cups cups-client cups-filters smbclient curl avahi-utils
+apt-get install -y --no-install-recommends xserver-xorg-core xserver-xorg-input-libinput xserver-xorg-video-intel xinit x11-xserver-utils xauth libxtst6 python3 python3-tk python3-pil python3-pil.imagetk sane-utils img2pdf git ca-certificates fonts-dejavu-core sudo openssl cups cups-client cups-filters smbclient curl avahi-utils
 ok "Basispakete installiert."
 
 step "Beta-Code (curl-Archiv, ohne git pull/reset)"
