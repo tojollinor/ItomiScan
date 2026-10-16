@@ -36,6 +36,7 @@ from itomiscan.integrations.printing import (
 )
 from itomiscan.storage.queue import DeliveryQueue, QueueError
 from itomiscan.storage.remote_commands import RemoteCommands
+from itomiscan.storage.remote_live import RemoteLive, viewer_id, FRAME_SECONDS
 from itomiscan.storage.secrets import SecretStore, SecretError
 
 
@@ -158,6 +159,7 @@ class AdminServer(ThreadingHTTPServer):
         self.diagnostic = ""
         self.status_sampler = StatusSampler()
         self.remote_commands = RemoteCommands(store.path)
+        self.remote_live = RemoteLive(store.path)
 
 
 class AdminHandler(BaseHTTPRequestHandler):
@@ -224,7 +226,7 @@ class AdminHandler(BaseHTTPRequestHandler):
         self.send_header("Referrer-Policy", "no-referrer")
         self.send_header("Content-Security-Policy",
                          "default-src 'none'; style-src 'unsafe-inline'; "
-                         "script-src 'self'; connect-src 'self'; "
+                         "script-src 'self'; img-src 'self'; connect-src 'self'; "
                          "form-action 'self'; frame-ancestors 'none'; base-uri 'none'")
         if location:
             self.send_header("Location", location)
@@ -313,8 +315,10 @@ class AdminHandler(BaseHTTPRequestHandler):
                     printer_selections=printer_selections)
             elif path == "/remote":
                 profiles, selected = self.server.store.list_profiles()
+                viewer = viewer_id(self._session_token())
                 html = remote_pages.remote_page(
-                    profiles, selected, self.server.remote_commands.latest(), csrf, notice)
+                    profiles, selected, self.server.remote_commands.latest(), csrf, notice,
+                    live=self.server.remote_live.authorized(viewer))
             elif path == "/users":
                 profiles, _ = self.server.store.list_profiles()
                 html = user_pages.users_page(
@@ -367,6 +371,20 @@ class AdminHandler(BaseHTTPRequestHandler):
                 return self._response(
                     200, data, mime="application/json; charset=utf-8",
                     attachment='attachment; filename="itomiscan-konfiguration.json"')
+            elif path == "/api/remote-frame":
+                viewer = viewer_id(self._session_token())
+                if not self.server.remote_live.authorized(viewer):
+                    return self._error(403, "Liveansicht nicht aktiv.")
+                frame = self.server.remote_live.frame_path
+                try:
+                    if time.time() - frame.stat().st_mtime > FRAME_SECONDS:
+                        return self._error(503, "Noch kein aktuelles Fernbild verfügbar.")
+                    blob = frame.read_bytes()
+                except OSError:
+                    return self._error(503, "Bildschirmaufnahme wird vorbereitet.")
+                if not blob.startswith(bytes((255, 216))) or len(blob) > 512 * 1024:
+                    return self._error(503, "Fernbild nicht verfügbar.")
+                return self._response(200, blob, mime="image/jpeg")
             elif path == "/api/remote-status":
                 return self._response(200, json.dumps(
                     self.server.remote_commands.latest()),
@@ -457,8 +475,31 @@ class AdminHandler(BaseHTTPRequestHandler):
             return self._error(403, "Sicherheitsprüfung fehlgeschlagen. Bitte Seite neu laden.")
         try:
             if path == "/logout":
+                self.server.remote_live.stop(viewer_id(self._session_token()))
                 self.server.sessions.remove(self._session_token())
                 return self._redirect("/login", cookie=self._cookie("", expired=True))
+            if path == "/remote/live/start":
+                self.server.remote_live.start(viewer_id(self._session_token()))
+                return self._redirect("/remote?ok=Liveansicht%20gestartet")
+            if path == "/remote/live/stop":
+                self.server.remote_live.stop(viewer_id(self._session_token()))
+                return self._redirect("/remote?ok=Liveansicht%20beendet")
+            if path == "/remote/live/ping":
+                self.server.remote_live.ping(viewer_id(self._session_token()))
+                return self._response(200, '{"active":true}',
+                                      mime="application/json; charset=utf-8")
+            if path == "/remote/live/input":
+                viewer = viewer_id(self._session_token())
+                kind = form.get("kind", "")
+                if kind == "click":
+                    self.server.remote_live.enqueue(viewer, "click",
+                                                    x=int(form.get("x", "")),
+                                                    y=int(form.get("y", "")))
+                else:
+                    self.server.remote_live.enqueue(
+                        viewer, kind, key_name=form.get("key_name", ""))
+                return self._response(200, '{"accepted":true}',
+                                      mime="application/json; charset=utf-8")
             if path == "/remote/profile":
                 self.server.store.select_profile(form.get("name", ""))
                 return self._redirect("/remote?ok=Scanprofil%20ausgewaehlt")
