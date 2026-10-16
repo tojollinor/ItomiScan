@@ -272,6 +272,9 @@ class AdminHandler(BaseHTTPRequestHandler):
             return self._redirect("/login")
         notice = parse_qs(urlsplit(self.path).query).get("ok", [""])[0][:180]
         try:
+            if path == "/assets/admin-dialogs.js":
+                return self._response(200, pages.DIALOG_JS,
+                                      mime="text/javascript; charset=utf-8")
             if path == "/assets/status.js":
                 return self._response(
                     200, pages.STATUS_JS,
@@ -330,6 +333,10 @@ class AdminHandler(BaseHTTPRequestHandler):
                 return self._response(
                     200, data, mime="application/json; charset=utf-8",
                     attachment='attachment; filename="itomiscan-konfiguration.json"')
+            elif path == "/api/metrics":
+                data = json.dumps(self.server.status_sampler.collect(
+                    self.server.store.path.parent), ensure_ascii=False)
+                return self._response(200, data, mime="application/json; charset=utf-8")
             elif path == "/api/status":
                 data = json.dumps(inspect_system(
                     self.server.store, self.server.bind_ip,
