@@ -26,6 +26,7 @@ from itomiscan.gui.menu import DeviceMenu
 from itomiscan.gui.touch import install_touch_feedback
 from itomiscan.storage.users import UserStore
 from itomiscan.storage.queue import DeliveryQueue
+from itomiscan.storage.remote_commands import RemoteCommands
 
 from PIL import Image, ImageTk
 
@@ -156,6 +157,8 @@ class ItomiScan:
         self.profile_store = ProfileStore()
         self.users = UserStore(self.profile_store.path)
         self.delivery_queue = DeliveryQueue(self.profile_store.path)
+        self.remote_commands = (RemoteCommands(self.profile_store.path)
+                                if self.profile_store.path else None)
         self.current_user = None
         self.session_profile = None
         self.last_activity = time.monotonic()
@@ -212,6 +215,65 @@ class ItomiScan:
         self.root.after(2000, self.auth_tick)
         self.root.after(6000, self.delivery_tick)
         self.root.after(300, self._refresh_busy_logos)
+        if self.remote_commands is not None:
+            self.root.after(1000, self.remote_tick)
+
+    def remote_tick(self):
+        """Execute short-lived browser commands on the Tk/UI thread.
+
+        Local PIN rights, document review and scan locks still apply.
+        Power operations require a separate explicit confirmation in the
+        authenticated browser, then use the existing restricted sudo command.
+        """
+        try:
+            request = self.remote_commands.take()
+            if request:
+                command_id = request["id"]
+                action = request["action"]
+                status = "rejected"
+                detail = "Befehl nicht zugelassen."
+                if self.busy or self.review_pending:
+                    detail = "Scanner ist beschäftigt oder Dokumentprüfung offen."
+                elif self.login_enabled and self.current_user is None:
+                    detail = "Zuerst am Scanner anmelden."
+                elif action in ("scan", "open_scan"):
+                    if self._allowed("scan", silent=True) and self.device:
+                        if action == "scan":
+                            self.quick_scan()
+                        else:
+                            self.show_scan()
+                        status, detail = "done", "An lokale Oberfläche übergeben."
+                elif action == "home":
+                    self.show_home()
+                    status, detail = "done", "Startseite geöffnet."
+                elif action in ("restart", "poweroff"):
+                    if self._allowed("shutdown", silent=True):
+                        # Do not run privileged commands from the web service.
+                        # The kiosk uses the exact existing sudoers allowlist.
+                        self.remote_commands.finish(
+                            command_id, "done", "Systemaktion an Kiosk übergeben.")
+                        self._remote_power(action)
+                        request = None
+                    else:
+                        detail = "Keine lokale Berechtigung zum Herunterfahren."
+                if request is not None:
+                    self.remote_commands.finish(command_id, status, detail)
+        except Exception:
+            # A broken remote controller must never stop the kiosk.
+            pass
+        self.root.after(1000, self.remote_tick)
+
+    def _remote_power(self, action):
+        """Browser already confirmed the action; keep the kiosk safety gates."""
+        if self.busy or self.review_pending:
+            return
+        command = "reboot" if action == "restart" else "poweroff"
+        try:
+            result = shell(["sudo", "-n", "/usr/bin/systemctl", command], timeout=15)
+            if result.returncode:
+                raise RuntimeError("Systemberechtigung fehlt.")
+        except (OSError, RuntimeError, subprocess.TimeoutExpired) as exc:
+            self.status_var.set("Fernaktion fehlgeschlagen: " + str(exc))
 
     def _refresh_busy_logos(self):
         """Small kiosk-safe status watcher; animates no frames while idle."""
