@@ -2,10 +2,34 @@
 from itomiscan.web.pages import e, layout, options, token
 
 
-def remote_page(profiles, selected, latest, csrf, notice=""):
+def remote_page(profiles, selected, latest, csrf, notice="", *, live=False):
     state = ("Noch kein Fernauftrag" if not latest else
              f"Letzter Auftrag #{latest['id']}: {latest['action']} · "
              f"{latest['status']} · {latest['detail']}")
+    view = ('<article class="card"><h2>Liveansicht des Touchscreens</h2>'
+            '<p>Ressourcenschonende Bildschirmbilder ungefähr alle 1,5 Sekunden. '
+            'Klicks und ausgewählte Tastaturbefehle werden an den lokalen Kiosk '
+            'gesendet. Die lokale PIN-Anmeldung bleibt erforderlich.</p>')
+    if live:
+        view += ('<div class="remote-screen"><img id="remote-live-frame" '
+                 'alt="Aktueller Scannerbildschirm; per Klick bedienen" '
+                 'draggable="false"></div>'
+                 '<p id="remote-live-status" role="status">Livebild wird geladen …</p>'
+                 '<form method="post" action="/remote/live/stop">' + token(csrf)
+                 + '<button class="secondary">Liveansicht beenden</button></form>'
+                 '<div class="remote-keys"><label for="remote-text">Tastatureingabe</label>'
+                 '<input id="remote-text" maxlength="80" '
+                 'placeholder="Text eingeben und senden">'
+                 '<button type="button" id="remote-send-text">Text senden</button>'
+                 '<button type="button" data-remote-key="BackSpace">Rücktaste</button>'
+                 '<button type="button" data-remote-key="Return">Enter</button>'
+                 '<button type="button" data-remote-key="Tab">Tab</button></div>')
+    else:
+        view += ('<p class="status-note">Die Liveansicht ist ausgeschaltet und '
+                 'verbraucht keine Bildschirmaufnahmen.</p>'
+                 '<form method="post" action="/remote/live/start">' + token(csrf)
+                 + '<button>Liveansicht starten</button></form>')
+    view += '</article>'
     body = ('<h1>Scanner fernsteuern</h1>'
             '<p>Aktionen werden an die lokale ItomiScan-Oberfläche übergeben. '
             'Eine aktive PIN-Sitzung und lokale Berechtigungen gelten weiterhin. '
