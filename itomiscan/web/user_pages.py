@@ -1,5 +1,5 @@
 """PIN user and permission management pages. No PINs or digests rendered."""
-from itomiscan.web.pages import e, layout, options, token
+from itomiscan.web.pages import e, layout, options, token, detail_dialog
 from itomiscan.storage.users import FEATURES, PERMISSIONS
 
 
@@ -61,9 +61,11 @@ def users_page(users, settings, profile_names, csrf, notice=""):
             + e(settings["timeout_minutes"]) + '">'
             '<button>Einstellung speichern</button></form></article>'
             '<h2 style="margin-top:25px">Benutzer und Berechtigungen</h2>'
-            '<section class="grid">')
-    for user in users:
-        body += user_form(user, profile_names, csrf)
+            '<section class="entry-list">')
+    for index, user in enumerate(users):
+        body += detail_dialog(f"user-{index}", user["name"],
+                              "Aktiv" if user["active"] else "Inaktiv",
+                              user_form(user, profile_names, csrf))
     body += user_form(None, profile_names, csrf) + '</section>'
     body += ('<p>PINs und PIN-Prüfsummen werden weder angezeigt noch in '
              'JSON-Konfigurationssicherungen exportiert. '
