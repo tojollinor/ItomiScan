@@ -309,6 +309,7 @@ class ConfigStore:
         if type(target_id) is not int or target_id <= 0:
             raise ConfigError("Ungültige Ziel-ID.")
         with self._connection(write=True) as db:
+            db.execute("DELETE FROM profile_printers WHERE target_id=?", (target_id,))
             db.execute("DELETE FROM targets WHERE id=?", (target_id,))
 
     def has_password(self):
@@ -338,10 +339,17 @@ class ConfigStore:
 
     def backup(self):
         profiles, selected = self.list_profiles()
+        with self._connection() as db:
+            printers = db.execute(
+                "SELECT pp.profile_name,t.name FROM profile_printers pp "
+                "JOIN targets t ON t.id=pp.target_id AND t.kind='printer'"
+            ).fetchall()
+        printer_map = {row[0]: row[1] for row in printers}
         return {"version": 1, "profiles": profiles, "selected": selected,
                 "targets": [{k: item[k] for k in ("kind","name","address")}
                             for item in self.list_targets()],
                 "settings": self.get_settings(),
+                "profile_printers": printer_map,
                 "note": "Enthält keine Passwörter, Tokens oder Sitzungsdaten."}
 
     def restore(self, payload):
@@ -365,6 +373,13 @@ class ConfigStore:
             raise ConfigError("Doppelte Zielsysteme.")
         if not isinstance(settings, dict) or set(settings) != SETTINGS.keys():
             raise ConfigError("Ungültige Einstellungen.")
+        profile_printers = payload.get("profile_printers", {})
+        valid_printers = {t["name"] for t in valid_targets if t["kind"] == "printer"}
+        if (not isinstance(profile_printers, dict)
+                or any(not isinstance(k, str) or not isinstance(v, str)
+                       or k not in names or v not in valid_printers
+                       for k, v in profile_printers.items())):
+            raise ConfigError("Ungültige Profil-Druckerzuordnung.")
         for key, value in settings.items():
             validate_setting(key, value)
         with self._connection(write=True) as db:
@@ -372,10 +387,17 @@ class ConfigStore:
             for item in valid_profiles:
                 db.execute("INSERT INTO profiles(name,data) VALUES(?,?)",
                            (item["name"], json.dumps(item, ensure_ascii=False)))
+            db.execute("DELETE FROM profile_printers")
             db.execute("DELETE FROM targets")
             for item in valid_targets:
                 db.execute("INSERT INTO targets(kind,name,address) VALUES(?,?,?)",
                            (item["kind"], item["name"], item["address"]))
+            for name, printer in profile_printers.items():
+                row = db.execute(
+                    "SELECT id FROM targets WHERE kind='printer' AND name=?",
+                    (printer,)).fetchone()
+                db.execute("INSERT INTO profile_printers(profile_name,target_id) "
+                           "VALUES (?,?)", (name, row[0]))
             db.execute("INSERT OR REPLACE INTO settings (key,value) VALUES(?,?)",
                        ("selected_profile", json.dumps(payload["selected"])))
             for key, value in settings.items():
