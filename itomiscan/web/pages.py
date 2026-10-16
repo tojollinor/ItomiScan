@@ -68,6 +68,17 @@ STATUS_JS = """(() => {
           element.textContent = String(data[key]);
         }
       });
+      const memory = document.querySelector('[data-ram-progress]');
+      const fill = document.querySelector('[data-ram-fill]');
+      const detail = document.querySelector('[data-ram-detail]');
+      const percent = Number(data.ram_percent);
+      if (memory && fill && data.ram_percent != null && Number.isFinite(percent)) {
+        const bounded = Math.max(0, Math.min(100, percent));
+        memory.setAttribute('aria-valuenow', String(bounded));
+        fill.style.width = bounded + '%';
+        if (detail) detail.textContent = data.ram_used + ' von ' + data.ram_total +
+            ' belegt · ' + data.ram_free + ' verfügbar (' + bounded.toFixed(1) + ' %)';
+      }
       charts.forEach(chart => {
         const key = chart.dataset.metricChart;
         const value = key === 'cpu' ? parseFloat(data.cpu) :
@@ -75,7 +86,8 @@ STATUS_JS = """(() => {
         draw(chart, value);
         const label = chart.parentElement.querySelector('[data-chart-value]');
         if (label) label.textContent = Number.isFinite(value) ?
-                                       value.toFixed(1) + ' %' : 'Nicht verfügbar';
+            (key === 'ram' ? data.ram_used + ' / ' + data.ram_total + ' · ' : '') +
+            value.toFixed(1) + ' %' : 'Nicht verfügbar';
       });
     } catch (_error) { /* Retain previous samples if temporarily offline. */ }
     finally { busy = false; }
@@ -236,6 +248,8 @@ table{width:100%;border-collapse:collapse}td,th{padding:10px;text-align:left;bor
 .dialog-top button{margin:0}
 .detail-dialog .card{padding:0}
 .monitor-chart{width:100%;height:auto;display:block;background:#101d2e;border-radius:9px}
+.memory-track{height:20px;background:#101d2e;border-radius:10px;overflow:hidden;border:1px solid var(--line)}
+.memory-fill{height:100%;width:0;background:#42bfea;transition:width .5s linear}
 """
 
 
@@ -243,9 +257,9 @@ def layout(title, body, *, active="", csrf="", notice="", error="", logged=True,
     navigation = ""
     if logged:
         links = (("/", "Übersicht"), ("/profiles", "Scanprofile"),
-                 ("/users", "Benutzer"), ("/remote", "Fernbedienung"), ("/targets", "Zielsysteme"), ("/printers", "Drucker"), ("/jobs", "Aufträge"), ("/system", "System"),
+                 ("/users", "Benutzer"), ("/remote", "Fernsteuerung"), ("/targets", "Zielsysteme"), ("/printers", "Drucker"), ("/jobs", "Aufträge"), ("/system", "System"),
                  ("/backups", "Sicherung"))
-        navigation = '<nav aria-label="Hauptnavigation">' + '<a class="nav-home-brand" href="/" aria-label="ItomiScan Übersicht">' + logo_svg(28) + '<span>Itomi<b>Scan</b></span></a>' + "".join(
+        navigation = '<nav aria-label="Hauptnavigation">' + "".join(
             f'<a class="{("active" if url == active else "")}" href="{url}">{e(label)}</a>'
             for url, label in links
         ) + (f'<form class="inline" method="post" action="/logout">'
@@ -295,6 +309,10 @@ def chart_panel(title, key):
             '<svg class="monitor-chart" data-metric-chart="' + e(key) +
             '" viewBox="0 0 320 122" role="img" aria-label="Auslastung der letzten fünf Minuten">'
             '<path d="M10 10V110H310" fill="none" stroke="#587088" stroke-width="1"/>'
+             '<path d="M10 10H310M10 60H310" fill="none" stroke="#32455a" stroke-width=".6" stroke-dasharray="3 3"/>'
+             '<text x="14" y="9" fill="#a8bacd" font-size="9">100%</text>'
+             '<text x="14" y="57" fill="#a8bacd" font-size="9">50%</text>'
+             '<text x="14" y="105" fill="#a8bacd" font-size="9">0%</text>'
             '<polyline fill="none" stroke="#42bfea" stroke-width="2" points=""/>'
             '<text x="10" y="120" fill="#a8bacd" font-size="9">−5 min</text>'
             '<text x="310" y="120" fill="#a8bacd" font-size="9" text-anchor="end">Jetzt</text>'
@@ -319,16 +337,16 @@ def overview(status, counts, csrf, notice=""):
         + f'<p>{e(description)}</p></article>' for name, value, description in items
     ) + '</section>'
     body += '<h2>Systemauslastung</h2><section class="grid">'
-    for heading, key, hint in (
-        ("CPU-Auslastung", "cpu", "Aktuelle Auslastung seit der letzten Messung"),
-        ("Arbeitsspeicher", "ram", "Belegt / gesamt"),
-        ("Datenträger", "disk", "Belegt / Gesamtkapazität"),
-    ):
-        body += (f'<article class="card"><h2>{e(heading)}</h2>'
-                 f'<p class="status-metric">{metric(key, status.get(key, "Nicht verfügbar"))}</p>'
-                 f'<p class="status-note">{e(hint)}</p></article>')
-    body += '</section><h2>Verlauf der letzten fünf Minuten</h2><section class="grid">'
-    body += chart_panel('CPU-Auslastung', 'cpu') + chart_panel('RAM-Auslastung', 'ram')
+    body += chart_panel('CPU-Auslastung', 'cpu') + chart_panel('Arbeitsspeicher', 'ram')
+    body += '</section><section class="grid" style="margin-top:16px">'
+    body += ('<article class="card"><h2>Arbeitsspeicherbelegung</h2>'
+             '<div class="memory-track" role="progressbar" aria-label="Arbeitsspeicher belegt" '
+             'aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" data-ram-progress>'
+             '<div class="memory-fill" data-ram-fill></div></div>'
+             '<p data-ram-detail>Messung läuft …</p></article>')
+    body += ('<article class="card"><h2>Datenträger</h2><p class="status-metric">'
+             + metric('disk', status.get('disk', 'Nicht verfügbar'))
+             + '</p></article>')
     body += '</section><h2>Gerätezustand</h2><section class="grid">'
     for heading, key in (
         ("Web-Admin-Dienst", "web_service"),
