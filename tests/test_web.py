@@ -458,6 +458,37 @@ class WebAdminTests(unittest.TestCase):
         self.assertTrue(any(x["id"] == target["id"]
                             for x in self.server.store.list_targets()))
 
+    def test_live_desktop_requires_login_csrf_and_exclusive_browser(self):
+        self.assertEqual(self.req("GET", "/api/remote-frame")[0], 303)
+        self.assertEqual(self.req("POST", "/remote/live/start", {"csrf": "bad"})[0], 403)
+        self.login()
+        code, _, html = self.req("GET", "/remote")
+        self.assertEqual(code, 200)
+        self.assertIn("Liveansicht starten", html)
+        self.assertEqual(self.req("POST", "/remote/live/start",
+                          {"csrf": "bad"})[0], 403)
+        self.assertEqual(self.req("POST", "/remote/live/start",
+                          {"csrf": self.csrf})[0], 303)
+        self.assertEqual(self.req("GET", "/remote")[0], 200)
+        self.assertIn("remote-live-frame", self.req("GET", "/remote")[2])
+        # Image response is refused until the physical kiosk has written a fresh frame.
+        self.assertEqual(self.req("GET", "/api/remote-frame")[0], 503)
+        self.assertEqual(self.req("POST", "/remote/live/input",
+                          {"csrf": self.csrf, "kind": "click",
+                           "x": "501", "y": "250"})[0], 200)
+        self.assertEqual(self.server.remote_live.take()["kind"], "click")
+        self.assertEqual(self.req("POST", "/remote/live/input",
+                          {"csrf": self.csrf, "kind": "key",
+                           "key_name": "Control_L"})[0], 400)
+        self.assertEqual(self.req("POST", "/remote/live/ping",
+                          {"csrf": self.csrf})[0], 200)
+        self.assertEqual(self.req("POST", "/remote/live/stop",
+                          {"csrf": self.csrf})[0], 303)
+        self.assertEqual(self.req("GET", "/api/remote-frame")[0], 403)
+        self.assertEqual(self.req("POST", "/remote/live/input",
+                          {"csrf": self.csrf, "kind": "key",
+                           "key_name": "Return"})[0], 400)
+
     def test_authenticated_remote_actions_and_csrf(self):
         self.assertEqual(self.req("GET", "/remote")[0], 303)
         self.assertEqual(self.req("GET", "/api/remote-status")[0], 303)
