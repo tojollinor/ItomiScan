@@ -37,7 +37,6 @@ STATUS_JS = """(() => {
   const elements = document.querySelectorAll('[data-status-key]');
   const charts = document.querySelectorAll('[data-metric-chart]');
   if (!elements.length && !charts.length) return;
-  const NS = 'http://www.w3.org/2000/svg';
   const histories = new Map();
   let busy = false;
   function draw(chart, value) {
@@ -72,7 +71,7 @@ STATUS_JS = """(() => {
       charts.forEach(chart => {
         const key = chart.dataset.metricChart;
         const value = key === 'cpu' ? parseFloat(data.cpu) :
-                      Number(data.ram_percent);
+                      (data.ram_percent == null ? NaN : Number(data.ram_percent));
         draw(chart, value);
         const label = chart.parentElement.querySelector('[data-chart-value]');
         if (label) label.textContent = Number.isFinite(value) ?
@@ -253,7 +252,9 @@ def overview(status, counts, csrf, notice=""):
         body += (f'<article class="card"><h2>{e(heading)}</h2>'
                  f'<p class="status-metric">{metric(key, status.get(key, "Nicht verfügbar"))}</p>'
                  f'<p class="status-note">{e(hint)}</p></article>')
-    body += '</section><h2>Verlauf der letzten fünf Minuten</h2><section class="grid">'\n    body += chart_panel('CPU-Auslastung', 'cpu') + chart_panel('RAM-Auslastung', 'ram')\n    body += '</section><h2>Gerätezustand</h2><section class="grid">'
+    body += '</section><h2>Verlauf der letzten fünf Minuten</h2><section class="grid">'
+    body += chart_panel('CPU-Auslastung', 'cpu') + chart_panel('RAM-Auslastung', 'ram')
+    body += '</section><h2>Gerätezustand</h2><section class="grid">'
     for heading, key in (
         ("Web-Admin-Dienst", "web_service"),
         ("Zustelldienst", "delivery_service"),
