@@ -60,6 +60,7 @@ class RemoteLive:
                        (owner, now + LEASE_SECONDS))
             db.execute("DELETE FROM remote_live_input")
             db.commit()
+        self.frame_path.unlink(missing_ok=True)
 
     def authorized(self, owner):
         with self._db() as db:
@@ -72,6 +73,8 @@ class RemoteLive:
         with self._db() as db:
             row = db.execute("SELECT owner FROM remote_live WHERE slot=1 AND until_time>?",
                              (self.clock(),)).fetchone()
+        if not row:
+            self.frame_path.unlink(missing_ok=True)
         return bool(row)
 
     def ping(self, owner):
@@ -88,6 +91,8 @@ class RemoteLive:
             db.execute("DELETE FROM remote_live WHERE slot=1 AND owner=?", (owner,))
             db.execute("DELETE FROM remote_live_input WHERE owner=?", (owner,))
             db.commit()
+        if not self.active():
+            self.frame_path.unlink(missing_ok=True)
 
     def enqueue(self, owner, kind, *, x=0, y=0, key_name=""):
         if kind == "click":
