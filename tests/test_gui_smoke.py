@@ -145,7 +145,8 @@ class TouchGuiTests(unittest.TestCase):
 
     def test_copy_screen_large_touch_controls(self):
         target = self.add_printer()
-        with patch("app.list_queues", return_value=["OfficeLaser"]):
+        with patch("app.list_queues", return_value=["OfficeLaser"]), \
+             patch("app.accepting_jobs", return_value=True):
             self.app.show_copy()
         self.assertTrue(self.app.copy_screen.visible)
         self.assertEqual(self.app.copy_screen.selected_id, target["id"])
@@ -160,7 +161,8 @@ class TouchGuiTests(unittest.TestCase):
             started.append(dict(self.app.pending_print))
             self.app.busy = True
         with patch.object(self.app, "start_scan", side_effect=scan_started), \
-             patch("app.list_queues", return_value=["OfficeLaser"]):
+             patch("app.list_queues", return_value=["OfficeLaser"]), \
+             patch("app.accepting_jobs", return_value=True):
             self.app.copy_screen.start()
         self.assertEqual(started[0]["target_id"], target["id"])
         self.assertEqual(started[0]["copies"], 3)
@@ -170,7 +172,8 @@ class TouchGuiTests(unittest.TestCase):
 
     def test_front_panel_key_uses_selected_copy_mode(self):
         self.add_printer()
-        with patch("app.list_queues", return_value=["OfficeLaser"]):
+        with patch("app.list_queues", return_value=["OfficeLaser"]), \
+             patch("app.accepting_jobs", return_value=True):
             self.app.show_copy()
         with patch.object(self.app.copy_screen, "start") as copier:
             self.assertEqual(
@@ -193,13 +196,15 @@ class TouchGuiTests(unittest.TestCase):
         self.unlock()
         self.assertFalse(self.app._allowed("scan", silent=True))
         self.assertTrue(self.app._allowed("copy", silent=True))
-        with patch("app.list_queues", return_value=["OfficeLaser"]):
+        with patch("app.list_queues", return_value=["OfficeLaser"]), \
+             patch("app.accepting_jobs", return_value=True):
             self.app.show_copy()
         self.assertTrue(self.app.copy_screen.visible)
         def fake_thread():
             return SimpleNamespace(start=lambda: None)
         with patch("app.list_queues", return_value=["OfficeLaser"]), \
-             patch("app.threading.Thread", return_value=fake_thread()):
+             patch("app.threading.Thread", return_value=fake_thread()), \
+             patch("app.accepting_jobs", return_value=True):
             self.app.start_copy(target["id"], 2, "one-sided", "ADF Front")
         self.assertTrue(self.app.busy)
         self.assertEqual(self.app._delivery_permission(), "copy")
