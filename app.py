@@ -860,13 +860,21 @@ class ItomiScan:
         except PrintError:
             installed = set()
         preferred = default_printer() if installed else None
-        return [
-            {"id": entry["id"], "name": entry["name"],
-             "ready": entry["name"] in installed and accepting_jobs(entry["name"]),
-             "default": entry["name"] == preferred}
-            for entry in self.delivery_queue.db.list_targets()
-            if entry["kind"] == "printer"
-        ]
+        printers = []
+        for entry in self.delivery_queue.db.list_targets():
+            if entry["kind"] != "printer":
+                continue
+            ready = entry["name"] in installed
+            if ready:
+                try:
+                    ready = accepting_jobs(entry["name"])
+                except PrintError:
+                    ready = False
+            printers.append({
+                "id": entry["id"], "name": entry["name"],
+                "ready": ready, "default": entry["name"] == preferred,
+            })
+        return printers
 
     def show_copy(self):
         if self.busy or not self._allowed("copy"):
