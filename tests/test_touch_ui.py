@@ -5,6 +5,8 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
+from PIL import Image
+
 from app import ItomiScan
 from itomiscan.core.profiles import ProfileStore
 from itomiscan.gui.keyboard import ask_touch
@@ -74,6 +76,35 @@ class TouchLayoutTests(unittest.TestCase):
             keypad.winfo_rooty(),
             self.root.winfo_rooty() + self.root.winfo_height() // 2)
         pin.hide()
+
+    def test_document_review_uses_vertical_left_filmstrip(self):
+        pages = []
+        for index in range(5):
+            path = Path(self.temp.name) / f"page-{index}.png"
+            Image.new("RGB", (900, 1200), "white").save(path)
+            pages.append(path)
+        self.app.pages = pages
+        self.app.review_pending = True
+        self.app.page_index = 2
+        self.app._set_review_layout(True)
+        self.app.show_scan()
+        self.app.show_page()
+        self.root.update_idletasks()
+        strip = self.app.thumbnail_strip
+        preview = self.app.preview
+        self.assertEqual(strip.winfo_manager(), "pack")
+        self.assertEqual(strip.pack_info()["side"], "left")
+        self.assertEqual(len(strip.winfo_children()), 3)
+        self.assertLess(strip.winfo_rootx(), preview.winfo_rootx())
+        self.assertEqual(self.app.page_var.get(), "Seite 3 / 5")
+        self.assertGreater(preview.winfo_height(), 200)
+
+    def test_scan_view_is_not_visible_while_pin_gate_is_shown(self):
+        self.app.show_login()
+        self.root.update_idletasks()
+        self.assertTrue(self.app.pin_screen.active)
+        self.assertFalse(bool(self.app.scan_view.winfo_manager()))
+        self.assertEqual(self.app.pin_screen.frame.winfo_manager(), "place")
 
     def test_keyboard_windows_fit_bottom_half(self):
         for numeric in (False, True):
