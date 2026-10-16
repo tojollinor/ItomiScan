@@ -257,7 +257,7 @@ class TouchGuiTests(unittest.TestCase):
         self.app.show_scan()
         flags = {opt["flag"]: variable for opt, variable in self.app.fields}
         flags["--brightness"].set("15")
-        with patch("app.simpledialog.askstring", return_value="Rechnungen"):
+        with patch("app.ask_touch", return_value="Rechnungen"):
             self.app.save_profile()
         saved = ProfileStore(self.store.path).current()
         self.assertEqual(saved["name"], "Rechnungen")
