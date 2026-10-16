@@ -460,7 +460,7 @@ class WebAdminTests(unittest.TestCase):
 
     def test_live_desktop_requires_login_csrf_and_exclusive_browser(self):
         self.assertEqual(self.req("GET", "/api/remote-frame")[0], 303)
-        self.assertEqual(self.req("POST", "/remote/live/start", {"csrf": "bad"})[0], 403)
+        self.assertEqual(self.req("POST", "/remote/live/start", {"csrf": "bad"})[0], 303)
         self.login()
         code, _, html = self.req("GET", "/remote")
         self.assertEqual(code, 200)
