@@ -8,6 +8,42 @@ import ctypes.util
 import tkinter as tk
 
 
+def park_pointer():
+    """Place the invisible X11 pointer away from PIN keys before rendering.
+
+    This only changes pointer location. It must not synthesize a press/touch
+    event or require root privileges. Failure is nonfatal on headless tests.
+    """
+    display = None
+    x11 = None
+    try:
+        x11 = ctypes.CDLL(ctypes.util.find_library("X11") or "libX11.so.6")
+        pointer = ctypes.c_void_p
+        x11.XOpenDisplay.argtypes = [ctypes.c_char_p]
+        x11.XOpenDisplay.restype = pointer
+        x11.XDefaultRootWindow.argtypes = [pointer]
+        x11.XDefaultRootWindow.restype = ctypes.c_ulong
+        x11.XWarpPointer.argtypes = [
+            pointer, ctypes.c_ulong, ctypes.c_ulong,
+            ctypes.c_int, ctypes.c_int, ctypes.c_uint, ctypes.c_uint,
+            ctypes.c_int, ctypes.c_int,
+        ]
+        x11.XFlush.argtypes = [pointer]
+        x11.XCloseDisplay.argtypes = [pointer]
+        display = x11.XOpenDisplay(None)
+        if display:
+            root_window = x11.XDefaultRootWindow(display)
+            x11.XWarpPointer(display, 0, root_window, 0, 0, 0, 0, 1, 1)
+            x11.XFlush(display)
+            return True
+    except (OSError, ValueError, AttributeError):
+        pass
+    finally:
+        if display and x11 is not None:
+            x11.XCloseDisplay(display)
+    return False
+
+
 class TouchFeedback:
     def __init__(self, root):
         self.root = root
