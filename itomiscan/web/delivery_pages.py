@@ -1,5 +1,5 @@
 """Delivery target setup and durable spool administration (password-protected)."""
-from itomiscan.web.pages import e, layout, options, token
+from itomiscan.web.pages import e, layout, options, token, detail_dialog
 
 
 HELP = {
@@ -19,16 +19,16 @@ def targets_page(targets, csrf, configured, notice=""):
             'Für den tatsächlichen Versand muss der separate '
             'ItomiScan-Zustelldienst gestartet sein. '
             'Drucker kommen in Block 7 hinzu.</p>'
-            '<section class="grid">')
-    for entry in targets:
+            '<section class="entry-list">')
+    for index, entry in enumerate(targets):
         kind, tid = entry["kind"], entry["id"]
         description = ("Nicht eingerichtet" if not configured.get(tid)
                        else "Zugangsdaten gespeichert (werden nicht angezeigt)")
-        body += ('<article class="card"><h2>' + e(entry["name"]) + '</h2>'
+        detail = ('<article class="card"><h2>' + e(entry["name"]) + '</h2>'
                  '<p>' + e(LABELS.get(kind, kind)) + '<br>' +
                  e(entry["address"]) + '</p>')
         if kind in ("paperless", "email", "network"):
-            body += ('<p class="muted">' + description + '</p>'
+            detail += ('<p class="muted">' + description + '</p>'
                      '<form method="post" action="/targets/secrets">' + token(csrf)
                      + '<input type="hidden" name="target_id" value="' + e(tid) + '">'
                      + ('<label>Paperless API-Token</label><input type="password" '
@@ -39,18 +39,20 @@ def targets_page(targets, csrf, configured, notice=""):
                         '<label>Passwort</label><input type="password" name="password" '
                         'maxlength="400" autocomplete="new-password">'))
             if kind == "email":
-                body += ('<label>Absenderadresse</label><input name="sender" '
+                detail += ('<label>Absenderadresse</label><input name="sender" '
                          'maxlength="400" type="email">')
-            body += ('<p>Leere Felder behalten vorhandene Werte. '
+            detail += ('<p>Leere Felder behalten vorhandene Werte. '
                      'Zugangsdaten werden getrennt von Konfigurationsbackups gespeichert.</p>'
                      '<button>Zugangsdaten speichern</button></form>'
                      '<form method="post" action="/targets/secrets">' + token(csrf)
                      + '<input type="hidden" name="target_id" value="' + e(tid) + '">'
                      '<input type="hidden" name="clear" value="yes">'
                      '<button class="danger">Zugangsdaten entfernen</button></form>')
-        body += ('<form method="post" action="/targets/delete">' + token(csrf)
+        detail += ('<form method="post" action="/targets/delete">' + token(csrf)
                  + '<input type="hidden" name="id" value="' + e(tid) + '">'
                  '<button class="danger">Ziel entfernen</button></form></article>')
+        body += detail_dialog(f'target-{index}', entry["name"],
+                              LABELS.get(kind, kind) + ' · ' + entry["address"], detail)
     body += ('</section><section class="card" style="margin-top:16px">'
              '<h2>Ziel hinzufügen</h2><form method="post" action="/targets/save">'
              + token(csrf)
