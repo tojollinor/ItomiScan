@@ -124,6 +124,17 @@ TARGET_SELECT_JS = """(() => {
     address.placeholder = selected[1];
     hint.textContent = selected[2];
   }
+  document.addEventListener('click', event => {
+    const button = event.target.closest('[data-select-paperless]');
+    if (!button) return;
+    kind.value = 'paperless';
+    update();
+    address.value = button.dataset.selectPaperless;
+    const name = form.querySelector('[name="name"]');
+    if (name && !name.value.trim()) name.value = 'Paperless';
+    form.scrollIntoView({behavior:'smooth', block:'center'});
+    address.focus();
+  });
   kind.addEventListener('change', update);
   update();
 })();"""
