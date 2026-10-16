@@ -169,7 +169,7 @@ class HomeScreen:
                      bg=BLUE, font=15, pad_y=12).pack(side="right", padx=12, pady=5)
 
         self.controls["menu"] = self._button(
-            bottom, "Menü", open_menu or
+            bottom, "Menü", self.open_menu or
             (lambda: self.show_menu(shutdown, update, exit_app)),
             font=13, pad_y=9)
         self.controls["menu"].pack(side="left", padx=4)
