@@ -100,11 +100,12 @@ def printers_page(saved_targets, installed, csrf, *, notice="", issue="", discov
         content += '</datalist>'
         content += '<section class="card" style="margin-top:17px"><h2>Erkannte Drucker</h2><p>Gefunden durch CUPS (lpinfo -v). Adresse für die Einrichtung übernehmen:</p>'
         for uri in discovered:
-            content += '<p><code>' + e(uri) + '</code></p>'
+            content += '<p><button type="button" class="secondary" data-select-printer="' + e(uri) + '">Adresse übernehmen</button> <code>' + e(uri) + '</code></p>'
         content += '</section>'
     if installed:
         content += '<section class="card" style="margin-top:17px"><h2>CUPS-Warteschlangen</h2><p>'
         content += e(", ".join(installed)) + '</p></section>'
+    content += ('<script defer src="/assets/printer-choose.js"></script>')
     content += (
         '<p>Bei Netzwerkproblemen bleibt die gescannte PDF-Datei lokal '
         'gesichert. Unklare CUPS-Übergaben müssen vor erneutem Senden '
