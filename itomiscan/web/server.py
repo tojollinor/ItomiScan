@@ -28,6 +28,7 @@ from itomiscan.storage.config import ConfigError, ConfigStore
 from itomiscan.storage.users import PERMISSIONS, PinError, UserStore
 from itomiscan.web import pages, user_pages, delivery_pages, printing_pages
 from itomiscan.web.system_status import StatusSampler
+from itomiscan.integrations.discovery import discover_paperless
 from itomiscan.integrations.printing import (
     PrintError, list_queues, install_queue, uninstall_queue, test_page,
     discover_printers, set_default_printer, printer_uri, queue_name, address_from_host,
@@ -302,7 +303,8 @@ class AdminHandler(BaseHTTPRequestHandler):
             elif path == "/targets":
                 targets = self.server.store.list_targets()
                 flags = {item["id"]: bool(self.server.secrets.get(item["id"])) for item in targets}
-                html = delivery_pages.targets_page(targets, csrf, flags, notice)
+                html = delivery_pages.targets_page(targets, csrf, flags, notice,
+                                                  discovered=discover_paperless())
             elif path == "/printers":
                 try:
                     cups = list_queues()
