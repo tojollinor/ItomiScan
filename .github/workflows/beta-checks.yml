@@ -26,5 +26,13 @@ jobs:
       - name: Check shell syntax
         run: |
           find . -maxdepth 2 -type f -name '*.sh' -print0 | xargs -0 -r -n1 bash -n
-      - name: Run unit tests
-        run: timeout --signal=TERM --kill-after=10s 300s xvfb-run -a env PYTHONPATH=. python3 -u -m unittest discover -s tests -p 'test*.py' -v
+      - name: Run headless regression tests
+        run: |
+          for test in tests/test_*.py; do
+            case "$test" in *test_gui_smoke.py|*test_touch_ui.py) continue ;; esac
+            timeout --signal=TERM --kill-after=10s 180s env PYTHONPATH=. python3 -u -m unittest discover -s tests -p "$(basename "$test")" -v
+          done
+      - name: Run each GUI test suite in isolated X process
+        run: |
+          timeout --signal=TERM --kill-after=10s 180s xvfb-run -a env PYTHONPATH=. python3 -u -m unittest discover -s tests -p test_gui_smoke.py -v
+          timeout --signal=TERM --kill-after=10s 180s xvfb-run -a env PYTHONPATH=. python3 -u -m unittest discover -s tests -p test_touch_ui.py -v
