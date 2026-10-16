@@ -99,7 +99,18 @@ if grep -Fq -- "$MARK_BEGIN" "$CUSTOM"; then
   exit 4
 fi
 if grep -Fq -- "$ENTRY_ID" "$CUSTOM"; then
-  echo "Eintrag-ID existiert bereits außerhalb des verwalteten Blocks; Abbruch." >&2
+  # Earlier N1800 testing already appended this exact entry manually.
+  # Accept an existing entry only when its known kernel, test image and UUID
+  # are present. Do not duplicate, rewrite, or silently override it.
+  if grep -Fq -- "menuentry 'ItomiScan Initramfs DEP Test' --id='$ENTRY_ID'" "$CUSTOM" &&
+     grep -Fq -- "initrd /boot/initrd.img-$KERNEL-dep-test" "$CUSTOM" &&
+     grep -Fq -- "root=UUID=$ROOT_UUID" "$CUSTOM" &&
+     grep -Fq -- "$ENTRY_ID" /boot/grub/grub.cfg; then
+    grub-script-check /boot/grub/grub.cfg
+    echo "Bereits geprüfter manueller N1800-Testeintrag vorhanden; keine Änderung."
+    exit 0
+  fi
+  echo "Abweichender Eintrag mit derselben ID vorhanden; sicherer Abbruch." >&2
   exit 4
 fi
 
