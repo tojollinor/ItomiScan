@@ -31,7 +31,7 @@ class ConfigTests(unittest.TestCase):
         other = ProfileStore(self.path)
         self.assertEqual(other.current()["name"], "Rechnungen")
         self.assertEqual(other.current()["settings"]["--brightness"], "15")
-        self.assertEqual(len(other.names()), 4)
+        self.assertEqual(len(other.names()), 5)
 
     def test_unsafe_profile_inputs(self):
         item = ProfileStore(self.path).current()
@@ -82,7 +82,7 @@ class ConfigTests(unittest.TestCase):
         db.save_target({"kind":"network","name":"NAS","address":"smb://nas/share"})
         db.restore(backup)
         self.assertEqual(len(db.list_targets()),2)
-        self.assertEqual(len(db.list_profiles()[0]),3)
+        self.assertEqual(len(db.list_profiles()[0]),4)
         for invalid in ("http://user:pass@host/", "javascript://server"):
             with self.assertRaises(ConfigError):
                 validate_target({"kind":"paperless","name":"X","address":invalid})
