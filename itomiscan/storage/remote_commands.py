@@ -76,7 +76,7 @@ class RemoteCommands:
             return dict(row)
 
     def finish(self, command_id, status, detail=""):
-        if status not in ("done", "rejected", "error"):
+        if status not in ("done", "accepted", "rejected", "error"):
             raise ValueError("Ungültiger Befehlsstatus.")
         with self._connect() as db:
             db.execute("UPDATE remote_commands SET status=?,detail=? WHERE id=?",
