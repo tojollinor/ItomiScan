@@ -450,6 +450,9 @@ class AdminHandler(BaseHTTPRequestHandler):
             if path == "/logout":
                 self.server.sessions.remove(self._session_token())
                 return self._redirect("/login", cookie=self._cookie("", expired=True))
+            if path == "/remote/profile":
+                self.server.store.select_profile(form.get("name", ""))
+                return self._redirect("/remote?ok=Scanprofil%20ausgewaehlt")
             if path == "/remote/command":
                 action = form.get("action", "")
                 if action in ("restart", "poweroff") and form.get("confirmed") != "yes":
