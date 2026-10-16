@@ -35,26 +35,90 @@ def logo_svg(size=44):
 # Only static same-origin asset. No third-party libraries or sensitive data.
 STATUS_JS = """(() => {
   const elements = document.querySelectorAll('[data-status-key]');
-  if (!elements.length) return;
-  async function refresh() {
-    try {
-      const response = await fetch('/api/status', {cache: 'no-store',
-                                                   credentials: 'same-origin'});
-      if (!response.ok) return;
-      const status = await response.json();
-      for (const element of elements) {
-        const key = element.getAttribute('data-status-key');
-        if (Object.prototype.hasOwnProperty.call(status, key)) {
-          element.textContent = String(status[key]);
-        }
-      }
-    } catch (_error) {
-      // Display the last known values if the scanner is temporarily offline.
+  const charts = document.querySelectorAll('[data-metric-chart]');
+  if (!elements.length && !charts.length) return;
+  const NS = 'http://www.w3.org/2000/svg';
+  const histories = new Map();
+  let busy = false;
+  function draw(chart, value) {
+    const key = chart.dataset.metricChart;
+    let list = histories.get(key);
+    if (!list) { list = []; histories.set(key, list); }
+    list.push(Number.isFinite(value) ? Math.max(0, Math.min(100, value)) : null);
+    if (list.length > 300) list.shift();
+    const points = [];
+    for (let i = 0; i < list.length; i++) {
+      if (list[i] === null) continue;
+      points.push((10 + i * 300 / 299).toFixed(2) + ',' +
+                  (110 - list[i]).toFixed(2));
     }
+    const line = chart.querySelector('polyline');
+    if (line) line.setAttribute('points', points.join(' '));
   }
-  window.setInterval(refresh, 30000);
-})();
-"""
+  async function refresh() {
+    if (busy || document.hidden) return;
+    busy = true;
+    try {
+      const response = await fetch('/api/metrics',
+          {cache:'no-store', credentials:'same-origin'});
+      if (!response.ok) return;
+      const data = await response.json();
+      elements.forEach(element => {
+        const key = element.getAttribute('data-status-key');
+        if (Object.prototype.hasOwnProperty.call(data, key)) {
+          element.textContent = String(data[key]);
+        }
+      });
+      charts.forEach(chart => {
+        const key = chart.dataset.metricChart;
+        const value = key === 'cpu' ? parseFloat(data.cpu) :
+                      Number(data.ram_percent);
+        draw(chart, value);
+        const label = chart.parentElement.querySelector('[data-chart-value]');
+        if (label) label.textContent = Number.isFinite(value) ?
+                                       value.toFixed(1) + ' %' : 'Nicht verfügbar';
+      });
+    } catch (_error) { /* Retain previous samples if temporarily offline. */ }
+    finally { busy = false; }
+  }
+  refresh();
+  const timer = window.setInterval(refresh, 1000);
+  window.addEventListener('pagehide', () => clearInterval(timer), {once:true});
+})();"""
+
+
+DIALOG_JS = """(() => {
+  document.addEventListener('click', event => {
+    const open = event.target.closest('[data-dialog-open]');
+    if (open) {
+      const dialog = document.getElementById(open.dataset.dialogOpen);
+      if (dialog && typeof dialog.showModal === 'function') dialog.showModal();
+      return;
+    }
+    const close = event.target.closest('[data-dialog-close]');
+    if (close) {
+      const dialog = close.closest('dialog');
+      if (dialog) dialog.close();
+    }
+  });
+  document.querySelectorAll('dialog.detail-dialog').forEach(dialog => {
+    dialog.addEventListener('click', event => {
+      if (event.target === dialog) dialog.close();
+    });
+  });
+})();"""
+
+
+def detail_dialog(identifier, label, summary, content):
+    """Compact row backed by a native, focus-trapping modal detail dialog."""
+    return ('<div class="entry-row"><div><strong>' + e(label) + '</strong>'
+            '<p class="muted">' + e(summary) + '</p></div>'
+            '<button class="secondary" type="button" data-dialog-open="' + e(identifier) +
+            '">Details</button></div>'
+            '<dialog class="detail-dialog" id="' + e(identifier) + '">'
+            '<div class="dialog-top"><h2>' + e(label) +
+            '</h2><button class="secondary" type="button" data-dialog-close>Schließen</button></div>'
+            + content + '</dialog>')
 
 
 def metric(key, value, *, inline=False):
@@ -87,6 +151,17 @@ table{width:100%;border-collapse:collapse}td,th{padding:10px;text-align:left;bor
 .end{margin-top:24px;border-top:1px solid var(--line);padding-top:13px}
 .login{max-width:460px;margin:12vh auto 0}.login h1{margin-top:4px}
 @media(max-width:650px){.wrap{padding:14px}nav a{padding:8px 5px}.card{padding:16px}table{font-size:.86rem}.brand{font-size:1.5rem}}
+
+.entry-list{display:flex;flex-direction:column;gap:10px}
+.entry-row{display:flex;align-items:center;justify-content:space-between;gap:14px;background:var(--pane);padding:12px 17px;border-radius:12px}
+.entry-row p{margin:3px 0 0;overflow-wrap:anywhere}
+.entry-row button{margin:0;flex:none}
+.detail-dialog{background:var(--pane);color:var(--fg);border:1px solid var(--line);border-radius:15px;padding:22px;max-width:min(740px,94vw);width:100%;max-height:88vh;overflow:auto}
+.detail-dialog::backdrop{background:rgba(0,0,0,.73)}
+.dialog-top{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.dialog-top button{margin:0}
+.detail-dialog .card{padding:0}
+.monitor-chart{width:100%;height:auto;display:block;background:#101d2e;border-radius:9px}
 """
 
 
@@ -113,6 +188,7 @@ def layout(title, body, *, active="", csrf="", notice="", error="", logged=True,
             '<div class="end muted">ItomiScan 1.0.0 Entwicklung · '
             'Webadministration nur im geschützten LAN/VPN</div></main>'
             + ('<script defer src="/assets/status.js"></script>' if live else '')
+            + ('<script defer src="/assets/admin-dialogs.js"></script>' if logged else '')
             + '</body></html>')
 
 
@@ -137,6 +213,18 @@ def login(error=""):
                'sicher über die lokale Konsole/SSH. Es gibt kein Standardpasswort.'
                '</small></p></div>')
     return layout("Anmelden", content, logged=False, error=error)
+
+
+def chart_panel(title, key):
+    return ('<article class="card"><h2>' + e(title) + '</h2>'
+            '<p class="status-metric" data-chart-value>Messung läuft …</p>'
+            '<svg class="monitor-chart" data-metric-chart="' + e(key) +
+            '" viewBox="0 0 320 122" role="img" aria-label="Auslastung der letzten fünf Minuten">'
+            '<path d="M10 10V110H310" fill="none" stroke="#587088" stroke-width="1"/>'
+            '<polyline fill="none" stroke="#42bfea" stroke-width="2" points=""/>'
+            '<text x="10" y="120" fill="#a8bacd" font-size="9">−5 min</text>'
+            '<text x="310" y="120" fill="#a8bacd" font-size="9" text-anchor="end">Jetzt</text>'
+            '</svg></article>')
 
 
 def overview(status, counts, csrf, notice=""):
@@ -165,7 +253,7 @@ def overview(status, counts, csrf, notice=""):
         body += (f'<article class="card"><h2>{e(heading)}</h2>'
                  f'<p class="status-metric">{metric(key, status.get(key, "Nicht verfügbar"))}</p>'
                  f'<p class="status-note">{e(hint)}</p></article>')
-    body += '</section><h2>Gerätezustand</h2><section class="grid">'
+    body += '</section><h2>Verlauf der letzten fünf Minuten</h2><section class="grid">'\n    body += chart_panel('CPU-Auslastung', 'cpu') + chart_panel('RAM-Auslastung', 'ram')\n    body += '</section><h2>Gerätezustand</h2><section class="grid">'
     for heading, key in (
         ("Web-Admin-Dienst", "web_service"),
         ("Zustelldienst", "delivery_service"),
@@ -174,7 +262,7 @@ def overview(status, counts, csrf, notice=""):
     ):
         body += (f'<article class="card"><h2>{e(heading)}</h2>'
                  f'<p class="status-metric">{metric(key, status.get(key, "Nicht verfügbar"))}</p></article>')
-    body += '</section><p class="status-note">Statusaktualisierung alle 30 Sekunden, '
+    body += '</section><p class="status-note">CPU/RAM-Aktualisierung jede Sekunde, '
     body += 'ohne Seitenwechsel oder automatischen Scannertest.</p>'
     return layout("Übersicht", body, active="/", csrf=csrf, notice=notice,
                   live=True)
@@ -182,10 +270,10 @@ def overview(status, counts, csrf, notice=""):
 
 def profiles_page(profiles, selected, csrf, notice=""):
     body = '<h1>Scanprofile</h1><p>Die Änderungen stehen dem Touchdisplay beim nächsten Profilaufruf zur Verfügung.</p>'
-    body += '<section class="grid">'
-    for item in profiles:
+    body += '<section class="entry-list">'
+    for index, item in enumerate(profiles):
         name = item["name"]
-        body += (f'<article class="card"><h2>{e(name)}'
+        detail = (f'<article class="card"><h2>{e(name)}'
                  + (' <span class="pill">Ausgewählt</span>' if name == selected else "")
                  + '</h2><form method="post" action="/profiles/save">'
                  + token(csrf)
@@ -203,6 +291,8 @@ def profiles_page(profiles, selected, csrf, notice=""):
                  '<form method="post" action="/profiles/select">'
                  + token(csrf) + f'<input type="hidden" name="name" value="{e(name)}">'
                  '<button class="secondary">Als Standard verwenden</button></form></article>')
+        body += detail_dialog(f'profile-{index}', name,
+                              f'{item["mode"]} · {item["resolution"]} DPI · {item["source"]}', detail)
     body += '</section><div class="card" style="margin-top:16px"><h2>Neues Profil</h2>'
     body += ('<form method="post" action="/profiles/save">' + token(csrf)
              + '<label>Name</label><input name="name" maxlength="32" required>'
@@ -273,7 +363,8 @@ def system_page(state, settings, csrf, diagnostic="", notice=""):
         body += (f'<p><strong>{e(title)}:</strong> '
                  f'{metric(key, state.get(key, "Nicht verfügbar"), inline=True)}</p>')
     body += '</article></section>'
-    body += '<p class="status-note">Systemwerte werden alle 30 Sekunden aktualisiert. '
+    body += '<section class="grid" style="margin-top:16px">' + chart_panel('CPU-Verlauf', 'cpu') + chart_panel('RAM-Verlauf', 'ram') + '</section>'
+    body += '<p class="status-note">CPU und RAM werden jede Sekunde aktualisiert. '
     body += 'Nicht gespeicherte Formulare bleiben unberührt.</p>'
     body += ('<article class="card"><h2>Geräteeinstellungen</h2>'
              '<p>Änderungen des Bildschirmschoners greifen am Display spätestens '
