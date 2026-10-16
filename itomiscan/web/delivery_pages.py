@@ -13,7 +13,7 @@ LABELS = {"paperless": "Paperless", "network": "SMB-Netzwerkordner",
           "email": "E-Mail", "usb": "USB-Datenträger", "printer": "Drucker"}
 
 
-def targets_page(targets, csrf, configured, notice=""):
+def targets_page(targets, csrf, configured, notice="", *, discovered=None):
     body = ('<h1>Dokumentenziele</h1><p>Paperless, SMB-Netzwerkordner, '
             'E-Mail und USB sind als Zustellziele vorbereitet. '
             'Für den tatsächlichen Versand muss der separate '
@@ -60,8 +60,15 @@ def targets_page(targets, csrf, configured, notice=""):
              + options(("paperless", "network", "email", "usb", "printer"), "paperless")
              + '</select><label>Anzeigename</label><input name="name" '
              'maxlength="60" required><label>Zieladresse</label>'
-             '<input name="address" maxlength="350" required>'
+             '<input name="address" list="paperless-candidates" maxlength="350" required>'
              '<button>Ziel speichern</button></form></section>')
+    if discovered:
+        body += '<datalist id="paperless-candidates">' + "".join(
+            '<option value="' + e(uri) + '"></option>' for uri in discovered
+        ) + '</datalist>'
+        body += ('<p class="muted">Mögliche Paperless-Dienste im LAN: '
+                 + ", ".join(e(uri) for uri in discovered) +
+                 '. Die Erkennung bestätigt noch keine erreichbare Paperless-API.</p>')
     body += '<section class="card" style="margin-top:16px"><h2>Adressbeispiele</h2>'
     for kind, example in HELP.items():
         body += '<p><strong>' + e(LABELS[kind]) + ':</strong> ' + e(example) + '</p>'
