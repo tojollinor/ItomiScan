@@ -5,6 +5,8 @@ Auftrag bestätigt: Änderungen implementieren und als neue Beta veröffentliche
 ## Blöcke (nach jedem Block Nutzer-Freigabe „Weiter“ abwarten)
 
 1. **Monitoring und Branding:** redundante Statuskacheln aus der Übersicht entfernen; aktuelle Werte im CPU-/RAM-Graphen; RAM zusätzlich als belegter Speicher mit Fortschrittsbalken; Navigationslogo nur einmal; „Fernsteuerung“ statt „Fernbedienung“. Status: **in Umsetzung**, Code `pages.py`/`remote_pages.py` bearbeitet.
+2a. **Kiosk-Mausposition vor PIN-Anzeige:** Den Mauszeiger bereits beim Start an eine neutrale Position ganz oben links setzen (und weiterhin ausblenden), bevor Login-/PIN-Tasten gerendert werden. Die Taste „2“ darf ohne Berührung weder Hover- noch Leuchteffekt zeigen. **Ausstehend.**
+2b. **Kein Startseiten-Flackern bei aktivem Login:** Wenn PIN/Login aktiviert ist, direkt die Loginseite als erste sichtbare Kiosk-Ansicht zeichnen, ohne vorher die Startseite kurz einzublenden. Initiale Authentifizierung/Ansicht vor dem ersten Rendering klären, ohne geschützte Inhalte kurzzeitig sichtbar zu machen. **Ausstehend.**
 2. **Lokale Dokumentenvorschau:** Seitenübersicht links, aktive Seite rechts mit größtmöglicher verfügbarer Höhe bei 1024×768; vorhandenes Styling und Aktionen beibehalten. Ausstehend.
 3. **Drucker- und Paperless-Suche:** explizite Suchbedienung, transparente Grenzen von DNS-SD/mDNS/CUPS, Treffer auswählen/übernehmen; keine falschen Aussagen über geprüfte API, Zugangsdaten oder Druckerfunktion. Ausstehend.
 4. **Ziel-Eingabemasken:** pro Zieltyp passende Felder, klare Hilfen und Validierung; bestehende Speicherlogik und Secrets erhalten. Ausstehend.
