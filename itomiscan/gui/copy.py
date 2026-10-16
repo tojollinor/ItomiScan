@@ -170,11 +170,14 @@ class CopyScreen:
         self.printer_page += delta
         self._render_printers(self._last_targets)
 
-    def show(self):
+    def show(self, preferred_id=None):
         try:
             targets = self.printers()
         except (OSError, ValueError):
             targets = []
+        if preferred_id is not None and any(
+                p["id"] == preferred_id and p["ready"] for p in targets):
+            self.selected_id = preferred_id
         if self.selected_id not in [p["id"] for p in targets if p["ready"]]:
             self.selected_id = next((p["id"] for p in targets
                                      if p["ready"] and p.get("default")), None)
