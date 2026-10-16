@@ -1,5 +1,5 @@
 """Password-protected CUPS printer management screen (no JS/assets)."""
-from itomiscan.web.pages import e, layout, token
+from itomiscan.web.pages import e, layout, token, detail_dialog
 
 
 def printers_page(saved_targets, installed, csrf, *, notice="", issue="", discovered=None):
@@ -13,29 +13,29 @@ def printers_page(saved_targets, installed, csrf, *, notice="", issue="", discov
     )
     if issue:
         intro += '<div class="alert">' + e(issue) + '</div>'
-    content = intro + '<section class="grid">'
-    for entry in saved_targets:
+    content = intro + '<section class="entry-list">'
+    for index, entry in enumerate(saved_targets):
         name = entry["name"]
         exists = name in installed
         status = "In CUPS eingerichtet" if exists else "Noch nicht in CUPS"
-        content += ('<article class="card"><h2>' + e(name) + '</h2>'
+        detail = ('<article class="card"><h2>' + e(name) + '</h2>'
                     '<p>' + e(entry["address"]) + '</p>'
                     '<p class="pill">' + e(status) + '</p>'
                     '<p>Ein Druckauftrag gilt nach erfolgreicher Übergabe '
                     'an CUPS zunächst als angenommen. Papierausgabe bitte '
                     'am Gerät kontrollieren.</p>')
         if exists:
-            content += ('<form method="post" action="/printers/default">' +
+            detail += ('<form method="post" action="/printers/default">' +
                         token(csrf) +
                         '<input type="hidden" name="target_id" value="' +
                         e(entry["id"]) + '">' +
                         '<button class="secondary">Als Standarddrucker festlegen</button></form>')
-            content += ('<form method="post" action="/printers/install">' +
+            detail += ('<form method="post" action="/printers/install">' +
                         token(csrf) +
                         '<input type="hidden" name="target_id" value="' +
                         e(entry["id"]) + '">' +
                         '<button class="secondary">Konfiguration in CUPS aktualisieren</button></form>')
-            content += ('<form method="post" action="/printers/test">' +
+            detail += ('<form method="post" action="/printers/test">' +
                         token(csrf) +
                         '<input type="hidden" name="target_id" value="' +
                         e(entry["id"]) + '">' +
@@ -46,23 +46,25 @@ def printers_page(saved_targets, installed, csrf, *, notice="", issue="", discov
                         e(entry["id"]) + '">' +
                         '<button class="danger">CUPS-Zuordnung aufheben</button></form>')
         else:
-            content += ('<form method="post" action="/printers/install">' +
+            detail += ('<form method="post" action="/printers/install">' +
                         token(csrf) +
                         '<input type="hidden" name="target_id" value="' +
                         e(entry["id"]) + '">' +
                         '<button>In CUPS einrichten</button></form>')
-        content += ('<details><summary>Druckeradresse bearbeiten</summary>' +
+        detail += ('<details><summary>Druckeradresse bearbeiten</summary>' +
                     '<form method="post" action="/printers/edit">' + token(csrf) +
                     '<input type="hidden" name="target_id" value="' + e(entry["id"]) + '">' +
                     '<p>Hinweis: Bei bereits eingerichteten CUPS-Druckern muss die geänderte Adresse anschließend erneut in CUPS übernommen werden.</p>' +
                     '<label>Neue Adresse</label><input name="address" required maxlength="350" value="' +
                     e(entry["address"]) + '"><button>Änderung speichern</button></form></details>')
-        content += ('<form method="post" action="/targets/delete">' +
+        detail += ('<form method="post" action="/targets/delete">' +
                     token(csrf) +
                     '<input type="hidden" name="id" value="' +
                     e(entry["id"]) + '">' +
                     '<button class="secondary">Gespeichertes Ziel entfernen</button></form>'
                     '</article>')
+        content += detail_dialog(f'printer-{index}', name,
+                                 status + ' · ' + entry["address"], detail)
     content += '</section>'
     content += ('<section class="card" style="margin-top:17px">'
                 '<h2>Drucker hinzufügen</h2>'
