@@ -86,6 +86,37 @@ STATUS_JS = """(() => {
 })();"""
 
 
+TARGET_SELECT_JS = """(() => {
+  const form = document.getElementById('new-target-form');
+  if (!form) return;
+  const kind = form.querySelector('[name="kind"]');
+  const address = form.querySelector('[name="address"]');
+  const label = document.getElementById('target-address-label');
+  const hint = document.getElementById('target-address-help');
+  const fields = {
+    paperless: ['Paperless HTTPS-Adresse', 'https://paperless.example.lan',
+      'Verschlüsselte Paperless-URL ohne API-Token. Eine automatische Erkennung ist optional.'],
+    network: ['SMB-Netzwerkordner', 'smb://server/freigabe/ordner',
+      'Freigabe und optionaler Unterordner. Zugangsdaten separat speichern.'],
+    email: ['SMTP-Empfänger und Server', 'smtp://server:587/empfaenger@example.org',
+      'SMTP über STARTTLS oder SMTPS. Zugangsdaten separat speichern.'],
+    usb: ['USB-Datenträger und Unterordner', 'usb://DATENTRAEGER/ordner',
+      'Der Datenträger muss am Scanner eingehängt sein.'],
+    printer: ['Druckeradresse', 'ipps://drucker.lan/ipp/print',
+      'Drucker bevorzugt im separaten Menü Drucker verwalten.']
+  };
+  function update() {
+    const selected = fields[kind.value];
+    if (!selected) return;
+    label.textContent = selected[0];
+    address.placeholder = selected[1];
+    hint.textContent = selected[2];
+  }
+  kind.addEventListener('change', update);
+  update();
+})();"""
+
+
 REMOTE_JS = """(() => {
   const status = document.getElementById('remote-command-status');
   document.querySelectorAll('[data-power-confirm]').forEach(form => {
