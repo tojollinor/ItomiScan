@@ -138,7 +138,17 @@ class WebAdminTests(unittest.TestCase):
         code, headers, script = self.req("GET", "/assets/status.js")
         self.assertEqual(code, 200)
         self.assertIn("javascript", headers["Content-Type"])
-        self.assertIn("setInterval(refresh, 30000)", script)
+        self.assertIn("setInterval(refresh, 1000)", script)
+        self.assertIn("/api/metrics", script)
+        code, _, metrics = self.req("GET", "/api/metrics")
+        self.assertEqual(code, 200)
+        self.assertIn("ram_percent", json.loads(metrics))
+        self.assertEqual(self.req("GET", "/assets/admin-dialogs.js")[0], 200)
+        for route in ("/profiles", "/users", "/targets", "/printers"):
+            code, _, html = self.req("GET", route)
+            self.assertEqual(code, 200)
+            self.assertIn('class="entry-list"', html)
+        self.assertEqual(self.req("GET", "/api/metrics")[0], 200)
         self.assertIn("script-src 'self'", headers["Content-Security-Policy"])
 
     def test_profile_and_targets_saved_in_shared_database(self):
