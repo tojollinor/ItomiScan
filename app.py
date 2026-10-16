@@ -174,7 +174,8 @@ class ItomiScan:
         self.home = None
         self.idle_screen = None
         self.scan_view = tk.Frame(self.root, bg=BASE)
-        self.scan_view.place(x=0, y=0, relwidth=1, relheight=1)
+        # Keep the scan screen off-screen until explicitly opened. In PIN mode
+        # it must never be rendered even for a single startup frame.
         self._style()
         self._layout()
         # The N1800 front-panel button is a separate USB HID keyboard.
@@ -198,6 +199,11 @@ class ItomiScan:
             # Preserve the original behavior for direct app.py invocations.
             self.root.after(200, self.load_scanner)
         self.device_menu = DeviceMenu(self.root)
+        # Construct the PIN gate first: the home view may be built after it,
+        # but the first visible application view must already be protected.
+        self.pin_screen = PinScreen(self.root, self.verify_pin)
+        if self.login_enabled:
+            self.pin_screen.show()
         self.home = HomeScreen(
             self.root, self.profile_store, self.select_profile,
             self.show_scan, self.quick_scan, self.unavailable,
@@ -209,7 +215,6 @@ class ItomiScan:
         )
         self.copy_screen = CopyScreen(self.root, self.available_printers,
                                       self.start_copy, self.show_home)
-        self.pin_screen = PinScreen(self.root, self.verify_pin)
         self.root.bind_all("<ButtonPress>", self.record_activity, add="+")
         self.root.bind_all("<KeyPress>", self.record_activity, add="+")
         idle_minutes = self.profile_store.db.get_settings().get("screensaver_minutes", 5) if self.profile_store.db else 5
@@ -380,18 +385,23 @@ class ItomiScan:
                  font=("DejaVu Sans", 13, "bold")).pack(side="left")
         tk.Label(top, textvariable=self.page_var, bg=PANEL, fg=MUTED,
                  font=("DejaVu Sans", 11)).pack(side="right")
-        self.preview = tk.Label(right, text="Dokument einlegen\nund „Scannen“ drücken",
+        # Fixed-width left filmstrip, flexible right-hand document canvas.
+        self.thumbnail_strip = tk.Frame(right, bg=PANEL, width=116)
+        self.thumbnail_strip.pack(side="left", fill="y", padx=(9, 0), pady=(10, 6))
+        self.thumbnail_strip.pack_propagate(False)
+        self.preview_area = tk.Frame(right, bg=PANEL)
+        self.preview_area.pack(side="left", fill="both", expand=True)
+        self.preview = tk.Label(self.preview_area,
+                                text="Dokument einlegen\\nund „Scannen“ drücken",
                                 bg="#eef2f7", fg="#45566c",
                                 font=("DejaVu Sans", 16), justify="center")
-        self.preview.pack(fill="both", expand=True, padx=17, pady=8)
-        self.thumbnail_strip = tk.Frame(right, bg=PANEL)
-        self.thumbnail_strip.pack(fill="x", padx=17, pady=4)
-        nav = tk.Frame(right, bg=PANEL)
+        self.preview.pack(fill="both", expand=True, padx=9, pady=(2, 5))
+        nav = tk.Frame(self.preview_area, bg=PANEL)
         self.review_navigation = nav
         nav.pack(pady=4)
         self._btn(nav, "◀  Zurück", lambda: self.change_page(-1)).pack(side="left", padx=9)
         self._btn(nav, "Weiter  ▶", lambda: self.change_page(1)).pack(side="left", padx=9)
-        edit = tk.Frame(right, bg=PANEL)
+        edit = tk.Frame(self.preview_area, bg=PANEL)
         self.review_editing = edit
         edit.pack(fill="x", padx=14, pady=(0, 3))
         actions = (
@@ -412,7 +422,7 @@ class ItomiScan:
         self.review_actions.pack(side="right")
         self.append_button = self._btn(self.review_actions, "Weitere Seiten scannen", self.append_pages, BLUE)
         self.review_button = self._btn(self.review_actions, "Fertig · Dokument übernehmen", self.finalize_scan, BLUE)
-        self.path_label = tk.Label(right, text="Noch keine Datei", bg=PANEL, fg=MUTED,
+        self.path_label = tk.Label(self.preview_area, text="Noch keine Datei", bg=PANEL, fg=MUTED,
                                    font=("DejaVu Sans", 9), wraplength=590)
         self.path_label.pack(pady=(3, 4))
         self.review_navigation.pack_forget()
@@ -1890,9 +1900,12 @@ class ItomiScan:
         if not self.review_pending or not self.pages:
             self.thumbnail_strip.pack_forget()
             return
-        self.thumbnail_strip.pack(fill="x", padx=17, pady=4)
-        start = max(0, min(self.page_index - 2, len(self.pages) - 5))
-        for index in range(start, min(len(self.pages), start + 5)):
+        self.thumbnail_strip.pack(side="left", fill="y", padx=(9, 0), pady=(10, 6), before=self.preview_area)
+        # Only three nearby pages are decoded: readable touch targets and no
+        # vertical overflow, even with two rows of editing actions visible.
+        count = 3
+        start = max(0, min(self.page_index - 1, len(self.pages) - count))
+        for index in range(start, min(len(self.pages), start + count)):
             try:
                 with Image.open(self.pages[index]) as source:
                     if source.format == "JPEG":
@@ -1907,7 +1920,7 @@ class ItomiScan:
             except (OSError, ValueError):
                 button = self._btn(self.thumbnail_strip, str(index + 1),
                                    lambda i=index: self.select_page(i))
-            button.pack(side="left", expand=True, padx=2)
+            button.pack(side="top", fill="x", pady=3, padx=3)
 
     def select_page(self, index):
         if not self.busy and 0 <= index < len(self.pages):
