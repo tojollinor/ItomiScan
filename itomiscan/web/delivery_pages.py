@@ -54,11 +54,11 @@ def targets_page(targets, csrf, configured, notice="", *, discovered=None):
         body += detail_dialog(f'target-{index}', entry["name"],
                               LABELS.get(kind, kind) + ' · ' + entry["address"], detail)
     body += ('</section><section class="card" style="margin-top:16px">'
-             '<h2>Ziel hinzufügen</h2><form method="post" action="/targets/save">'
+             '<h2>Ziel hinzufügen</h2><form method="post" action="/targets/save" id="new-target-form">'
              + token(csrf)
              + '<label>Art</label><select name="kind">'
              + options(("paperless", "network", "email", "usb", "printer"), "paperless")
-             + '</select><label>Anzeigename</label><input name="name" '
+             + '</select><label for="target-name">Anzeigename</label><input id="target-name" name="name" '
              'maxlength="60" required><label>Zieladresse</label>'
              '<input name="address" list="paperless-candidates" maxlength="350" required>'
              '<button>Ziel speichern</button></form></section>')
@@ -75,6 +75,7 @@ def targets_page(targets, csrf, configured, notice="", *, discovered=None):
     body += ('<p>API-Tokens nur mit gültigem HTTPS-Zertifikat übertragen. '
              'Netzwerkverbindungen können beim Test scheitern; die PDF verbleibt '
              'dann in der lokalen Auftragswarteschlange.</p></section>')
+    body += '<script defer src="/assets/target-select.js"></script>'
     return layout("Dokumentenziele", body, active="/targets", csrf=csrf, notice=notice)
 
 
