@@ -2,7 +2,7 @@
 from itomiscan.web.pages import e, layout, token, detail_dialog
 
 
-def printers_page(saved_targets, installed, csrf, *, notice="", issue="", discovered=None):
+def printers_page(saved_targets, installed, csrf, *, notice="", issue="", discovered=None, searched=False):
     intro = (
         '<h1>Drucker verwalten</h1>'
         '<p>Drucker zuerst als Druckziel hinterlegen und anschließend '
@@ -93,15 +93,34 @@ def printers_page(saved_targets, installed, csrf, *, notice="", issue="", discov
                 'die Druckeradresse. Der nächste Schritt registriert den '
                 'Drucker in CUPS.</p>'
                 '<button>Druckerziel speichern</button></form></section>')
+    content += ('<section class="card" style="margin-top:17px">'
+                '<h2>Netzwerkdrucker suchen</h2>'
+                '<p>Prüft bekannte CUPS-Geräte und lokal per DNS-SD angekündigte '
+                'IPP/IPPS-Drucker. Nur angekündigte oder CUPS-bekannte Geräte '
+                'können erscheinen; keine automatische Installation.</p>'
+                '<form method="get" action="/printers">'
+                '<button type="submit" name="search" value="1">Drucker suchen</button>'
+                '</form>')
+    if searched:
+        if discovered:
+            content += '<div class="entry-list">'
+            for uri in discovered:
+                content += ('<div class="entry-row"><div><strong>Druckerkandidat</strong>'
+                            '<p class="muted">' + e(uri) + '</p></div>'
+                            '<button type="button" class="secondary" data-select-printer="' +
+                            e(uri) + '">Übernehmen</button></div>')
+            content += '</div>'
+        else:
+            content += ('<p role="status">Keine Drucker gefunden. '
+                        'DNS-SD/CUPS prüfen oder Adresse manuell eintragen.</p>')
+        content += ('<p class="status-note">Erkennung bestätigt weder '
+                    'Druckerreichbarkeit noch unterstützte Druckdatenformate.</p>')
+    content += '</section>'
     if discovered:
         content += '<datalist id="printer-discovery">'
         for uri in discovered:
             content += '<option value="' + e(uri) + '"></option>'
         content += '</datalist>'
-        content += '<section class="card" style="margin-top:17px"><h2>Erkannte Drucker</h2><p>Gefunden durch CUPS (lpinfo -v). Adresse für die Einrichtung übernehmen:</p>'
-        for uri in discovered:
-            content += '<p><button type="button" class="secondary" data-select-printer="' + e(uri) + '">Adresse übernehmen</button> <code>' + e(uri) + '</code></p>'
-        content += '</section>'
     if installed:
         content += '<section class="card" style="margin-top:17px"><h2>CUPS-Warteschlangen</h2><p>'
         content += e(", ".join(installed)) + '</p></section>'
