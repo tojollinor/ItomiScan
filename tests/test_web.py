@@ -401,6 +401,11 @@ class WebAdminTests(unittest.TestCase):
         code, _, html = self.req("GET", "/remote")
         self.assertEqual(code, 200)
         self.assertIn("Scanner fernbedienen", html)
+        self.assertIn('action="/remote/profile"', html)
+        self.assertEqual(self.req("POST", "/remote/profile",
+                         {"csrf": "invalid", "name": "Dokument"})[0], 403)
+        self.assertEqual(self.req("POST", "/remote/profile",
+                         {"csrf": self.csrf, "name": "Dokument"})[0], 303)
         self.assertIn("csrf", html)
         self.assertIn("/assets/remote.js", html)
         code, _, script = self.req("GET", "/assets/remote.js")
