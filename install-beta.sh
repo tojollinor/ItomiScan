@@ -13,10 +13,12 @@ fail(){ echo "[FEHLER] $*" >&2; exit 2; }
 step(){ echo; echo "===== $* ====="; }
 
 USER_NAME=""
+SOURCE_REF="develop/1.0.0"
 while [[ $# -gt 0 ]]; do
  case "$1" in
   --user) [[ $# -ge 2 ]] || fail "--user benoetigt einen Benutzernamen."; USER_NAME="$2"; shift 2 ;;
-  -h|--help) echo "Verwendung: sudo bash install-beta.sh --user BENUTZERNAME"; exit 0 ;;
+  --ref) [[ $# -ge 2 ]] || fail "--ref benoetigt einen Tag oder Commit."; SOURCE_REF="$2"; shift 2 ;;
+  -h|--help) echo "Verwendung: sudo bash install-beta.sh --user BENUTZERNAME [--ref v1.0.0-beta.2]"; exit 0 ;;
   *) fail "Unbekannter Parameter: $1" ;;
  esac
 done
@@ -24,6 +26,7 @@ done
 step "Vorpruefung"
 [[ $EUID -eq 0 ]] || fail "Installer muss mit sudo/root ausgefuehrt werden."
 [[ -n "$USER_NAME" ]] || fail "Linux-Benutzer fehlt. --user BENUTZERNAME angeben."
+[[ "$SOURCE_REF" =~ ^[A-Za-z0-9][A-Za-z0-9._/-]{0,79}$ && "$SOURCE_REF" != *..* ]] || fail "Ungueltiger Quellzweig/Tag."
 [[ "$USER_NAME" =~ ^[a-z_][a-z0-9_-]*$ ]] || fail "Ungueltiger Benutzername: $USER_NAME"
 id "$USER_NAME" >/dev/null 2>&1 || fail "Benutzer '$USER_NAME' existiert nicht."
 [[ "$(id -u "$USER_NAME")" -ne 0 ]] || fail "root darf nicht als ItomiScan-Benutzer verwendet werden."
@@ -55,7 +58,7 @@ mkdir "$WORK/source"
 # must describe the same source even if develop advances mid-install.
 ARCHIVE_SHA="$(curl -fsSL --retry 2 --connect-timeout 15 --max-time 30 \
   -H 'Accept: application/vnd.github+json' \
-  'https://api.github.com/repos/tojollinor/ItomiScan/commits/develop/1.0.0' \
+  "https://api.github.com/repos/tojollinor/ItomiScan/commits/$SOURCE_REF" \
   | python3 -c 'import json,sys; print(json.load(sys.stdin)["sha"])')"
 [[ "$ARCHIVE_SHA" =~ ^[0-9a-f]{40}$ ]] || fail "GitHub-Revision nicht verifizierbar."
 curl -fL --retry 2 --connect-timeout 15 --max-time 180 \
@@ -141,7 +144,7 @@ echo
 echo "=============================================="
 echo "[OK] ItomiScan Beta wurde erfolgreich eingerichtet."
 echo "[OK] Benutzer: $USER_NAME"
-echo "[OK] Beta-Kanal: develop/1.0.0"
+echo "[OK] Beta-Quelle: $SOURCE_REF"
 echo "[OK] Webadmin: https://$LAN_IP:8443"
 echo "[OK] Log: $LOG"
 echo "[INFO] Plymouth wird separat nach Prüfung eingerichtet. Boot-Konfiguration unverändert."
