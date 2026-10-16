@@ -911,8 +911,10 @@ class ItomiScan:
         if self.busy or not self._allowed("scan"):
             return
         if not self.device:
-            if self.scanner_preparing:
+            if self.scanner_retry is not None:
                 self._queue_early_scan("quick")
+                if not self.scanner_preparing:
+                    self.scanner_retry()
             else:
                 messagebox.showwarning("Scanner", "Scanner ist noch nicht bereit.",
                                        parent=self.root)
@@ -1209,7 +1211,7 @@ class ItomiScan:
     def scanner_failed(self, message):
         self.scanner_preparing = False
         self._cancel_early_scan()
-        self.status_var.set("Scanner nicht bereit: " + str(message)[:150])
+        self.status_var.set("Scanner nicht bereit · Erneut scannen zum Wiederholen")
 
     def scanner_ready(self, device, options):
         """Revalidate live hardware before enabling any cached scan controls."""
@@ -1331,8 +1333,10 @@ class ItomiScan:
         if self.busy:
             return
         if not self.device:
-            if self.scanner_preparing and self._allowed(self._delivery_permission()):
+            if self.scanner_retry is not None and self._allowed(self._delivery_permission()):
                 self._queue_early_scan("normal")
+                if not self.scanner_preparing:
+                    self.scanner_retry()
             return
         if self.review_pending:
             messagebox.showinfo("Dokument prüfen",
