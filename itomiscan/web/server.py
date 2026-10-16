@@ -272,6 +272,10 @@ class AdminHandler(BaseHTTPRequestHandler):
             return self._redirect("/login")
         notice = parse_qs(urlsplit(self.path).query).get("ok", [""])[0][:180]
         try:
+            if path == "/assets/printer-choose.js":
+                return self._response(
+                    200, pages.PRINTER_CHOOSE_JS,
+                    mime="text/javascript; charset=utf-8")
             if path == "/assets/admin-dialogs.js":
                 return self._response(200, pages.DIALOG_JS,
                                       mime="text/javascript; charset=utf-8")
