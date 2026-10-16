@@ -125,9 +125,15 @@ class WebAdminTests(unittest.TestCase):
                 self.assertIn('<svg class="brand-icon"', page)
                 self.assertIn("Itomi<b>Scan</b>", page)
                 if route in ("/", "/system"):
-                    self.assertIn("data-status-key=\"cpu\"", page)
                     self.assertIn("data-status-key=\"disk", page)
                     self.assertIn("/assets/status.js", page)
+                    self.assertIn('data-metric-chart="cpu"', page)
+                    self.assertIn('data-metric-chart="ram"', page)
+                    if route == "/":
+                        self.assertNotIn('data-status-key="cpu"', page)
+                        self.assertIn('data-ram-progress', page)
+                    else:
+                        self.assertIn('data-status-key="cpu"', page)
         code, headers, body = self.req("GET", "/api/status")
         self.assertEqual(code, 200)
         state = json.loads(body)
@@ -400,7 +406,7 @@ class WebAdminTests(unittest.TestCase):
         self.login()
         code, _, html = self.req("GET", "/remote")
         self.assertEqual(code, 200)
-        self.assertIn("Scanner fernbedienen", html)
+        self.assertIn("Scanner fernsteuern", html)
         self.assertIn('action="/remote/profile"', html)
         self.assertEqual(self.req("POST", "/remote/profile",
                          {"csrf": "invalid", "name": "Dokument"})[0], 403)
