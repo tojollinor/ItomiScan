@@ -9,8 +9,8 @@ case "$BACKUP" in /var/lib/itomiscan/boot-backups/*) ;; *) echo "Ungültiger Sic
 command -v update-grub >/dev/null
 command -v update-initramfs >/dev/null
 install -m 0644 "$BACKUP/grub.original" /etc/default/grub
-if [[ -s "$BACKUP/plymouth-theme.original" ]]; then
-  PREVIOUS="$(head -n 1 "$BACKUP/plymouth-theme.original")"
+if [[ -s "$BACKUP/previous-theme-name" ]]; then
+  PREVIOUS="$(head -n 1 "$BACKUP/previous-theme-name")"
   if [[ "$PREVIOUS" =~ ^[a-zA-Z0-9_-]+$ ]]; then
     plymouth-set-default-theme "$PREVIOUS"
   fi
