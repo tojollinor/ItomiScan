@@ -9,6 +9,7 @@ import threading
 import tkinter as tk
 
 from itomiscan.core.startup import StartupFailure, wait_until_ready
+from itomiscan.core.scanner_cache import read_cache, write_cache
 from itomiscan.gui.splash import StartupSplash
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s itomiscan.kiosk: %(message)s", stream=sys.stderr)
@@ -55,51 +56,72 @@ def detect_options(device):
 
 
 class KioskStartup:
+    """Show the usable kiosk before probing the fixed Fujitsu scanner."""
+
     def __init__(self, root):
         self.root = root
         self.root.configure(bg="#101927")
         self.root.overrideredirect(True)
-        self.root.geometry(f"{root.winfo_screenwidth()}x{root.winfo_screenheight()}+0+0")
+        self.root.geometry(
+            f"{root.winfo_screenwidth()}x{root.winfo_screenheight()}+0+0")
         self.events = queue.Queue()
         self.running = True
         self.attempt = 0
         self.active = False
+        self.app = None
         self.splash = StartupSplash(root, retry=self.retry, exit_app=root.destroy)
-        self.root.after(120, self.poll)
         self.root.after_idle(lambda: _boot_marker("splash_angezeigt"))
-        self.root.after(160, self.retry)
+        self.root.after_idle(self.show_ui)
+
+    def show_ui(self):
+        from app import ItomiScan
+        cached = read_cache()
+        options = cached[1] if cached else None
+        try:
+            self.app = ItomiScan(
+                self.root, initial_device=None, initial_options=options,
+                defer_scanner=True, scanner_retry=self.retry)
+            self.splash.frame.lift()
+            self.root.update_idletasks()
+        except Exception as exc:
+            LOG.exception("GUI konnte nicht aufgebaut werden")
+            self.splash.failure("Oberfläche konnte nicht gestartet werden.", str(exc))
+            return
+        self.splash.destroy()
+        self.root.update_idletasks()
+        _boot_marker("oberflaeche_bereit")
+        self.root.after(100, self.poll)
+        self.root.after(150, self.retry)
 
     def retry(self):
-        if self.active or not self.running:
+        if self.active or not self.running or self.app is None:
             return
         self.attempt += 1
         attempt = self.attempt
         self.active = True
-        self.splash.loading()
-        LOG.info("Startversuch %s", attempt)
-        thread = threading.Thread(target=self.worker, args=(attempt,), daemon=True)
-        thread.start()
+        self.app.scanner_preparing = True
+        self.app.scanner_stage("Scanner wird im Hintergrund vorbereitet …")
+        LOG.info("Hintergrundscannerprüfung %s", attempt)
+        threading.Thread(target=self.worker, args=(attempt,), daemon=True).start()
 
     def worker(self, attempt):
         try:
             result = wait_until_ready(
                 detect_scanner, detect_options,
                 lambda step, msg: self.events.put((attempt, "stage", step, msg)),
-                timeout=90,
-            )
+                timeout=90)
         except StartupFailure as exc:
-            LOG.error("Startversuch %s fehlgeschlagen: %s | %s", attempt, exc, exc.detail)
+            LOG.error("Scannerprüfung fehlgeschlagen: %s | %s", exc, exc.detail)
             self.events.put((attempt, "failure", str(exc), exc.detail))
         except Exception as exc:
-            LOG.exception("Unerwarteter Fehler bei Startversuch %s", attempt)
-            self.events.put((attempt, "failure", "Scannerstart fehlgeschlagen.",
-                             str(exc)))
+            LOG.exception("Unerwarteter Scannerfehler")
+            self.events.put((attempt, "failure", "Scanner nicht bereit.", str(exc)))
         else:
-            LOG.info("Startversuch %s erfolgreich: %s, %s Optionen", attempt, result[0], len(result[1]))
+            write_cache(result[0], result[1])
             self.events.put((attempt, "ready", result[0], result[1]))
 
     def poll(self):
-        if not self.running:
+        if not self.running or self.app is None:
             return
         try:
             while True:
@@ -107,32 +129,13 @@ class KioskStartup:
                 if attempt != self.attempt:
                     continue
                 if kind == "stage":
-                    self.splash.stage(a, b)
+                    self.app.scanner_stage(b)
                 elif kind == "failure":
                     self.active = False
-                    self.splash.failure(a, b)
+                    self.app.scanner_failed(a + " " + b)
                 elif kind == "ready":
-                    from app import ItomiScan
-                    # Build the complete interface behind the splash;
-                    # remove the covering frame only once Tk has laid it out.
-                    try:
-                        ItomiScan(self.root, initial_device=a, initial_options=b)
-                        # Keep the startup overlay above newly constructed views.
-                        self.splash.frame.lift()
-                        self.root.update_idletasks()
-                    except Exception as exc:
-                        LOG.exception("Hauptoberfläche konnte nicht aufgebaut werden")
-                        self.active = False
-                        self.splash.frame.lift()
-                        self.splash.failure(
-                            "Oberfläche konnte nicht gestartet werden.", str(exc))
-                        continue
-                    self.running = False
                     self.active = False
-                    self.splash.destroy()
-                    self.root.update_idletasks()
-                    _boot_marker("oberflaeche_bereit")
-                    return
+                    self.app.scanner_ready(a, b)
         except queue.Empty:
             pass
         self.root.after(120, self.poll)
