@@ -26,7 +26,7 @@ from urllib.parse import parse_qs, urlsplit
 from itomiscan.core.profiles import validate_profile
 from itomiscan.storage.config import ConfigError, ConfigStore
 from itomiscan.storage.users import PERMISSIONS, PinError, UserStore
-from itomiscan.web import pages, user_pages, delivery_pages, printing_pages
+from itomiscan.web import pages, user_pages, delivery_pages, printing_pages, remote_pages
 from itomiscan.web.system_status import StatusSampler
 from itomiscan.integrations.discovery import discover_paperless
 from itomiscan.integrations.printing import (
@@ -34,6 +34,7 @@ from itomiscan.integrations.printing import (
     discover_printers, set_default_printer, printer_uri, queue_name, address_from_host,
 )
 from itomiscan.storage.queue import DeliveryQueue, QueueError
+from itomiscan.storage.remote_commands import RemoteCommands
 from itomiscan.storage.secrets import SecretStore, SecretError
 
 
@@ -155,6 +156,7 @@ class AdminServer(ThreadingHTTPServer):
         self.secrets = SecretStore(store.path)
         self.diagnostic = ""
         self.status_sampler = StatusSampler()
+        self.remote_commands = RemoteCommands(store.path)
 
 
 class AdminHandler(BaseHTTPRequestHandler):
@@ -273,6 +275,9 @@ class AdminHandler(BaseHTTPRequestHandler):
             return self._redirect("/login")
         notice = parse_qs(urlsplit(self.path).query).get("ok", [""])[0][:180]
         try:
+            if path == "/assets/remote.js":
+                return self._response(200, pages.REMOTE_JS,
+                                      mime="text/javascript; charset=utf-8")
             if path == "/assets/printer-choose.js":
                 return self._response(
                     200, pages.PRINTER_CHOOSE_JS,
@@ -295,6 +300,10 @@ class AdminHandler(BaseHTTPRequestHandler):
             elif path == "/profiles":
                 profiles, selected = self.server.store.list_profiles()
                 html = pages.profiles_page(profiles, selected, csrf, notice)
+            elif path == "/remote":
+                profiles, selected = self.server.store.list_profiles()
+                html = remote_pages.remote_page(
+                    profiles, selected, self.server.remote_commands.latest(), csrf, notice)
             elif path == "/users":
                 profiles, _ = self.server.store.list_profiles()
                 html = user_pages.users_page(
@@ -339,6 +348,10 @@ class AdminHandler(BaseHTTPRequestHandler):
                 return self._response(
                     200, data, mime="application/json; charset=utf-8",
                     attachment='attachment; filename="itomiscan-konfiguration.json"')
+            elif path == "/api/remote-status":
+                return self._response(200, json.dumps(
+                    self.server.remote_commands.latest()),
+                    mime="application/json; charset=utf-8")
             elif path == "/api/metrics":
                 data = json.dumps(self.server.status_sampler.collect(
                     self.server.store.path.parent), ensure_ascii=False)
@@ -427,6 +440,12 @@ class AdminHandler(BaseHTTPRequestHandler):
             if path == "/logout":
                 self.server.sessions.remove(self._session_token())
                 return self._redirect("/login", cookie=self._cookie("", expired=True))
+            if path == "/remote/command":
+                action = form.get("action", "")
+                if action in ("restart", "poweroff") and form.get("confirmed") != "yes":
+                    raise ValueError("Systemaktion nicht bestätigt.")
+                self.server.remote_commands.request(action)
+                return self._redirect("/remote?ok=Aktion%20an%20Kiosk%20uebergeben")
             if path == "/users/config":
                 self.server.users.configure(
                     enabled=form.get("enabled") == "yes",
