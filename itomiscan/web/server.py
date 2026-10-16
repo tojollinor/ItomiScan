@@ -275,6 +275,9 @@ class AdminHandler(BaseHTTPRequestHandler):
             return self._redirect("/login")
         notice = parse_qs(urlsplit(self.path).query).get("ok", [""])[0][:180]
         try:
+            if path == "/assets/target-select.js":
+                return self._response(200, pages.TARGET_SELECT_JS,
+                                      mime="text/javascript; charset=utf-8")
             if path == "/assets/remote.js":
                 return self._response(200, pages.REMOTE_JS,
                                       mime="text/javascript; charset=utf-8")
