@@ -69,7 +69,8 @@ CSS = """
 header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;border-bottom:1px solid var(--line);padding-bottom:14px}
 .brand{display:flex;align-items:center;gap:11px;font-size:1.8rem;font-weight:800;letter-spacing:-.035em}.brand b{color:#42bfea}.brand-icon{flex:none;border-radius:8px}.brand-name{white-space:nowrap}
 nav{display:flex;flex-wrap:wrap;gap:9px;align-items:center}a{color:var(--accent)}nav a{padding:10px 9px;text-decoration:none;color:var(--fg);border-radius:9px}
-nav a:hover,nav a.active{background:#2a4560}.nav-home-brand{display:inline-flex;align-items:center;gap:7px;font-weight:750;white-space:nowrap}.nav-home-brand b{color:#42bfea}.nav-home-brand .brand-icon{border-radius:5px}h1{font-size:1.65rem;margin:28px 0 10px}h2{font-size:1.15rem;margin:4px 0 14px}
+nav a:hover,nav a.active{background:#2a4560}.nav-home-brand{display:inline-flex;align-items:center;gap:7px;font-weight:750;white-space:nowrap}.nav-home-brand b{color:#42bfea}.nav-home-brand .brand-icon{border-radius:5px}
+h1{font-size:1.65rem;margin:28px 0 10px}h2{font-size:1.15rem;margin:4px 0 14px}
 p{color:var(--soft)}small,.muted{color:var(--soft)}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(285px,1fr));gap:16px}
 .card{background:var(--pane);padding:20px;border-radius:15px;min-width:0}.card p{margin-top:0}.wide{grid-column:1/-1}
 label{display:block;color:var(--soft);font-size:.92rem;margin:11px 0 5px}
@@ -95,7 +96,7 @@ def layout(title, body, *, active="", csrf="", notice="", error="", logged=True,
         links = (("/", "Übersicht"), ("/profiles", "Scanprofile"),
                  ("/users", "Benutzer"), ("/targets", "Zielsysteme"), ("/printers", "Drucker"), ("/jobs", "Aufträge"), ("/system", "System"),
                  ("/backups", "Sicherung"))
-        navigation = '<nav aria-label="Hauptnavigation">' + '<a class="nav-home-brand" href="/" aria-label="ItomiScan Übersicht">' + logo_svg(28) + '<span>Itomi<b>Scan</b></span></a>' + "".join
+        navigation = '<nav aria-label="Hauptnavigation">' + '<a class="nav-home-brand" href="/" aria-label="ItomiScan Übersicht">' + logo_svg(28) + '<span>Itomi<b>Scan</b></span></a>' + "".join(
             f'<a class="{("active" if url == active else "")}" href="{url}">{e(label)}</a>'
             for url, label in links
         ) + (f'<form class="inline" method="post" action="/logout">'
