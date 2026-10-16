@@ -12,7 +12,12 @@ def remote_page(profiles, selected, latest, csrf, notice=""):
             'Während eines Scans oder der Dokumentenprüfung werden neue Aktionen abgelehnt.</p>'
             '<section class="grid"><article class="card"><h2>Scansteuerung</h2>'
             '<p>Gewähltes Standardprofil: <strong>' + e(selected) + '</strong></p>'
-            '<p>Scanprofile können unter Scanprofile verwaltet und gewechselt werden.</p>'
+            '<form method="post" action="/remote/profile">' + token(csrf)
+            + '<label>Scanprofil</label><select name="name">'
+            + options([p["name"] for p in profiles], selected)
+            + '</select><button class="secondary">Profil auswählen</button></form>'
+            '<p>Bei aktiver PIN-Anmeldung gilt weiterhin das persönliche '
+            'Profil des angemeldeten Scannerbenutzers.</p>'
             '<form method="post" action="/remote/command">' + token(csrf)
             + '<button name="action" value="scan">Mit aktuellem Profil scannen</button>'
             '<button class="secondary" name="action" value="open_scan">Scanansicht öffnen</button>'
