@@ -146,9 +146,8 @@ REMOTE_JS = """(() => {
       }
     });
   });
-  if (!status) return;
-  async function refresh() {
-    if (document.hidden) return;
+  async function refreshStatus() {
+    if (!status || document.hidden) return;
     try {
       const response = await fetch('/api/remote-status',
           {cache:'no-store', credentials:'same-origin'});
@@ -159,11 +158,82 @@ REMOTE_JS = """(() => {
           'Noch kein Fernauftrag';
     } catch (_error) {}
   }
-  refresh();
-  const timer = window.setInterval(refresh, 2500);
-  window.addEventListener('pagehide', () => clearInterval(timer), {once:true});
+  refreshStatus();
+  const statusTimer = window.setInterval(refreshStatus, 2500);
+  const frame = document.getElementById('remote-live-frame');
+  if (!frame) {
+    window.addEventListener('pagehide', () => clearInterval(statusTimer), {once:true});
+    return;
+  }
+  const feedback = document.getElementById('remote-live-status');
+  const csrf = document.querySelector('form[action="/remote/live/stop"] input[name="csrf"]').value;
+  let halted = false;
+  async function post(path, values={}) {
+    const body = new URLSearchParams({csrf, ...values});
+    const response = await fetch(path, {method:'POST', credentials:'same-origin',
+      cache:'no-store', headers:{'Content-Type':'application/x-www-form-urlencoded'},
+      body});
+    if (!response.ok) throw new Error('Sitzung abgelaufen oder Eingabe abgelehnt');
+  }
+  frame.addEventListener('load', () => { feedback.textContent =
+      'Livebild aktiv · Berühren oder klicken zum Bedienen'; });
+  frame.addEventListener('error', () => { feedback.textContent =
+      'Warte auf Scannerbildschirm und X11-Bildschirmaufnahme …'; });
+  frame.addEventListener('click', async event => {
+    if (halted) return;
+    const box = frame.getBoundingClientRect();
+    if (!box.width || !box.height) return;
+    const x = Math.max(0, Math.min(1000,
+        Math.round((event.clientX - box.left) / box.width * 1000)));
+    const y = Math.max(0, Math.min(1000,
+        Math.round((event.clientY - box.top) / box.height * 1000)));
+    try { await post('/remote/live/input', {kind:'click', x:String(x), y:String(y)}); }
+    catch (err) { feedback.textContent = err.message; }
+  });
+  document.querySelectorAll('[data-remote-key]').forEach(button => {
+    button.addEventListener('click', async () => {
+      try { await post('/remote/live/input', {kind:'key', key_name:button.dataset.remoteKey}); }
+      catch (err) { feedback.textContent = err.message; }
+    });
+  });
+  const send = document.getElementById('remote-send-text');
+  const input = document.getElementById('remote-text');
+  send.addEventListener('click', async () => {
+    const value = input.value;
+    if (!/^[A-Za-z0-9 .@-]*$/.test(value)) {
+      feedback.textContent = 'Nur Buchstaben, Zahlen, Leerzeichen, Punkt, @ und - unterstützt.';
+      return;
+    }
+    send.disabled = true;
+    try {
+      for (const character of value) {
+        const name = {' ':'space', '.':'period', '@':'at', '-':'minus'}[character] || character;
+        await post('/remote/live/input', {kind:'key', key_name:name});
+        await new Promise(resolve => setTimeout(resolve, 230));
+      }
+      input.value = '';
+    } catch (err) { feedback.textContent = err.message; }
+    finally { send.disabled = false; }
+  });
+  function refreshFrame() {
+    if (halted || document.hidden) return;
+    frame.src = '/api/remote-frame?frame=' + Date.now();
+  }
+  refreshFrame();
+  const frameTimer = window.setInterval(refreshFrame, 1700);
+  const keepAlive = window.setInterval(async () => {
+    if (halted || document.hidden) return;
+    try { await post('/remote/live/ping'); }
+    catch (_error) {
+      halted = true;
+      feedback.textContent = 'Fernsteuerung beendet. Bitte Seite neu laden.';
+    }
+  }, 8000);
+  window.addEventListener('pagehide', () => {
+    halted = true;
+    clearInterval(statusTimer); clearInterval(frameTimer); clearInterval(keepAlive);
+  }, {once:true});
 })();"""
-
 
 PRINTER_CHOOSE_JS = """(() => {
   document.addEventListener('click', event => {
@@ -255,6 +325,9 @@ table{width:100%;border-collapse:collapse}td,th{padding:10px;text-align:left;bor
 .monitor-chart{width:100%;height:auto;display:block;background:#101d2e;border-radius:9px}
 .memory-track{height:20px;background:#101d2e;border-radius:10px;overflow:hidden;border:1px solid var(--line)}
 .memory-fill{height:100%;width:0;background:#42bfea;transition:width .5s linear}
+.remote-screen{max-width:768px;background:#101d2e;border:1px solid var(--line);border-radius:10px;overflow:hidden;margin:12px 0}
+.remote-screen img{width:100%;aspect-ratio:4/3;display:block;object-fit:contain;cursor:crosshair}
+.remote-keys{max-width:770px}.remote-keys button{margin-right:9px}
 """
 
 
