@@ -62,6 +62,11 @@ class TouchFeedback:
         self.canvas = tk.Canvas(self.window, width=58, height=58, bg=branding.BG,
                                 highlightthickness=0, bd=0, cursor="none")
         self.canvas.pack()
+        # Ensure Tk creates and flushes the X window before the separate
+        # XFixes connection references its XID (otherwise BadWindow aborts).
+        self.window.geometry("58x58+-200+-200")
+        self.window.deiconify()
+        self.window.update_idletasks()
         # X ShapeInput=2. Empty input shape means the ring never steals
         # a click, even if the user taps twice while the animation is visible.
         empty_region = self.fixes.XFixesCreateRegion(self.display, None, 0)
@@ -75,6 +80,7 @@ class TouchFeedback:
             self.fixes.XFixesDestroyRegion(self.display, empty_region)
         self.fixes.XFixesHideCursor(self.display, xroot)
         self.x11.XFlush(self.display)
+        self.window.withdraw()
 
     def on_touch(self, event):
         if not self.window or not self.display:
