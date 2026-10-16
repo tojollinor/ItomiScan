@@ -103,42 +103,36 @@ TARGET_SELECT_JS = """(() => {
   if (!form) return;
   const kind = form.querySelector('[name="kind"]');
   const address = form.querySelector('[name="address"]');
-  const label = document.getElementById('target-address-label');
-  const hint = document.getElementById('target-address-help');
-  const fields = {
-    paperless: ['Paperless HTTPS-Adresse', 'https://paperless.example.lan',
-      'Verschlüsselte Paperless-URL ohne API-Token. Eine automatische Erkennung ist optional.'],
-    network: ['SMB-Netzwerkordner', 'smb://server/freigabe/ordner',
-      'Freigabe und optionaler Unterordner. Zugangsdaten separat speichern.'],
-    email: ['SMTP-Empfänger und Server', 'smtp://server:587/empfaenger@example.org',
-      'SMTP über STARTTLS oder SMTPS. Zugangsdaten separat speichern.'],
-    usb: ['USB-Datenträger und Unterordner', 'usb://DATENTRAEGER/ordner',
-      'Der Datenträger muss am Scanner eingehängt sein.'],
-    printer: ['Druckeradresse', 'ipps://drucker.lan/ipp/print',
-      'Drucker bevorzugt im separaten Menü Drucker verwalten.']
-  };
+  const help = document.getElementById('target-address-help');
   function update() {
-    const selected = fields[kind.value];
-    if (!selected) return;
-    label.textContent = selected[0];
-    address.placeholder = selected[1];
-    hint.textContent = selected[2];
+    form.querySelectorAll('[data-target-section]').forEach(section => {
+      const selected = section.dataset.targetSection === kind.value;
+      section.hidden = !selected;
+      // Hidden controls cannot block browser validation of the selected form.
+      section.querySelectorAll('input,select').forEach(input => {
+        input.disabled = !selected;
+      });
+    });
+    if (help) help.textContent =
+      'Optional: vollständige Zieladresse statt Einzelfeldern eingeben. ' +
+      'Keine Zugangsdaten in die URL schreiben.';
   }
   document.addEventListener('click', event => {
     const button = event.target.closest('[data-select-paperless]');
     if (!button) return;
     kind.value = 'paperless';
     update();
-    address.value = button.dataset.selectPaperless;
+    const url = form.querySelector('[name="paperless_url"]');
+    if (url) url.value = button.dataset.selectPaperless;
+    address.value = '';
     const name = form.querySelector('[name="name"]');
     if (name && !name.value.trim()) name.value = 'Paperless';
     form.scrollIntoView({behavior:'smooth', block:'center'});
-    address.focus();
+    if (url) url.focus();
   });
   kind.addEventListener('change', update);
   update();
 })();"""
-
 
 REMOTE_JS = """(() => {
   const status = document.getElementById('remote-command-status');
