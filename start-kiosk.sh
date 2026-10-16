@@ -9,4 +9,8 @@ xsetroot -solid "#101927" 2>/dev/null || true
 # Resolve the repository root so the package and the old app.py are importable.
 ROOT=$(CDPATH= cd "$(dirname "$0")" && pwd)
 cd "$ROOT"
+# Keep Debian SANE defaults untouched. Only this kiosk process and its
+# scanimage subprocesses use the faster Fujitsu-only backend list.
+# Include /etc/sane.d as fallback for fujitsu.conf and other backend settings.
+export SANE_CONFIG_DIR="$ROOT/itomiscan/sane-config:/etc/sane.d"
 exec /usr/bin/python3 -m itomiscan.gui.kiosk
