@@ -14,6 +14,20 @@ from itomiscan.gui.splash import StartupSplash
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s itomiscan.kiosk: %(message)s", stream=sys.stderr)
 LOG = logging.getLogger("itomiscan.kiosk")
 
+def _boot_marker(stage):
+    """Persist Linux uptime for comparing splash and UI readiness."""
+    try:
+        from pathlib import Path
+        uptime = float(Path("/proc/uptime").read_text(encoding="ascii").split()[0])
+        path = Path.home() / ".local" / "state" / "itomiscan" / "boot-timing.log"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with path.open("a", encoding="utf-8") as log:
+            log.write(f"{time.strftime('%Y-%m-%d %H:%M:%S')} uptime={uptime:.3f}s {stage}\\n")
+        LOG.info("Bootmessung: %s nach %.3fs", stage, uptime)
+    except (OSError, ValueError) as exc:
+        LOG.warning("Bootzeitmarke nicht verfuegbar: %s", exc)
+
+
 
 def _timed_probe(label, callback, timeout):
     started = time.monotonic()
@@ -52,6 +66,7 @@ class KioskStartup:
         self.active = False
         self.splash = StartupSplash(root, retry=self.retry, exit_app=root.destroy)
         self.root.after(120, self.poll)
+        self.root.after_idle(lambda: _boot_marker("splash_angezeigt"))
         self.root.after(160, self.retry)
 
     def retry(self):
@@ -115,6 +130,8 @@ class KioskStartup:
                     self.running = False
                     self.active = False
                     self.splash.destroy()
+                    self.root.update_idletasks()
+                    _boot_marker("oberflaeche_bereit")
                     return
         except queue.Empty:
             pass
@@ -122,6 +139,7 @@ class KioskStartup:
 
 
 def main():
+    _boot_marker("kiosk_start")
     root = tk.Tk()
     KioskStartup(root)
     root.mainloop()
