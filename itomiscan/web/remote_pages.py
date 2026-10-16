@@ -34,7 +34,8 @@ def remote_page(profiles, selected, latest, csrf, notice="", *, live=False):
             '<p>Aktionen werden an die lokale ItomiScan-Oberfläche übergeben. '
             'Eine aktive PIN-Sitzung und lokale Berechtigungen gelten weiterhin. '
             'Während eines Scans oder der Dokumentenprüfung werden neue Aktionen abgelehnt.</p>'
-            '<section class="grid"><article class="card"><h2>Scansteuerung</h2>'
+            + view + '<section class="grid" style="margin-top:16px">'
+            '<article class="card"><h2>Scansteuerung</h2>'
             '<p>Gewähltes Standardprofil: <strong>' + e(selected) + '</strong></p>'
             '<form method="post" action="/remote/profile">' + token(csrf)
             + '<label>Scanprofil</label><select name="name">'
