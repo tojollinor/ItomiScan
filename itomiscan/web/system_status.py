@@ -111,6 +111,7 @@ class StatusSampler:
         info = {
             "cpu": self._cpu(),
             "ram": "Nicht verfügbar",
+            "ram_percent": None,
             "ram_total": "Nicht verfügbar",
             "ram_used": "Nicht verfügbar",
             "ram_free": "Nicht verfügbar",
@@ -123,6 +124,7 @@ class StatusSampler:
         try:
             total, used, free = _memory_usage()
             info.update(ram=f"{_format_bytes(used)} / {_format_bytes(total)}",
+                        ram_percent=round(100 * used / total, 1) if total else None,
                         ram_total=_format_bytes(total),
                         ram_used=_format_bytes(used),
                         ram_free=_format_bytes(free))
