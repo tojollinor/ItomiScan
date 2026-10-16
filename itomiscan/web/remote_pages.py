@@ -6,7 +6,7 @@ def remote_page(profiles, selected, latest, csrf, notice=""):
     state = ("Noch kein Fernauftrag" if not latest else
              f"Letzter Auftrag #{latest['id']}: {latest['action']} · "
              f"{latest['status']} · {latest['detail']}")
-    body = ('<h1>Scanner fernbedienen</h1>'
+    body = ('<h1>Scanner fernsteuern</h1>'
             '<p>Aktionen werden an die lokale ItomiScan-Oberfläche übergeben. '
             'Eine aktive PIN-Sitzung und lokale Berechtigungen gelten weiterhin. '
             'Während eines Scans oder der Dokumentenprüfung werden neue Aktionen abgelehnt.</p>'
@@ -36,4 +36,4 @@ def remote_page(profiles, selected, latest, csrf, notice=""):
             '<p class="muted">Angenommen bedeutet nur, dass der Auftrag an den Kiosk '
             'übergeben wurde, nicht dass ein Scan oder Neustart abgeschlossen ist.</p>'
             '</article><script defer src="/assets/remote.js"></script>')
-    return layout("Fernbedienung", body, active="/remote", csrf=csrf, notice=notice)
+    return layout("Fernsteuerung", body, active="/remote", csrf=csrf, notice=notice)
