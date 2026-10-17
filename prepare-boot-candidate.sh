@@ -10,7 +10,7 @@ BASE="/boot/initrd.img-${KERNEL}"
 DEP="/boot/initrd.img-${KERNEL}-dep-test"
 CANDIDATE="/boot/initrd.img-${KERNEL}-itomiscan-splash-test"
 THEME="/usr/share/plymouth/themes/itomiscan"
-STATIC="/usr/share/plymouth/themes/itomiscan-static"
+STAGE="${ITOMISCAN_SPLASH_STAGE:-}"
 MODE="${ITOMISCAN_SPLASH_MODE:-animated}"
 
 usage() {
@@ -20,7 +20,7 @@ usage() {
 }
 [[ $# -eq 1 ]] || usage
 [[ "$1" == check || "$1" == build ]] || usage
-[[ "$MODE" == animated || "$MODE" == static ]] || { echo "Invalid splash mode" >&2; exit 2; }
+[[ "$MODE" == animated ]] || { echo "Isolated builder currently supports animated only" >&2; exit 2; }
 
 # Each required file is validated up front. There is no call to an installer.
 check() {
@@ -47,28 +47,29 @@ check() {
     echo "initramfs-tools config missing"
     count=$((count+1))
   }
-  if [[ "$MODE" == animated ]]; then
+  # Staged files only. The active Plymouth theme on disk stays untouched.
+  [[ -n "$STAGE" && -d "$STAGE/itomiscan" ]] || {
+    echo "Set ITOMISCAN_SPLASH_STAGE to a staged theme directory"
+    count=$((count+1))
+  }
+  if [[ -d "$STAGE/itomiscan" ]]; then
     for f in itomiscan.plymouth itomiscan.script logo-base.png scanline.png brand.png subtitle.png status.png detail.png; do
-      [[ -s "$THEME/$f" ]] || { echo "New animated theme asset missing: $THEME/$f"; count=$((count+1)); }
+      [[ -s "$STAGE/itomiscan/$f" ]] || { echo "Staged asset missing: $f"; count=$((count+1)); }
     done
-    if [[ -s "$THEME/itomiscan.script" ]] &&
-       ! grep -Fq 'Plymouth.SetRefreshFunction(refresh_callback)' "$THEME/itomiscan.script"; then
-      echo "Animated theme is still the old ItomiScan version"
+    if [[ -s "$STAGE/itomiscan/itomiscan.script" ]] &&
+       ! grep -Fq 'Plymouth.SetRefreshFunction(refresh_callback)' "$STAGE/itomiscan/itomiscan.script"; then
+      echo "Staged theme is not animated"
       count=$((count+1))
     fi
-  else
-    for f in itomiscan-static.plymouth itomiscan-static.script static-boot.png; do
-      [[ -s "$STATIC/$f" ]] || { echo "Static theme asset missing: $STATIC/$f"; count=$((count+1)); }
-    done
   fi
+  # Plymouth's stock hook must first load its normal 'itomiscan' theme.
+  # Our local hook overlays staged files in DESTDIR after the stock hook.
   local selected=""
   if command -v plymouth-set-default-theme >/dev/null 2>&1; then
     selected="$(plymouth-set-default-theme 2>/dev/null || true)"
   fi
-  local expected="itomiscan"
-  [[ "$MODE" == static ]] && expected="itomiscan-static"
-  [[ "$selected" == "$expected" ]] || {
-    echo "Selected root Plymouth theme is '$selected' but expected '$expected'"
+  [[ "$selected" == itomiscan ]] || {
+    echo "Installed theme selection must remain itomiscan (got '$selected')"
     count=$((count+1))
   }
   # Refuse overwriting anything, including zero-sized or symlink candidates.
@@ -97,6 +98,20 @@ trap cleanup EXIT
 
 # Preserve the host configuration but never edit it; stage a copy separately.
 cp -a /etc/initramfs-tools "$work/config"
+mkdir -p "$work/config/itomiscan-overlay/itomiscan"
+cp -a "$STAGE/itomiscan/." "$work/config/itomiscan-overlay/itomiscan/"
+mkdir -p "$work/config/hooks"
+cat > "$work/config/hooks/zzzz-itomiscan-overlay" <<\'OVERLAY\'
+#!/bin/sh
+set -eu
+case "${1:-}" in prereqs) echo ""; exit 0 ;; esac
+# Locally injected into the mkinitramfs -d staging config only.
+source_dir="$(dirname "$0")/../itomiscan-overlay/itomiscan"
+dest_dir="${DESTDIR}/usr/share/plymouth/themes/itomiscan"
+[ -d "$source_dir" ] && [ -d "$dest_dir" ] || exit 1
+cp -a "$source_dir/." "$dest_dir/"
+OVERLAY
+chmod 0755 "$work/config/hooks/zzzz-itomiscan-overlay"
 if grep -Eq '^[[:space:]]*MODULES=' "$work/config/initramfs.conf"; then
   sed -i -E 's/^[[:space:]]*MODULES=.*/MODULES=dep/' "$work/config/initramfs.conf"
 else
@@ -104,16 +119,15 @@ else
 fi
 
 # Debian Bookworm mkinitramfs supports -d <alternative config directory>.
-# The normal Plymouth hook reads the selected theme on the host.
+# The normal Plymouth hook reads the old host theme; a local hook overlays\n# only the staging output in the candidate initramfs destination.
 mkinitramfs -d "$work/config" -o "$image" "$KERNEL"
 [[ -s "$image" ]] || { echo "Empty output image"; exit 4; }
 listing="$work/contents"
 lsinitramfs "$image" > "$listing"
 expected="itomiscan"
-[[ "$MODE" == static ]] && expected="itomiscan-static"
 for needed in "usr/share/plymouth/themes/$expected/$expected.plymouth" \
               "usr/share/plymouth/themes/$expected/$expected.script" \
-              "usr/lib/modules/$KERNEL/kernel/drivers/gpu/drm/i915/i915.ko"; do
+              "usr/share/plymouth/themes/$expected/scanline.png" \\\n              "usr/lib/modules/$KERNEL/kernel/drivers/gpu/drm/i915/i915.ko"; do
   grep -Fq "$needed" "$listing" || {
     echo "Image lacks required file: $needed"
     exit 4
