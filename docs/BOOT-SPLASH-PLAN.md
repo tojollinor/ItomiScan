@@ -61,7 +61,29 @@ bash /tmp/preflight-boot-candidate.sh
 
 **Offene technische Voraussetzung vor einem echten Build:** Die vollständige Debian-initramfs-tools-/Plymouth-Hook-Reihenfolge und die tatsächlich installierten Theme-Dateien am N1800 prüfen. Ein simples `mkinitramfs -o` mit den Standardwerten könnte die bisherige 16-MB-Optimierung verlieren. Ein blindes Entpacken/Neupacken der Initramfs könnte durch spezielle initramfs-Archivstrukturen den Start beschädigen. Daher kein Build oder Einmalboot allein aufgrund der bisherigen Diagnose auslösen.
 
-### B. Kandidaten-Initramfs vorbereiten (noch nicht automatisiert)
+### B. Geschützter Kandidaten-Build (im Entwicklungszweig vorbereitet)
+
+Das neue Skript `prepare-boot-candidate.sh` bietet genau zwei explizite Betriebsarten: `check` (nur lesend) und `build` (erst nach ausdrücklicher Freigabe, nur vor Ort). Das Skript wird **nicht** von einem Installer oder dem Updateknopf aufgerufen.
+
+`check` prüft Kernel und Root-UUID, BIOS-Modus, die unveränderten vorhandenen Initramfs-Dateien, den freien Kandidatenpfad und die Vollständigkeit des neuen Plymouth-Themes einschließlich Scanlinien-Animation. Auf dem aktuell diagnostizierten N1800 muss diese Prüfung noch fehlschlagen, weil dort das alte Theme installiert ist. Das ist beabsichtigt.
+
+`build` nutzt Debian Bookworms `mkinitramfs -d` mit einer **temporären Kopie** von `/etc/initramfs-tools` und `MODULES=dep`. Das normale Host-Theme muss dafür vorab kontrolliert installiert und ausgewählt sein, damit der originale Plymouth-Hook dessen Dateien übernimmt. Die erzeugte Datei wird erst nach `lsinitramfs`-Prüfung von Treiber und Theme als separate Datei veröffentlicht. Ein zweifacher Größenanstieg gegenüber der bisherigen DEP-Initramfs führt zum Abbruch. GRUB, die 53-MB-Originaldatei und die bewährte 16-MB-DEP-Datei bleiben unverändert.
+
+Kandidatenpfad: `/boot/initrd.img-6.1.0-50-686-pae-itomiscan-splash-test`. Der Build erfolgt **nicht durch diesen Chat** und ist derzeit auch nicht freigegeben. Bevor `build` gestartet wird, müssen der verwendete Plymouth-Hook, dessen Theme-Auswahl und die Optimierungskonfiguration auf dem echten Gerät gelesen und mit dem geplanten Verfahren abgeglichen werden. Eine neu gebaute DEP-Initramfs ist nicht automatisch gleichwertig mit der früheren 16-MB-Datei.
+
+**Nur lesende Vorprüfung am Gerät (erst nach dem Update des Diagnosecodes):**
+
+```bash
+curl -fL --retry 2 \
+  https://raw.githubusercontent.com/tojollinor/ItomiScan/develop/1.0.0/prepare-boot-candidate.sh \
+  -o /tmp/prepare-boot-candidate.sh
+bash -n /tmp/prepare-boot-candidate.sh
+bash /tmp/prepare-boot-candidate.sh check
+```
+
+Die Befehlsvariante `build` **nicht** ausführen, bevor Theme, Hooks und Rückfallplan am Gerät separat geprüft wurden.
+
+
 
 Erst nach A eine **neue separate Kandidaten-Datei** erstellen. Nicht überschreiben:
 - die originale 53-MB-Initramfs,
