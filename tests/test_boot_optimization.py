@@ -43,7 +43,7 @@ class BootOptimizationTests(unittest.TestCase):
         script = (ROOT / "inspect-boot-graphics.sh").read_text()
         for required in ("GRUB_GFXMODE", "GRUB_GFXPAYLOAD_LINUX", "/proc/cmdline",
                          "i915", "lsinitramfs", "itomiscan-initramfs-dep-test",
-                         "static-boot.png", "Keine Dateien oder Einstellungen geaendert"):
+                         "static-boot\\.png", "Keine Dateien oder Einstellungen geaendert"):
             self.assertIn(required, script)
         for forbidden in ("update-grub", "update-initramfs", "grub-reboot",
                           "grub-set-default", "apt-get install", "systemctl reboot"):
