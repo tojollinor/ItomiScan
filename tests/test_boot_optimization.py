@@ -18,7 +18,7 @@ class BootOptimizationTests(unittest.TestCase):
                      "restore-boot-splash.sh", "preflight-boot-splash.sh",
                      "inspect-boot-graphics.sh", "preflight-boot-candidate.sh",
                      "prepare-boot-candidate.sh", "test-boot-splash-candidate.sh",
-                     "stage-boot-splash-assets.sh"):
+                     "stage-boot-splash-assets.sh", "test-login-visibility.sh"):
             with self.subTest(name=name):
                 result = subprocess.run(
                     ["bash", "-n", str(ROOT / name)],
@@ -42,6 +42,17 @@ class BootOptimizationTests(unittest.TestCase):
         restore = (ROOT / "restore-boot-splash.sh").read_text()
         self.assertIn("previous-theme-name", setup)
         self.assertIn("previous-theme-name", restore)
+
+    def test_login_visibility_test_is_reversible_without_boot_modification(self):
+        script = (ROOT / "test-login-visibility.sh").read_text()
+        for required in ("status|apply|restore", "profile.original",
+                         "sha256sum -c --status", "hush.absent",
+                         "ITOMISCAN_LOGIN_VISIBILITY_TEST",
+                         "itomiscan-xorg-start.log"):
+            self.assertIn(required, script)
+        for forbidden in ("update-grub", "update-initramfs", "systemctl restart",
+                          "systemctl reboot", "grub-reboot", "grub-set-default"):
+            self.assertNotIn(forbidden, script)
 
     def test_theme_staging_is_isolated_from_host_boot_files(self):
         stage = (ROOT / "stage-boot-splash-assets.sh").read_text()
