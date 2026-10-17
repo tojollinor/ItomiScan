@@ -119,7 +119,8 @@ else
 fi
 
 # Debian Bookworm mkinitramfs supports -d <alternative config directory>.
-# The normal Plymouth hook reads the old host theme; a local hook overlays# only the staging output in the candidate initramfs destination.
+# The normal Plymouth hook reads the old host theme; a local hook overlays
+# only the staging output in the candidate initramfs destination.
 mkinitramfs -d "$work/config" -o "$image" "$KERNEL"
 [[ -s "$image" ]] || { echo "Empty output image"; exit 4; }
 listing="$work/contents"
