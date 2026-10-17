@@ -67,6 +67,8 @@ theme_dir="/usr/share/plymouth/themes/itomiscan"
 static_theme_dir="/usr/share/plymouth/themes/itomiscan-static"
 if [[ -d "$theme_dir" ]]; then
   cp -a "$theme_dir" "$backup_dir/previous-itomiscan-theme"
+else
+  : > "$backup_dir/previous-itomiscan-theme.absent"
 fi
 if [[ -d "$static_theme_dir" ]]; then
   cp -a "$static_theme_dir" "$backup_dir/previous-itomiscan-static-theme"
