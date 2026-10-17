@@ -45,6 +45,22 @@ Besonders prüfen:
 - Welche Plymouth-Theme-Dateien sind tatsächlich installiert?
 - Welche Grafik-/Plymouth-Meldungen erscheinen im Kerneljournal?
 
+### A2. Separate Kandidaten-Vorprüfung (nur lesen)
+
+Die Geräte-Diagnose vom 17.10.2026 zeigt: GRUB startet standardmäßig `itomiscan-initramfs-dep-test`; diese 16-MB-Datei enthält `i915.ko` und Plymouth, jedoch das alte ItomiScan-Theme. `i915` initialisiert den Framebuffer erst bei etwa 14 Sekunden Linux-Uptime. Das System verwendet danach `i915drmfb` mit 1024×768. Damit ist ein fehlendes Grafikmodul **nicht** als Ursache nachgewiesen; ob der Aufruf im Initramfs-Startpfad zu spät erfolgt, bleibt offen.
+
+Das ergänzte `preflight-boot-candidate.sh` prüft ausschließlich lesend die N1800-Hardwarekennzeichen, die vorhandenen Initramfs-Dateien, das Freisein eines neuen Kandidatenpfads und die benötigten Tools. Der Pfad für einen *späteren* Kandidaten lautet `/boot/initrd.img-6.1.0-50-686-pae-itomiscan-splash-test`. Er wird von dieser Vorprüfung weder angelegt noch verändert.
+
+```bash
+curl -fL --retry 2 \
+  https://raw.githubusercontent.com/tojollinor/ItomiScan/develop/1.0.0/preflight-boot-candidate.sh \
+  -o /tmp/preflight-boot-candidate.sh
+bash -n /tmp/preflight-boot-candidate.sh
+bash /tmp/preflight-boot-candidate.sh
+```
+
+**Offene technische Voraussetzung vor einem echten Build:** Die vollständige Debian-initramfs-tools-/Plymouth-Hook-Reihenfolge und die tatsächlich installierten Theme-Dateien am N1800 prüfen. Ein simples `mkinitramfs -o` mit den Standardwerten könnte die bisherige 16-MB-Optimierung verlieren. Ein blindes Entpacken/Neupacken der Initramfs könnte durch spezielle initramfs-Archivstrukturen den Start beschädigen. Daher kein Build oder Einmalboot allein aufgrund der bisherigen Diagnose auslösen.
+
 ### B. Kandidaten-Initramfs vorbereiten (noch nicht automatisiert)
 
 Erst nach A eine **neue separate Kandidaten-Datei** erstellen. Nicht überschreiben:
