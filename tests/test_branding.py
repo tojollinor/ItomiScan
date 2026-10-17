@@ -37,7 +37,6 @@ class BrandingTest(unittest.TestCase):
             self.assertIn("Plymouth.SetHideMessageFunction(hide_message_callback)", animated)
             self.assertIn(f"top + {branding.DETAIL_Y}", animated)
             self.assertTrue((output / "itomiscan.plymouth").is_file())
-            self.assertIn(branding.BOOT_STATUS, branding.BOOT_STATUS)
             self.assertIn("System wird gestartet", branding.BOOT_STATUS)
             self.assertIn("Bitte warten", branding.BOOT_DETAIL)
 
