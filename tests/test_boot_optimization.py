@@ -14,7 +14,8 @@ class BootOptimizationTests(unittest.TestCase):
     def test_all_boot_scripts_are_shell_syntax_valid(self):
         for name in ("test-dep-initramfs.sh", "setup-boot-splash.sh",
                      "restore-boot-splash.sh", "preflight-boot-splash.sh",
-                     "inspect-boot-graphics.sh", "preflight-boot-candidate.sh"):
+                     "inspect-boot-graphics.sh", "preflight-boot-candidate.sh",
+                     "prepare-boot-candidate.sh"):
             with self.subTest(name=name):
                 result = subprocess.run(
                     ["bash", "-n", str(ROOT / name)],
@@ -45,6 +46,18 @@ class BootOptimizationTests(unittest.TestCase):
             self.assertIn(required, script)
         for forbidden in ("mkinitramfs -o", "update-initramfs -u", "update-grub",
                           "grub-reboot", "grub-set-default", "systemctl reboot"):
+            self.assertNotIn(forbidden, script)
+
+    def test_candidate_builder_never_overwrites_existing_initramfs_or_edits_grub(self):
+        script = (ROOT / "prepare-boot-candidate.sh").read_text()
+        for required in ('mkinitramfs -d "$work/config" -o "$image"',
+                         'MODULES=dep', 'ln -- "$image" "$CANDIDATE"',
+                         'Plymouth.SetRefreshFunction(refresh_callback)',
+                         'itomiscan-splash-test', 'lsinitramfs "$image"'):
+            self.assertIn(required, script)
+        for forbidden in ('update-grub', 'grub-reboot', 'grub-set-default',
+                          'update-initramfs -u', 'systemctl reboot',
+                          'cp "$image" "$DEP"', 'cp "$image" "$BASE"'):
             self.assertNotIn(forbidden, script)
 
     def test_graphics_diagnostic_is_read_only_and_checks_both_initramfs_images(self):
