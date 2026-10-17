@@ -63,6 +63,7 @@ class BootOptimizationTests(unittest.TestCase):
         for required in ('mkinitramfs -d "$work/config" -o "$image"',
                          'MODULES=dep', 'ln -- "$image" "$CANDIDATE"',
                          'Plymouth.SetRefreshFunction(refresh_callback)',
+                         'itomiscan-overlay', 'ITOMISCAN_SPLASH_STAGE',
                          'itomiscan-splash-test', 'lsinitramfs "$image"'):
             self.assertIn(required, script)
         for forbidden in ('\nupdate-grub ', '\ngrub-reboot ', '\ngrub-set-default ',
