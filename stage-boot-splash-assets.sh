@@ -6,11 +6,12 @@ set -Eeuo pipefail
 mode="$1"
 [[ "$mode" == check || "$mode" == stage ]] || { echo "Mode must be check or stage" >&2; exit 2; }
 root="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
-target="${2:-$PWD/itomiscan-splash-stage}"
+target="$(realpath -m -- "${2:-$PWD/itomiscan-splash-stage}")"
 case "$target" in
-  /usr/share/*|/etc/*|/boot/*|/var/lib/itomiscan/*)
+  /|/usr|/usr/*|/etc|/etc/*|/boot|/boot/*|/var|/var/*)
     echo "Only workspace paths are permitted: $target" >&2; exit 3 ;;
 esac
+[[ -d "$(dirname "$target")" ]] || { echo "Parent workspace directory missing" >&2; exit 3; }
 [[ ! -e "$target" && ! -L "$target" ]] || {
   echo "Stage destination already exists; will not replace: $target" >&2
   exit 3
