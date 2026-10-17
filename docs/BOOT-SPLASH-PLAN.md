@@ -94,6 +94,26 @@ Die Kandidaten-Initramfs soll die benötigten Plymouth-Theme-Dateien und nur die
 
 Danach separaten GRUB-Testeintrag mit eindeutiger ID erstellen. Vor Teststart GRUB-Syntax, Initramfs-Inhalt, Originaldateien, Einmalwahl und physische Rückfallmöglichkeit kontrollieren. Keine permanente Standardumstellung vor erfolgreicher Abnahme.
 
+### B2. Separater GRUB-Testeintrag und einmaliger Boot (vorbereitet, nicht aktiviert)
+
+Das eigenständige `test-boot-splash-candidate.sh` bietet drei ausdrücklich getrennte Modi. `status` ist nur lesend; `prepare` sichert `40_custom`, `grub.cfg` und `/etc/default/grub`, prüft Kernel, Root-UUID, Kandidaten-Datei, animiertes Theme und bestehende GRUB-Konfiguration und ergänzt nur einen neuen Testeintrag. `once` plant ausschließlich den nächsten Start via `grub-reboot` vor; das Skript löst niemals selbst einen Neustart aus.
+
+Der Testeintrag lautet `itomiscan-splash-candidate-test` und zeigt auf `/boot/initrd.img-6.1.0-50-686-pae-itomiscan-splash-test`. Als erwartete Bootvorgabe bleibt **`GRUB_DEFAULT="itomiscan-initramfs-dep-test"`**, mit der vorhandenen Wartezeit **`GRUB_TIMEOUT=2`**. Das Skript akzeptiert bewusst weder einen veränderten Kernel noch eine abweichende Standardauswahl. Besteht bereits eine GRUB-Einmalwahl, wird nichts überschrieben. Vor `prepare` muss die neue Kandidaten-Initramfs tatsächlich erzeugt und kontrolliert sein.
+
+Nur `status` darf im normalen Betrieb ohne Wartungsfreigabe aufgerufen werden:
+
+```bash
+curl -fL --retry 2 \
+  https://raw.githubusercontent.com/tojollinor/ItomiScan/develop/1.0.0/test-boot-splash-candidate.sh \
+  -o /tmp/test-boot-splash-candidate.sh
+bash -n /tmp/test-boot-splash-candidate.sh
+bash /tmp/test-boot-splash-candidate.sh status
+```
+
+**Nicht jetzt ausführen:** `prepare` und `once`. Die beiden Modi benötigen eine bewusst freigegebene Wartung direkt am Gerät und einen physischen Rettungsweg. Auch nach erfolgreicher Einmalwahl ist der automatische Rückfall auf die 16-MB-Standarddatei nur für einen normalen erfolgreichen GRUB-Neustart zu erwarten; bei einem Hänger vor dem Rückfall gibt es keine automatische Rettung.
+
+**Abnahmeprotokoll am echten N1800:** Beginn und Ende des blinkenden Cursors beobachten, erstes farbiges Logo, tatsächliche Scanlinien-Animation, Übergang von statischer zu dynamischer Meldung, sichtbare Linux-Logintexte, Dauer einer schwarzen Umschaltung, Start der Tk-Oberfläche und PIN, Scannen/Touch/Fronttaste sowie Linux-/GUI-Startzeiten dokumentieren. Nach erfolgreichem Test GRUB-Standard und tatsächliche Initramfs erneut lesend überprüfen. Erst danach getrennt über dauerhafte Änderungen entscheiden.
+
 ### C. Grafikmodus untersuchen
 
 Wenn der Diagnosebericht keinen geeigneten frühen Grafikmodus nachweist, am GRUB-Menü lokal die verfügbaren Modi mit `videoinfo` prüfen. Erst einen tatsächlich angebotenen Modus testen, vorzugsweise 1024×768. Danach in einem separaten Testeintrag `gfxmode`/Weitergabe des Grafikmodus an den Kernel prüfen. Nicht blind `GRUB_GFXMODE=1024x768` oder `gfxpayload=keep` dauerhaft setzen: BIOS/VBE und `i915` können beim Treiberwechsel dennoch umschalten.
