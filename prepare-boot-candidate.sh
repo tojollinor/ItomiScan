@@ -40,7 +40,7 @@ check() {
     echo "findmnt missing"
     count=$((count+1))
   fi
-  for cmd in mkinitramfs lsinitramfs sha256sum stat; do
+  for cmd in mkinitramfs lsinitramfs unmkinitramfs sha256sum stat; do
     command -v "$cmd" >/dev/null 2>&1 || { echo "Missing command: $cmd"; count=$((count+1)); }
   done
   [[ -d /etc/initramfs-tools && -f /etc/initramfs-tools/initramfs.conf ]] || {
@@ -52,7 +52,7 @@ check() {
     echo "Set ITOMISCAN_SPLASH_STAGE to a staged theme directory"
     count=$((count+1))
   }
-  if [[ -d "$STAGE/itomiscan" ]]; then
+  if [[ -n "$STAGE" && -d "$STAGE/itomiscan" ]]; then
     for f in itomiscan.plymouth itomiscan.script logo-base.png scanline.png brand.png subtitle.png status.png detail.png; do
       [[ -s "$STAGE/itomiscan/$f" ]] || { echo "Staged asset missing: $f"; count=$((count+1)); }
     done
@@ -135,6 +135,24 @@ for needed in "usr/share/plymouth/themes/$expected/$expected.plymouth" \
     exit 4
   }
 done
+
+# Names in lsinitramfs alone do not prove the new artwork replaced the old.
+mkdir -p "$work/unpacked"
+unmkinitramfs "$image" "$work/unpacked"
+found_theme=""
+for path in "$work/unpacked/usr/share/plymouth/themes/itomiscan" \
+            "$work/unpacked/main/usr/share/plymouth/themes/itomiscan"; do
+  if [[ -d "$path" ]]; then found_theme="$path"; break; fi
+done
+[[ -n "$found_theme" ]] || { echo "Unpacked candidate theme missing"; exit 4; }
+for asset in itomiscan.plymouth itomiscan.script logo-base.png scanline.png \
+             brand.png subtitle.png status.png detail.png; do
+  cmp -s "$STAGE/itomiscan/$asset" "$found_theme/$asset" || {
+    echo "Candidate contains wrong bytes for $asset; refusing to publish"
+    exit 4
+  }
+done
+echo "Candidate theme assets verified byte-for-byte."
 
 # Stop if the generated image unexpectedly differs too much in size.
 # This is a review limit, not a claim that candidate boots correctly.
