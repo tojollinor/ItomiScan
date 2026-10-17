@@ -15,7 +15,7 @@ class BootOptimizationTests(unittest.TestCase):
         for name in ("test-dep-initramfs.sh", "setup-boot-splash.sh",
                      "restore-boot-splash.sh", "preflight-boot-splash.sh",
                      "inspect-boot-graphics.sh", "preflight-boot-candidate.sh",
-                     "prepare-boot-candidate.sh"):
+                     "prepare-boot-candidate.sh", "test-boot-splash-candidate.sh"):
             with self.subTest(name=name):
                 result = subprocess.run(
                     ["bash", "-n", str(ROOT / name)],
@@ -59,6 +59,18 @@ class BootOptimizationTests(unittest.TestCase):
                           '\nupdate-initramfs -u', '\nsystemctl reboot',
                           'cp "$image" "$DEP"', 'cp "$image" "$BASE"'):
             self.assertNotIn(forbidden, script)
+
+    def test_separate_splash_entry_preserves_dep_default_and_one_shot(self):
+        script = (ROOT / "test-boot-splash-candidate.sh").read_text()
+        for expected in ('ENTRY_ID="itomiscan-splash-candidate-test"',
+                         'OLD_ID="itomiscan-initramfs-dep-test"',
+                         'GRUB_TIMEOUT=2', 'grub-reboot "$ENTRY_ID"',
+                         'grub-script-check', 'sha256sum -c',
+                         '40_custom.before', 'GRUB_DEFAULT', 'initramfs'):
+            self.assertIn(expected, script)
+        self.assertNotIn('grub-set-default', script)
+        self.assertNotIn('update-initramfs', script)
+        self.assertNotIn('systemctl reboot', script)
 
     def test_graphics_diagnostic_is_read_only_and_checks_both_initramfs_images(self):
         script = (ROOT / "inspect-boot-graphics.sh").read_text()
