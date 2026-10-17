@@ -28,6 +28,10 @@ BRAND_Y = 325
 SUBTITLE_Y = 387
 STATUS_Y = 458
 DETAIL_Y = 506
+SCREEN_WIDTH = 1024
+SCREEN_HEIGHT = 768
+BOOT_STATUS = "System wird gestartet …"
+BOOT_DETAIL = "Bitte warten …"
 
 
 def scaled(values, size=LOGO_SIZE):
@@ -82,11 +86,27 @@ def render_plymouth_assets(directory):
     titles = (
         ("brand.png", (("Itomi", WHITE), ("Scan", CYAN)), 40, True),
         ("subtitle.png", (("Dokumentenscanner", MUTED),), 17, False),
-        ("status.png", (("Scanner wird vorbereitet", WHITE),), 25, True),
-        ("detail.png", (("Systemstart …", MUTED),), 16, False),
+        ("status.png", ((BOOT_STATUS, WHITE),), 25, True),
+        ("detail.png", ((BOOT_DETAIL, MUTED),), 16, False),
     )
     for filename, parts, px, bold in titles:
         _text_image(parts, px, bold).save(output / filename)
+
+    # A static fallback uses the exact same positions, artwork and colours.
+    # It is generated at setup time, never rendered on the low-power scanner.
+    line_x = scaled((LINE_LEFT,))[0]
+    static = Image.new("RGBA", (SCREEN_WIDTH, SCREEN_HEIGHT), bg_rgba)
+    logo_x = (SCREEN_WIDTH - logo.width) // 2
+    static.alpha_composite(logo, (logo_x, LOGO_Y))
+    static.alpha_composite(
+        line, (logo_x + line_x, LOGO_Y +
+               round(LINE_START * LOGO_SIZE / LOGO_UNITS)))
+    for filename, y in (("brand.png", BRAND_Y), ("subtitle.png", SUBTITLE_Y),
+                        ("status.png", STATUS_Y), ("detail.png", DETAIL_Y)):
+        with Image.open(output / filename).convert("RGBA") as text_image:
+            static.alpha_composite(
+                text_image, ((SCREEN_WIDTH - text_image.width) // 2, y))
+    static.save(output / "static-boot.png")
     # Plymouth's script is generated from the SAME geometry constants as Tk.
     # Keep layout values out of shell installer scripts to prevent drift.
     theme = """[Plymouth Theme]
@@ -99,7 +119,6 @@ ImageDir=/usr/share/plymouth/themes/itomiscan
 ScriptFile=/usr/share/plymouth/themes/itomiscan/itomiscan.script
 """
     (output / "itomiscan.plymouth").write_text(theme)
-    line_x = scaled((LINE_LEFT,))[0]
     script = f"""Window.SetBackgroundTopColor(0.062745, 0.098039, 0.152941);
 Window.SetBackgroundBottomColor(0.062745, 0.098039, 0.152941);
 cx = Window.GetWidth() / 2;
@@ -147,8 +166,44 @@ fun refresh_callback () {{
     }}
 }}
 Plymouth.SetRefreshFunction(refresh_callback);
+
+# Keep the default text until Plymouth supplies a real message.
+message_sprite = Sprite();
+message_sprite.SetOpacity(0);
+fun message_callback (text) {{
+    message_image = Image.Text(text, 0.658824, 0.729412, 0.803922);
+    message_sprite.SetImage(message_image);
+    message_sprite.SetX(cx - message_image.GetWidth() / 2);
+    message_sprite.SetY(top + {DETAIL_Y});
+    message_sprite.SetZ(20);
+    message_sprite.SetOpacity(1);
+    detail_sprite.SetOpacity(0);
+}}
+fun hide_message_callback (text) {{
+    message_sprite.SetOpacity(0);
+    detail_sprite.SetOpacity(1);
+}}
+Plymouth.SetMessageFunction(message_callback);
+Plymouth.SetHideMessageFunction(hide_message_callback);
 """
     (output / "itomiscan.script").write_text(script)
+
+    static_theme = """[Plymouth Theme]
+Name=ItomiScan Static
+Description=Static fallback using the same ItomiScan boot design
+ModuleName=script
+
+[script]
+ImageDir=/usr/share/plymouth/themes/itomiscan
+ScriptFile=/usr/share/plymouth/themes/itomiscan/itomiscan-static.script
+"""
+    (output / "itomiscan-static.plymouth").write_text(static_theme)
+    static_script = """background = Image("static-boot.png");
+background_sprite = Sprite(background);
+background_sprite.SetX((Window.GetWidth() - background.GetWidth()) / 2);
+background_sprite.SetY((Window.GetHeight() - background.GetHeight()) / 2);
+"""
+    (output / "itomiscan-static.script").write_text(static_script)
 
 
 if __name__ == "__main__":
