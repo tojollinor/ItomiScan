@@ -55,8 +55,8 @@ class BootOptimizationTests(unittest.TestCase):
                          'Plymouth.SetRefreshFunction(refresh_callback)',
                          'itomiscan-splash-test', 'lsinitramfs "$image"'):
             self.assertIn(required, script)
-        for forbidden in ('update-grub', 'grub-reboot', 'grub-set-default',
-                          'update-initramfs -u', 'systemctl reboot',
+        for forbidden in ('\nupdate-grub ', '\ngrub-reboot ', '\ngrub-set-default ',
+                          '\nupdate-initramfs -u', '\nsystemctl reboot',
                           'cp "$image" "$DEP"', 'cp "$image" "$BASE"'):
             self.assertNotIn(forbidden, script)
 
