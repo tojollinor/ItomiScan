@@ -64,8 +64,14 @@ if [[ -f /boot/grub/grub.cfg ]]; then
   cp -a /boot/grub/grub.cfg "$backup_dir/grub.cfg.original"
 fi
 theme_dir="/usr/share/plymouth/themes/itomiscan"
+static_theme_dir="/usr/share/plymouth/themes/itomiscan-static"
 if [[ -d "$theme_dir" ]]; then
   cp -a "$theme_dir" "$backup_dir/previous-itomiscan-theme"
+fi
+if [[ -d "$static_theme_dir" ]]; then
+  cp -a "$static_theme_dir" "$backup_dir/previous-itomiscan-static-theme"
+else
+  : > "$backup_dir/previous-itomiscan-static-theme.absent"
 fi
 if command -v plymouth-set-default-theme >/dev/null 2>&1; then
   plymouth-set-default-theme > "$backup_dir/previous-theme-name" || true
@@ -84,10 +90,15 @@ install -d -m 0755 "$theme_dir"
   python3 -m itomiscan.branding --output "$theme_dir"
 )
 for asset in logo-base.png scanline.png brand.png subtitle.png status.png detail.png \
-             static-boot.png itomiscan.plymouth itomiscan.script \
-             itomiscan-static.plymouth itomiscan-static.script; do
+             itomiscan.plymouth itomiscan.script; do
   [[ -s "$theme_dir/$asset" ]] || {
     echo "Splash-Grafik $asset wurde nicht erstellt; Abbruch vor GRUB-Änderung." >&2
+    exit 5
+  }
+done
+for asset in static-boot.png itomiscan-static.plymouth itomiscan-static.script; do
+  [[ -s "$static_theme_dir/$asset" ]] || {
+    echo "Statischer Fallback $asset wurde nicht erstellt; Abbruch vor GRUB-Änderung." >&2
     exit 5
   }
 done
