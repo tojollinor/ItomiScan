@@ -148,3 +148,11 @@ Wenn die frühe Animation nicht zuverlässig funktioniert, dieselbe Hardware-/In
 - Plymouth kann erst zeichnen, wenn eine nutzbare Grafikausgabe verfügbar ist. Der Zeitraum davor kann nicht garantiert vollständig überdeckt werden.
 - `quiet`, `splash`, `loglevel=3`, `systemd.show_status=false` und `vt.global_cursor_default=0` können Routineausgaben und Cursor verbergen, ersetzen aber nicht die korrekte frühe Grafikinitialisierung.
 - Diagnose und CI beweisen nicht, dass die Animation oder ein VESA-/Framebuffer-Modus am echten N1800 funktioniert.
+
+## Test: sichtbare Linux-Anmeldung zwischen Plymouth und Xorg
+
+Diagnose vom 17.10.2026: `plymouth-quit` endet bei ca. 27,11 s, `getty@tty1` startet ab 27,16 s und öffnet die Benutzersitzung bis ca. 27,97 s. Das tty1-Autologin bleibt `agetty --autologin administrator --noclear`, die `/home/administrator/.profile` startet nur auf tty1 `startx "$HOME/ItomiScan/start-kiosk.sh" -- :0 vt1`. `start-kiosk.sh` setzt den Xorg-Hintergrund bereits auf `#101927`. Der sichtbare Linux-Login entsteht plausibel zwischen dem Ende von Plymouth und der Übernahme durch Xorg.
+
+Das **optionale** `test-login-visibility.sh` bietet drei Modi: `status` (lesend), `apply` (gezielter, sicherungsbasierter Test) und `restore` (Wiederherstellung nach Hashabgleich). `apply` verändert ausschließlich die tty1-`.profile`-Startx-Zeile, um Xorg-Startausgaben in `/home/administrator/itomiscan-xorg-start.log` statt auf tty1 zu schreiben, und legt nur bei Bedarf eine leere `.hushlogin` an. Die Original-`.profile` wird mit Dateieigentümer/Rechten gesichert. Vor `restore` wird die installierte Testversion mit SHA-256 abgeglichen, damit keine zwischenzeitlichen Benutzeränderungen überschrieben werden. Kein Modus startet Dienste neu oder verändert GRUB/Initramfs.
+
+Das ist **kein garantierter lückenloser Übergang**: `.hushlogin` unterdrückt einige Login-Ausgaben, nicht zwingend PAM-/getty-/Kerneltexte oder den Wechsel des VT. Die eigentliche Prozessarchitektur bleibt bestehen; `agetty`, Autologin, Startx und Xorg werden nicht ersetzt. Deshalb erst beim betreuten Test am Gerät `apply` ausdrücklich freigeben, danach bewusst neu starten und zwischen Plymouth und Kiosk beobachten. Falls das Problem bleibt, getrennt die tty1-Konsole und Plymouth-Handover diagnostizieren. Der schwarze frühe Cursor nach GRUB ist ein eigenständiges Problem.
