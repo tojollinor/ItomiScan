@@ -102,6 +102,8 @@ Die Kandidaten-Initramfs soll die benötigten Plymouth-Theme-Dateien und nur die
 
 Danach separaten GRUB-Testeintrag mit eindeutiger ID erstellen. Vor Teststart GRUB-Syntax, Initramfs-Inhalt, Originaldateien, Einmalwahl und physische Rückfallmöglichkeit kontrollieren. Keine permanente Standardumstellung vor erfolgreicher Abnahme.
 
+**Zusätzliche Sicherheitsprüfung (Entwicklung, 17.10.2026):** Der Build entpackt die gerade erzeugte Kandidaten-Initramfs mit `unmkinitramfs` wieder in ein temporäres Verzeichnis und vergleicht die zentralen Theme-Dateien mittels `cmp` **Byte für Byte** mit den zuvor gestagten Originalen. Ein passender Dateiname allein reicht nicht mehr zur Freigabe. Die lokale Overlay-Funktion wird in den automatischen Tests außerdem mit einem künstlichen `DESTDIR` ausgeführt. Dies prüft das Kopierverhalten, aber ersetzt keinen echten `mkinitramfs`-Lauf auf Debian 12 i386. `check` bleibt lesend; `build` ist weiterhin nicht für einen unbegleiteten Remote-Einsatz freigegeben.
+
 ### B2. Separater GRUB-Testeintrag und einmaliger Boot (vorbereitet, nicht aktiviert)
 
 Das eigenständige `test-boot-splash-candidate.sh` bietet drei ausdrücklich getrennte Modi. `status` ist nur lesend; `prepare` sichert `40_custom`, `grub.cfg` und `/etc/default/grub`, prüft Kernel, Root-UUID, Kandidaten-Datei, animiertes Theme und bestehende GRUB-Konfiguration und ergänzt nur einen neuen Testeintrag. `once` plant ausschließlich den nächsten Start via `grub-reboot` vor; das Skript löst niemals selbst einen Neustart aus.
