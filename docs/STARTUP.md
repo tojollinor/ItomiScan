@@ -12,9 +12,17 @@
 
 ## Durchgehendes Bootbranding
 
-Plymouth und Tk nutzen `itomiscan/branding.py` für Positionen und Farben: dunkler Hintergrund, Scanlinien-Logo, **„Itomi“ weiß und „Scan“ blau**. Bereits vorhanden: früher Xorg-Hintergrund `xsetroot -solid "#101927"`. Ob der echte Übergang ohne sichtbares Bildzucken/Flackern gelingt, ist **noch nicht nachgewiesen**. BIOS/GRUB-Grafikausgaben bleiben hardwareabhängig.
+Plymouth und Tk nutzen `itomiscan/branding.py` als gemeinsame Quelle für Farben, Logo-Geometrie und Textpositionen: dunkler ItomiScan-Hintergrund, Scannerlogo, **„Itomi“ weiß und „Scan“ blau**. Die Animation bewegt die Scanlinie kontinuierlich, solange das animierte Plymouth-Theme aktiv ist; es gibt keinen künstlichen Animationstimeout.
 
-Das vorhandene `setup-boot-splash.sh` ist **eine separate manuelle Systemeinrichtung**, keine normale Beta-Installation. Achtung: Es ruft `update-initramfs -u` auf und ist deshalb **nicht** für den schon separat getesteten 16-MB-Initramfs-Einmalstart zu verwenden.
+Der frühe Plymouth-Splash startet mit der festen Meldung **„System wird gestartet …“** und „Bitte warten …“. Wenn Plymouth echte Meldungen erhält, ersetzt der Message-Callback nur die zweite Textzeile an derselben Position. Die Animation läuft unabhängig davon weiter. Sobald Xorg/Tk startet, zeigt der vorhandene Anwendungssplash seine tatsächlichen Startmeldungen.
+
+Zusätzlich wird ein **statisches Fallback-Theme** aus denselben Farben, Grafiken und Layoutkoordinaten erzeugt. Die vollständige 1024×768-Grafik enthält eine statische Scanlinie sowie die Meldung „System wird gestartet …“. Dieses Theme kann bei Bedarf mit `ITOMISCAN_SPLASH_MODE=static` ausgewählt werden; Standard bleibt `animated`.
+
+`setup-boot-splash.sh` ist eine separate manuelle Systemeinrichtung und kein Teil des normalen Installers oder Updateknopfs. Das Skript bewahrt jetzt die bestehende GRUB-Wartezeit und Grafikmodus-Einstellungen. **Es bricht vor Änderungen ab, wenn GRUB die separate `itomiscan-initramfs-dep-test`-Initramfs als Standard oder Einmalstart auswählt**, weil `update-initramfs -u` nur die normale Kernel-Initramfs aktualisieren würde. Daher aktuell auf dem N1800 nicht ausführen, bevor die Diagnose und ein separater Testaufbau für die DEP-Initramfs abgeschlossen sind.
+
+Neue rein lesende Diagnose: `inspect-boot-graphics.sh`. Sie prüft BIOS/UEFI, Kernelparameter, GRUB-Grafikeinstellungen, aktives Plymouth-Theme, Intel-`i915`/Framebuffer und die Inhalte beider bekannten Initramfs-Dateien. Sie ändert weder Konfiguration noch Bootauswahl. Ein erfolgreicher Skript-/CI-Test bestätigt nicht, dass Plymouth am echten N1800 früh genug startet.
+
+BIOS-/GRUB-Ausgaben, der frühe Kernelcursor und der Wechsel zu Xorg können hardwareabhängig weiterhin kurze Unterbrechungen verursachen. Ziel ist, den Cursor und die Login-/Konsolenmeldungen möglichst vollständig mit dem einheitlichen Splash zu verdecken. Ob GRUB/VESA eine geeignete Auflösung bereitstellt und ob `i915` früh genug initialisiert werden kann, bleibt bis zur Diagnose am Gerät offen.
 
 ## Sichere 16-MB-Initramfs, nur ausdrücklich manuell am N1800
 
