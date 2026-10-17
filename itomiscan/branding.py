@@ -106,7 +106,9 @@ def render_plymouth_assets(directory):
         with Image.open(output / filename).convert("RGBA") as text_image:
             static.alpha_composite(
                 text_image, ((SCREEN_WIDTH - text_image.width) // 2, y))
-    static.save(output / "static-boot.png")
+    static_theme_dir = output.parent / "itomiscan-static"
+    static_theme_dir.mkdir(parents=True, exist_ok=True)
+    static.save(static_theme_dir / "static-boot.png")
     # Plymouth's script is generated from the SAME geometry constants as Tk.
     # Keep layout values out of shell installer scripts to prevent drift.
     theme = """[Plymouth Theme]
@@ -194,16 +196,16 @@ Description=Static fallback using the same ItomiScan boot design
 ModuleName=script
 
 [script]
-ImageDir=/usr/share/plymouth/themes/itomiscan
-ScriptFile=/usr/share/plymouth/themes/itomiscan/itomiscan-static.script
+ImageDir=/usr/share/plymouth/themes/itomiscan-static
+ScriptFile=/usr/share/plymouth/themes/itomiscan-static/itomiscan-static.script
 """
-    (output / "itomiscan-static.plymouth").write_text(static_theme)
+    (static_theme_dir / "itomiscan-static.plymouth").write_text(static_theme)
     static_script = """background = Image("static-boot.png");
 background_sprite = Sprite(background);
 background_sprite.SetX((Window.GetWidth() - background.GetWidth()) / 2);
 background_sprite.SetY((Window.GetHeight() - background.GetHeight()) / 2);
 """
-    (output / "itomiscan-static.script").write_text(static_script)
+    (static_theme_dir / "itomiscan-static.script").write_text(static_script)
 
 
 if __name__ == "__main__":
