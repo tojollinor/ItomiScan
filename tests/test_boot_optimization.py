@@ -87,8 +87,8 @@ class BootOptimizationTests(unittest.TestCase):
 
     def test_temporary_hook_replaces_only_candidate_theme_copy(self):
         script = (ROOT / "prepare-boot-candidate.sh").read_text()
-        start = script.index("<<'OVERLAY'\\n") + len("<<'OVERLAY'\\n")
-        end = script.index("\\nOVERLAY\\n", start)
+        start = script.index("<<'OVERLAY'\n") + len("<<'OVERLAY'\n")
+        end = script.index("\\nOVERLAY\n", start)
         hook_text = script[start:end] + "\\n"
         with tempfile.TemporaryDirectory() as tempdir:
             temp = Path(tempdir)
