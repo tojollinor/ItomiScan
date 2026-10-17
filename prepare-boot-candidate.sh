@@ -101,7 +101,7 @@ cp -a /etc/initramfs-tools "$work/config"
 mkdir -p "$work/config/itomiscan-overlay/itomiscan"
 cp -a "$STAGE/itomiscan/." "$work/config/itomiscan-overlay/itomiscan/"
 mkdir -p "$work/config/hooks"
-cat > "$work/config/hooks/zzzz-itomiscan-overlay" <<\'OVERLAY\'
+cat > "$work/config/hooks/zzzz-itomiscan-overlay" <<'OVERLAY'
 #!/bin/sh
 set -eu
 case "${1:-}" in prereqs) echo ""; exit 0 ;; esac
@@ -119,7 +119,7 @@ else
 fi
 
 # Debian Bookworm mkinitramfs supports -d <alternative config directory>.
-# The normal Plymouth hook reads the old host theme; a local hook overlays\n# only the staging output in the candidate initramfs destination.
+# The normal Plymouth hook reads the old host theme; a local hook overlays# only the staging output in the candidate initramfs destination.
 mkinitramfs -d "$work/config" -o "$image" "$KERNEL"
 [[ -s "$image" ]] || { echo "Empty output image"; exit 4; }
 listing="$work/contents"
@@ -127,7 +127,8 @@ lsinitramfs "$image" > "$listing"
 expected="itomiscan"
 for needed in "usr/share/plymouth/themes/$expected/$expected.plymouth" \
               "usr/share/plymouth/themes/$expected/$expected.script" \
-              "usr/share/plymouth/themes/$expected/scanline.png" \\\n              "usr/lib/modules/$KERNEL/kernel/drivers/gpu/drm/i915/i915.ko"; do
+              "usr/share/plymouth/themes/$expected/scanline.png" \
+              "usr/lib/modules/$KERNEL/kernel/drivers/gpu/drm/i915/i915.ko"; do
   grep -Fq "$needed" "$listing" || {
     echo "Image lacks required file: $needed"
     exit 4
