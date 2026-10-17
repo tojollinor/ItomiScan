@@ -14,7 +14,7 @@ class BootOptimizationTests(unittest.TestCase):
     def test_all_boot_scripts_are_shell_syntax_valid(self):
         for name in ("test-dep-initramfs.sh", "setup-boot-splash.sh",
                      "restore-boot-splash.sh", "preflight-boot-splash.sh",
-                     "inspect-boot-graphics.sh"):
+                     "inspect-boot-graphics.sh", "preflight-boot-candidate.sh"):
             with self.subTest(name=name):
                 result = subprocess.run(
                     ["bash", "-n", str(ROOT / name)],
@@ -38,6 +38,14 @@ class BootOptimizationTests(unittest.TestCase):
         restore = (ROOT / "restore-boot-splash.sh").read_text()
         self.assertIn("previous-theme-name", setup)
         self.assertIn("previous-theme-name", restore)
+
+    def test_candidate_preflight_cannot_modify_boot(self):
+        script = (ROOT / "preflight-boot-candidate.sh").read_text()
+        for required in ("itomiscan-splash-test", "itomiscan-initramfs", "i915", "plymouth"):
+            self.assertIn(required, script)
+        for forbidden in ("mkinitramfs -o", "update-initramfs -u", "update-grub",
+                          "grub-reboot", "grub-set-default", "systemctl reboot"):
+            self.assertNotIn(forbidden, script)
 
     def test_graphics_diagnostic_is_read_only_and_checks_both_initramfs_images(self):
         script = (ROOT / "inspect-boot-graphics.sh").read_text()
