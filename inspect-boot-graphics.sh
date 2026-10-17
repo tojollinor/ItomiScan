@@ -71,7 +71,7 @@ fi
 if [[ -d "$STATIC_THEME_DIR" ]]; then
   echo "--- Statischer Fallback: $STATIC_THEME_DIR ---"
   ls -lah "$STATIC_THEME_DIR"
-  grep -nE 'ImageDir|ScriptFile|static-boot' "$STATIC_THEME_DIR/itomiscan-static.plymouth" "$STATIC_THEME_DIR/itomiscan-static.script" 2>/dev/null || true
+  grep -nE 'ImageDir|ScriptFile|static-boot\.png' "$STATIC_THEME_DIR/itomiscan-static.plymouth" "$STATIC_THEME_DIR/itomiscan-static.script" 2>/dev/null || true
 else
   echo "Statisches Fallback-Theme fehlt: $STATIC_THEME_DIR"
 fi
