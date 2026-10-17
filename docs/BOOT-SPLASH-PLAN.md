@@ -61,6 +61,14 @@ bash /tmp/preflight-boot-candidate.sh
 
 **Offene technische Voraussetzung vor einem echten Build:** Die vollständige Debian-initramfs-tools-/Plymouth-Hook-Reihenfolge und die tatsächlich installierten Theme-Dateien am N1800 prüfen. Ein simples `mkinitramfs -o` mit den Standardwerten könnte die bisherige 16-MB-Optimierung verlieren. Ein blindes Entpacken/Neupacken der Initramfs könnte durch spezielle initramfs-Archivstrukturen den Start beschädigen. Daher kein Build oder Einmalboot allein aufgrund der bisherigen Diagnose auslösen.
 
+### A3. Neue Bootgrafiken unabhängig vom laufenden Theme erzeugen
+
+Der originale N1800-Plymouth-Hook nutzt `/usr/sbin/plymouth-set-default-theme` und kopiert **das komplette ausgewählte Theme-Verzeichnis** in das von `mkinitramfs` erzeugte Abbild. Auf dem N1800 ist dies aktuell das alte statische `itomiscan`-Theme. `MODULES=dep` wird vom Hook ausdrücklich berücksichtigt; die i915-Treiberübernahme benötigt weiterhin den praktischen Abgleich des erzeugten Kandidaten.
+
+Neu: `stage-boot-splash-assets.sh` bietet `check` (nur lesend) und `stage` (erstellt die neuen Grafikdateien **ausschließlich in einem freien Arbeitsverzeichnis**). Das Skript erzeugt animiertes und statisches Theme gemeinsam aus `itomiscan/branding.py`. Es verändert keine bestehenden Plymouth-/Bootdateien, keine GRUB-Konfiguration und keine Initramfs. Es verlangt, dass der ItomiScan-Quellbaum und Python Pillow auf dem ausführenden Rechner vorhanden sind.
+
+**Wichtige Trennung:** Das bestehende Skript `prepare-boot-candidate.sh build` erwartet gegenwärtig weiterhin, dass das *neue* Theme bereits systemweit installiert und ausgewählt ist. Ein isoliertes Staging allein erfüllt diese Voraussetzung ausdrücklich nicht. Bevor das Buildskript am N1800 verwendet werden darf, muss die Einbindung der gestagten Dateien in das **temporäre** initramfs-Build-Verzeichnis implementiert und durch Tests nachgewiesen werden, ohne das vorhandene `/usr/share/plymouth/themes/itomiscan` zu überschreiben. Das Test-Theme darf nicht blind mit dem alten Theme gemischt werden. `build`, `prepare` und `once` bleiben gesperrt, bis dieser Übergang sowie die Original-Initramfs/DEP-Wiederherstellung geprüft sind.
+
 ### B. Geschützter Kandidaten-Build (im Entwicklungszweig vorbereitet)
 
 Das neue Skript `prepare-boot-candidate.sh` bietet genau zwei explizite Betriebsarten: `check` (nur lesend) und `build` (erst nach ausdrücklicher Freigabe, nur vor Ort). Das Skript wird **nicht** von einem Installer oder dem Updateknopf aufgerufen.
