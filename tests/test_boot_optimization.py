@@ -41,7 +41,7 @@ class BootOptimizationTests(unittest.TestCase):
 
     def test_candidate_preflight_cannot_modify_boot(self):
         script = (ROOT / "preflight-boot-candidate.sh").read_text()
-        for required in ("itomiscan-splash-test", "itomiscan-initramfs", "i915", "plymouth"):
+        for required in ("itomiscan-splash-test", "dep-test", "i915", "plymouth"):
             self.assertIn(required, script)
         for forbidden in ("mkinitramfs -o", "update-initramfs -u", "update-grub",
                           "grub-reboot", "grub-set-default", "systemctl reboot"):
