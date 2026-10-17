@@ -3,6 +3,8 @@
 No GRUB, initramfs, kernel or machine files are ever altered by these tests.
 """
 import subprocess
+import tempfile
+import os
 import unittest
 from pathlib import Path
 
@@ -82,6 +84,29 @@ class BootOptimizationTests(unittest.TestCase):
         self.assertNotIn('grub-set-default', script)
         self.assertNotIn('update-initramfs', script)
         self.assertNotIn('systemctl reboot', script)
+
+    def test_temporary_hook_replaces_only_candidate_theme_copy(self):
+        script = (ROOT / "prepare-boot-candidate.sh").read_text()
+        start = script.index("<<'OVERLAY'\\n") + len("<<'OVERLAY'\\n")
+        end = script.index("\\nOVERLAY\\n", start)
+        hook_text = script[start:end] + "\\n"
+        with tempfile.TemporaryDirectory() as tempdir:
+            temp = Path(tempdir)
+            hook_dir = temp / "config" / "hooks"
+            staged = temp / "config" / "itomiscan-overlay" / "itomiscan"
+            dest = temp / "image" / "usr" / "share" / "plymouth" / "themes" / "itomiscan"
+            hook_dir.mkdir(parents=True)
+            staged.mkdir(parents=True)
+            dest.mkdir(parents=True)
+            (staged / "itomiscan.script").write_text("new animated theme")
+            (dest / "itomiscan.script").write_text("old static theme")
+            hook = hook_dir / "zzzz-itomiscan-overlay"
+            hook.write_text(hook_text)
+            result = subprocess.run(["sh", str(hook)], env={**os.environ, "DESTDIR": str(temp / "image")},
+                                    capture_output=True, text=True, check=False)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual((dest / "itomiscan.script").read_text(), "new animated theme")
+            self.assertEqual((staged / "itomiscan.script").read_text(), "new animated theme")
 
     def test_graphics_diagnostic_is_read_only_and_checks_both_initramfs_images(self):
         script = (ROOT / "inspect-boot-graphics.sh").read_text()
