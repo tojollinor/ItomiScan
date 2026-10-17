@@ -13,7 +13,8 @@ ROOT = Path(__file__).resolve().parents[1]
 class BootOptimizationTests(unittest.TestCase):
     def test_all_boot_scripts_are_shell_syntax_valid(self):
         for name in ("test-dep-initramfs.sh", "setup-boot-splash.sh",
-                     "restore-boot-splash.sh", "preflight-boot-splash.sh"):
+                     "restore-boot-splash.sh", "preflight-boot-splash.sh",
+                     "inspect-boot-graphics.sh"):
             with self.subTest(name=name):
                 result = subprocess.run(
                     ["bash", "-n", str(ROOT / name)],
@@ -37,6 +38,16 @@ class BootOptimizationTests(unittest.TestCase):
         restore = (ROOT / "restore-boot-splash.sh").read_text()
         self.assertIn("previous-theme-name", setup)
         self.assertIn("previous-theme-name", restore)
+
+    def test_graphics_diagnostic_is_read_only_and_checks_both_initramfs_images(self):
+        script = (ROOT / "inspect-boot-graphics.sh").read_text()
+        for required in ("GRUB_GFXMODE", "GRUB_GFXPAYLOAD_LINUX", "/proc/cmdline",
+                         "i915", "lsinitramfs", "itomiscan-initramfs-dep-test",
+                         "static-boot.png", "Keine Dateien oder Einstellungen geaendert"):
+            self.assertIn(required, script)
+        for forbidden in ("update-grub", "update-initramfs", "grub-reboot",
+                          "grub-set-default", "apt-get install", "systemctl reboot"):
+            self.assertNotIn(forbidden, script)
 
 
 if __name__ == "__main__":
