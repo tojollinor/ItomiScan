@@ -88,8 +88,8 @@ class BootOptimizationTests(unittest.TestCase):
     def test_temporary_hook_replaces_only_candidate_theme_copy(self):
         script = (ROOT / "prepare-boot-candidate.sh").read_text()
         start = script.index("<<'OVERLAY'\n") + len("<<'OVERLAY'\n")
-        end = script.index("\\nOVERLAY\n", start)
-        hook_text = script[start:end] + "\\n"
+        end = script.index("\nOVERLAY\n", start)
+        hook_text = script[start:end] + "\n"
         with tempfile.TemporaryDirectory() as tempdir:
             temp = Path(tempdir)
             hook_dir = temp / "config" / "hooks"
@@ -102,8 +102,9 @@ class BootOptimizationTests(unittest.TestCase):
             (dest / "itomiscan.script").write_text("old static theme")
             hook = hook_dir / "zzzz-itomiscan-overlay"
             hook.write_text(hook_text)
-            result = subprocess.run(["sh", str(hook)], env={**os.environ, "DESTDIR": str(temp / "image")},
-                                    capture_output=True, text=True, check=False)
+            result = subprocess.run(
+                ["sh", str(hook)], env={**os.environ, "DESTDIR": str(temp / "image")},
+                capture_output=True, text=True, check=False)
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertEqual((dest / "itomiscan.script").read_text(), "new animated theme")
             self.assertEqual((staged / "itomiscan.script").read_text(), "new animated theme")
