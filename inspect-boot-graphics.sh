@@ -56,16 +56,24 @@ else
   echo "plymouth-set-default-theme nicht verfuegbar"
 fi
 THEME_DIR="/usr/share/plymouth/themes/itomiscan"
+STATIC_THEME_DIR="/usr/share/plymouth/themes/itomiscan-static"
 if [[ -d "$THEME_DIR" ]]; then
   ls -lah "$THEME_DIR"
-  for f in itomiscan.plymouth itomiscan.script itomiscan-static.plymouth itomiscan-static.script; do
+  for f in itomiscan.plymouth itomiscan.script; do
     if [[ -f "$THEME_DIR/$f" ]]; then
       echo "--- $THEME_DIR/$f (relevante Zeilen) ---"
-      grep -nE 'ImageDir|ScriptFile|SetRefreshFunction|SetMessageFunction|SetHideMessageFunction|static-boot|BOOT_STATUS|System wird gestartet' "$THEME_DIR/$f" 2>/dev/null | head -30 || true
+      grep -nE 'ImageDir|ScriptFile|SetRefreshFunction|SetMessageFunction|SetHideMessageFunction|BOOT_STATUS|System wird gestartet' "$THEME_DIR/$f" 2>/dev/null | head -30 || true
     fi
   done
 else
   echo "ItomiScan-Plymouth-Theme-Verzeichnis fehlt: $THEME_DIR"
+fi
+if [[ -d "$STATIC_THEME_DIR" ]]; then
+  echo "--- Statischer Fallback: $STATIC_THEME_DIR ---"
+  ls -lah "$STATIC_THEME_DIR"
+  grep -nE 'ImageDir|ScriptFile|static-boot' "$STATIC_THEME_DIR/itomiscan-static.plymouth" "$STATIC_THEME_DIR/itomiscan-static.script" 2>/dev/null || true
+else
+  echo "Statisches Fallback-Theme fehlt: $STATIC_THEME_DIR"
 fi
 
 echo
