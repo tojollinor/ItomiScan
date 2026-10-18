@@ -47,6 +47,30 @@ class TouchLayoutTests(unittest.TestCase):
         self.assertGreaterEqual(home.tiles["copy"].winfo_height(), 160)
         self.assertGreaterEqual(int(self.app.home_button["font"].split()[-2]), 24)
 
+    def test_custom_tiles_and_group_navigation(self):
+        home=self.app.home
+        group={"id":11,"label":"Büro","action":"group","icon":"folder",
+               "color":"#226744","parent":None,"targets":[],"scan":{},
+               "background":False}
+        paper={"id":12,"label":"Paperless","action":"scan","icon":"archive",
+               "color":"#397edb","parent":11,"targets":[],
+               "scan":{"mode":"Color","source":"ADF Duplex",
+                       "resolution":300,"output":"PDF"},
+               "background":False}
+        home.set_tiles([group,paper])
+        self.root.update_idletasks()
+        self.assertFalse(home.default_tiles.winfo_manager())
+        self.assertTrue(home.tile_grid.winfo_manager())
+        home._open_tile_group(group)
+        self.root.update_idletasks()
+        self.assertIsNotNone(home.group_page)
+        self.assertTrue(home.group_page.winfo_manager())
+        home._close_tile_group()
+        self.assertIsNone(home.group_page)
+        home.set_tiles([])
+        self.root.update_idletasks()
+        self.assertTrue(home.default_tiles.winfo_manager())
+
     def test_menu_is_a_page_from_both_views_and_saver_can_be_previewed(self):
         self.app.home.controls["menu"].invoke()
         self.assertTrue(self.app.device_menu.visible)
