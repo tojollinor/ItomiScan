@@ -487,6 +487,25 @@ class ConfigStore:
                 raise ConfigError("Ungültige Gruppenzuordnung.")
         for key, value in settings.items():
             validate_setting(key, value)
+        previous_targets = self.list_targets()
+        previous = {(t["kind"],t["name"],t["address"]):t["id"]
+                    for t in previous_targets}
+        incoming = {(t["kind"],t["name"],t["address"]) for t in valid_targets}
+        if incoming != set(previous):
+            from itomiscan.storage.secrets import SecretStore
+            if SecretStore(self.path)._read():
+                raise ConfigError("Zieländerung bei gespeicherten Zugangsdaten "
+                                  "verweigert; Zugangsdaten separat prüfen.")
+            with self._connection() as current_db:
+                has_jobs = current_db.execute(
+                    "SELECT 1 FROM sqlite_master WHERE name=?",
+                    ("delivery_jobs",)).fetchone()
+                if has_jobs and current_db.execute(
+                    "SELECT 1 FROM delivery_jobs WHERE status IN "
+                    "(?, ?, ?, ?) LIMIT 1",
+                    ("queued","retry","sending","review")).fetchone():
+                    raise ConfigError("Zieländerung bei offenen Zustellaufträgen "
+                                      "verweigert.")
         with self._connection(write=True) as db:
             db.execute("DELETE FROM profiles")
             for item in valid_profiles:
@@ -496,8 +515,15 @@ class ConfigStore:
             db.execute("DELETE FROM printer_identity")
             db.execute("DELETE FROM targets")
             for item in valid_targets:
-                db.execute("INSERT INTO targets(kind,name,address) VALUES(?,?,?)",
-                           (item["kind"], item["name"], item["address"]))
+                identity=(item["kind"],item["name"],item["address"])
+                old_id=previous.get(identity)
+                if old_id is None:
+                    db.execute("INSERT INTO targets(kind,name,address) VALUES(?,?,?)",
+                               identity)
+                else:
+                    db.execute("INSERT INTO targets(id,kind,name,address) VALUES(?,?,?,?)",
+                               (old_id,*identity))
+
             kiosk_tiles.initialize(db)
             db.execute("DELETE FROM kiosk_tiles")
             resolved = {(r["kind"],r["name"]):r["id"] for r in
