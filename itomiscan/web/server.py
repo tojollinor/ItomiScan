@@ -481,6 +481,17 @@ class AdminHandler(BaseHTTPRequestHandler):
             if path == "/remote/live/start":
                 self.server.remote_live.start(viewer_id(self._session_token()))
                 return self._redirect("/remote?ok=Liveansicht%20gestartet")
+            if path == "/remote/live/reconnect":
+                viewer = viewer_id(self._session_token())
+                try:
+                    self.server.remote_live.start(viewer)
+                except ValueError as exc:
+                    return self._response(
+                        409, json.dumps({"active": False, "error": str(exc)},
+                                        ensure_ascii=False),
+                        mime="application/json; charset=utf-8")
+                return self._response(200, '{"active":true}',
+                                      mime="application/json; charset=utf-8")
             if path == "/remote/live/stop":
                 self.server.remote_live.stop(viewer_id(self._session_token()))
                 return self._redirect("/remote?ok=Liveansicht%20beendet")
