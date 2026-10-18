@@ -144,6 +144,9 @@ class ItomiScan:
         self.pending_delivery = None
         self.pending_export_path = None
         self.pending_print = None
+        self.pending_batch = None
+        self.active_batch_id = None
+        self.tile_scan_active = False
         self.pages = []
         self.review_pending = False
         self.appending_pages = False
@@ -819,12 +822,11 @@ class ItomiScan:
                     'copy' if target['kind'] == 'printer' else target['kind']):
                 return
         if len(linked) > 1:
-            messagebox.showinfo("Mehrere Ziele",
-                "Der Button ist gespeichert. Die parallele Zustellung an "
-                "mehrere Ziele wird mit Block 7 aktiviert. "
-                "Es wird noch kein unvollständiger Versand gestartet.",
-                parent=self.root)
-            return
+            self.pending_batch = {
+                "ids": [x["id"] for x in linked],
+                "label": tile["label"],
+                "background": bool(tile.get("background")),
+                "owner_id": self.current_user["id"] if self.current_user else None}
         kind = linked[0]["kind"] if linked else "scan"
         required = "copy" if kind == "printer" else kind
         if not self._allowed(required):
@@ -839,6 +841,7 @@ class ItomiScan:
         settings = dict(tile["scan"])
         settings["name"] = "Startseitenbutton"
         self.apply_profile(settings)
+        self.tile_scan_active = True
         self.pending_delivery = linked[0]["id"] if linked and kind != "printer" else None
         self.pending_print = ({
             "target_id": linked[0]["id"], "copies": 1,
@@ -867,6 +870,8 @@ class ItomiScan:
         if self.review_pending and not self.confirm_discard_document():
             return
         if self.review_pending:
+            self.pending_batch = None
+            self.tile_scan_active = False
             self.review_pending = False
             self.appending_pages = False
             self.batch_settings = None
@@ -1239,6 +1244,27 @@ class ItomiScan:
                 "nicht angelegt werden. Bitte Datei sichern.\n\n" + msg,
                 parent=self.root))
 
+    def _enqueue_batch_worker(self, output, info):
+        try:
+            if output is None:
+                raise RuntimeError("Abgeschlossenes PDF fehlt.")
+            batch_id = self.delivery_queue.enqueue_batch(
+                output, info["ids"], label=info["label"],
+                background=info["background"], owner_id=info["owner_id"])
+            self.dispatch(lambda:self._batch_enqueued(batch_id, info["background"]))
+        except (OSError, ValueError, RuntimeError) as exc:
+            message = str(exc)
+            self.dispatch(lambda:messagebox.showerror(
+                "Mehrziel-Zustellung",
+                "Die PDF bleibt lokal erhalten. Nicht alle Zielaufträge "
+                "konnten gespeichert werden.\n"+message, parent=self.root))
+
+    def _batch_enqueued(self, batch_id, background):
+        self.active_batch_id = batch_id
+        self.status_var.set("Alle Ziele sicher vorgemerkt")
+        if not background:
+            self.show_delivery_status(focus_batch=batch_id)
+
     def delivery_tick(self):
         try:
             counts = self.delivery_queue.summary()
@@ -1452,18 +1478,18 @@ class ItomiScan:
             if not identity or not identity["active"]:
                 self.show_login("Benutzerkonto nicht mehr aktiv.")
                 return
-            if self.session_profile not in identity["assigned_profiles"]:
-                self.show_home()
-                messagebox.showwarning("Scanprofil", "Dieses Profil ist nicht mehr freigegeben.", parent=self.root)
-                return
-            preset = self._profile_record(self.session_profile)
-            if preset is None:
-                self.show_home()
-                return
-            # The experiment preset is intentionally editable. Do not reset
-            # the user\'s trial settings just before starting the scan.
-            if preset["name"] != "Test / Alle Optionen":
-                self.apply_profile(preset)
+            if not self.tile_scan_active:
+                if self.session_profile not in identity["assigned_profiles"]:
+                    self.show_home()
+                    messagebox.showwarning("Scanprofil", "Profil nicht freigegeben.",
+                                           parent=self.root)
+                    return
+                preset = self._profile_record(self.session_profile)
+                if preset is None:
+                    self.show_home()
+                    return
+                if preset["name"] != "Test / Alle Optionen":
+                    self.apply_profile(preset)
         if self.idle_screen and self.idle_screen.active:
             self.idle_screen.wake()
             return
@@ -1915,7 +1941,8 @@ class ItomiScan:
                     shutil.copy2(page, staging / f"Seite-{number:04d}{Path(page).suffix}")
                 os.replace(staging, ordered)
                 export_path = None
-                if self.pending_delivery is not None or self.pending_print is not None:
+                if (self.pending_delivery is not None or self.pending_print is not None
+                        or self.pending_batch is not None):
                     pdf_path = output / "Dokument-fuer-Versand.pdf"
                     temp_pdf = output / "_Versand-in-Arbeit.pdf"
                     pdf = shell(["img2pdf", *map(str, pages), "-o", str(temp_pdf)], timeout=180)
@@ -1946,6 +1973,16 @@ class ItomiScan:
         self.status_var.set("Dokument abgeschlossen · " + str(len(self.pages)) + " Bildseiten")
         export_path = self.pending_export_path or self.output_path
         self.pending_export_path = None
+        if self.pending_batch is not None:
+            info = self.pending_batch
+            self.pending_batch = None
+            self.tile_scan_active = False
+            self.pending_delivery = None
+            self.pending_print = None
+            threading.Thread(target=self._enqueue_batch_worker,
+                             args=(export_path, info), daemon=True).start()
+            return
+        self.tile_scan_active = False
         if self.pending_delivery is not None:
             target_id = self.pending_delivery
             self.pending_delivery = None
