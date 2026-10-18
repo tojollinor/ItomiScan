@@ -18,6 +18,7 @@ from itomiscan.core.profiles import ProfileError, ProfileStore, experiment_setti
 from itomiscan.gui.keyboard import ask_touch
 from itomiscan.gui.scanner_errors import show_scanner_error, classify_scanner_error
 from itomiscan.gui.home import HomeScreen, draw_logo, set_logo_busy
+from itomiscan.gui.delivery_status import DeliveryStatusPage
 from itomiscan.gui.copy import CopyScreen
 from itomiscan.integrations.printing import list_queues, validate_copy_options, PrintError, default_printer, accepting_jobs
 from itomiscan.gui.pin import PinScreen
@@ -165,6 +166,7 @@ class ItomiScan:
         self.profile_store = ProfileStore()
         self.users = UserStore(self.profile_store.path)
         self.delivery_queue = DeliveryQueue(self.profile_store.path)
+        self.delivery_status_page = None
         self.remote_commands = (RemoteCommands(self.profile_store.path)
                                 if self.profile_store.path else None)
         self.current_user = None
@@ -216,7 +218,10 @@ class ItomiScan:
             destination_status=self.destination_status,
             restart=self.restart, open_menu=self.show_device_menu,
             run_tile=self.run_configured_tile,
+            show_status=self.show_delivery_status,
         )
+        self.delivery_status_page = DeliveryStatusPage(
+            self.root, self.delivery_queue, self.show_home)
         self.copy_screen = CopyScreen(self.root, self.available_printers,
                                       self.start_copy, self.show_home)
         self.root.bind_all("<ButtonPress>", self.record_activity, add="+")
@@ -1258,6 +1263,14 @@ class ItomiScan:
                 "Mehrziel-Zustellung",
                 "Die PDF bleibt lokal erhalten. Nicht alle Zielaufträge "
                 "konnten gespeichert werden.\n"+message, parent=self.root))
+
+    def show_delivery_status(self, focus_batch=None):
+        if self.busy or self.pin_screen.active:
+            return
+        if self.home:
+            self.home.hide()
+        owner = self.current_user["id"] if self.users.settings()["enabled"] and self.current_user else None
+        self.delivery_status_page.show(focus_batch, owner=owner)
 
     def _batch_enqueued(self, batch_id, background):
         self.active_batch_id = batch_id
