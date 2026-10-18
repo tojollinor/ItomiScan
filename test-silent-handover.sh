@@ -3,7 +3,7 @@
 # check (read-only), apply (stage), restore (revert). No reboot or boot-image changes.
 set -Eeuo pipefail
 mode="$1"
-case "$mode" in check|apply|restore) ;; echo 'Usage: bash test-silent-handover.sh check|apply|restore' >&2; exit 2;; esac
+case "$mode" in check|apply|restore) ;; *) echo 'Usage: bash test-silent-handover.sh check|apply|restore' >&2; exit 2;; esac
 [[ $EUID == 0 ]] || { echo 'Root required' >&2; exit 2; }
 p=/etc/systemd/system/plymouth-quit.service.d/90-itomiscan-retain-splash.conf
 g=/etc/systemd/system/getty@tty1.service.d/90-itomiscan-quiet-getty.conf
