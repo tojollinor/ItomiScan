@@ -212,6 +212,7 @@ class ItomiScan:
             open_copy=self.show_copy,
             destination_status=self.destination_status,
             restart=self.restart, open_menu=self.show_device_menu,
+            run_tile=self.run_configured_tile,
         )
         self.copy_screen = CopyScreen(self.root, self.available_printers,
                                       self.start_copy, self.show_home)
@@ -795,6 +796,54 @@ class ItomiScan:
         else:
             self.profile_save_button.pack_forget()
 
+    def run_configured_tile(self, tile):
+        """Apply individual SANE settings, with permissions and target checks.
+
+        Multiple destinations are configured here but won't be silently reduced
+        to one before the durable batch queue in Block 7 is implemented.
+        """
+        if self.busy or self.pin_screen.active:
+            return
+        if tile["action"] != "scan":
+            return
+        targets = self.delivery_queue.db.list_targets()
+        linked = [next((x for x in targets if x["id"] == ident), None)
+                  for ident in tile["targets"]]
+        if any(item is None for item in linked):
+            messagebox.showerror("Startseitenbutton",
+                "Ein zugewiesenes Ziel wurde entfernt. Bitte im Webeditor korrigieren.",
+                parent=self.root)
+            return
+        if len(linked) > 1:
+            messagebox.showinfo("Mehrere Ziele",
+                "Der Button ist gespeichert. Die parallele Zustellung an "
+                "mehrere Ziele wird mit Block 7 aktiviert. "
+                "Es wird noch kein unvollständiger Versand gestartet.",
+                parent=self.root)
+            return
+        kind = linked[0]["kind"] if linked else "scan"
+        required = "copy" if kind == "printer" else kind
+        if not self._allowed(required):
+            return
+        if self.users.settings()["enabled"] and self.current_user:
+            permitted = self.current_user.get("assigned_profiles", [])
+            if not permitted:
+                messagebox.showerror("Startseitenbutton",
+                    "Kein Scanprofil für diesen Benutzer freigegeben.",
+                    parent=self.root)
+                return
+        settings = dict(tile["scan"])
+        settings["name"] = "Startseitenbutton"
+        self.apply_profile(settings)
+        self.pending_delivery = linked[0]["id"] if linked and kind != "printer" else None
+        self.pending_print = ({
+            "target_id": linked[0]["id"], "copies": 1,
+            "sides": "one-sided", "scan_source": settings["source"]}
+            if linked and kind == "printer" else None)
+        self.home.hide()
+        self.show_scan()
+        self.status_var.set("Scanaktion: " + tile["label"])
+
     def show_home(self):
         if self.busy or not self.home:
             return
@@ -846,6 +895,11 @@ class ItomiScan:
             self.apply_profile(self.profile_store.current())
             self.home.set_access(None)
         self._detail_buttons()
+        try:
+            self.home.set_tiles(self.delivery_queue.db.list_kiosk_tiles())
+        except (OSError, ValueError) as exc:
+            self.status_var.set("Startseitenkonfiguration nicht lesbar: "+str(exc))
+            self.home.set_tiles([])
         self.home.show()
 
     def _set_review_layout(self, reviewing):
