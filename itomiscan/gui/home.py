@@ -224,7 +224,8 @@ class HomeScreen:
     def _render_tiles(self, container, parent):
         for widget in container.winfo_children():
             widget.destroy()
-        selected = [x for x in self.configured_tiles if x["parent"] == parent]
+        selected = [x for x in self.configured_tiles if x["parent"] == parent
+                    and x.get("enabled", True)]
         canvas = tk.Canvas(container, bg=BASE, bd=0, highlightthickness=0)
         scrollbar = tk.Scrollbar(container, command=canvas.yview, width=22)
         scrollbar.pack(side="right", fill="y")
