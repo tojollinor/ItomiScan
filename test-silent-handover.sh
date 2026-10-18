@@ -6,7 +6,7 @@ mode="$1"
 case "$mode" in check|apply|restore) ;; *) echo 'Usage: bash test-silent-handover.sh check|apply|restore' >&2; exit 2;; esac
 [[ $EUID == 0 ]] || { echo 'Root required' >&2; exit 2; }
 p=/etc/systemd/system/plymouth-quit.service.d/90-itomiscan-retain-splash.conf
-g=/etc/systemd/system/getty@tty1.service.d/90-itomiscan-quiet-getty.conf
+g=/etc/systemd/system/getty@tty1.service.d/zz-itomiscan-quiet-getty.conf
 state=/var/lib/itomiscan/silent-handover-test
 fail() { echo "STOP: $*" >&2; exit 3; }
 if [[ "$mode" == restore ]]; then
