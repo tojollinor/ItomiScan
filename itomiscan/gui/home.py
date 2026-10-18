@@ -140,6 +140,7 @@ class HomeScreen:
         # Match the 2-column scan destination cards, including their touch height.
         # Fixed first row leaves room for more actions on the home screen later.
         tiles = tk.Frame(self.frame, bg=BASE)
+        self.default_tiles = tiles
         tiles.pack(fill="x", padx=30, pady=(22, 16))
         for i in range(2):
             tiles.grid_columnconfigure(i, weight=1, uniform="actions")
@@ -191,13 +192,22 @@ class HomeScreen:
         if not hasattr(self, "tile_grid"):
             self.tile_grid = tk.Frame(self.frame, bg=BASE)
             self.tile_grid.pack(fill="both", expand=True, padx=30, pady=10,
-                                before=self.controls["profile_bar"])
+                                )
         for widget in self.tile_grid.winfo_children():
             widget.destroy()
         active = bool(tiles)
+        if active:
+            self.default_tiles.pack_forget()
+            self.tile_grid.pack(fill="both", expand=True, padx=30, pady=10)
+        else:
+            self.tile_grid.pack_forget()
+            self.default_tiles.pack(fill="x", padx=30, pady=(22,16),
+                                    before=self.controls["footer"])
         for card in self.tiles.values():
             if active:
                 card.grid_remove()
+            else:
+                card.grid()
         if active:
             self.controls["profile_bar"].pack_forget()
             self._render_tiles(self.tile_grid, None)
