@@ -405,11 +405,19 @@ class ConfigStore:
         printer_identity_export = {
             t["name"]: identity_map[t["id"]] for t in self.list_targets()
             if t["kind"] == "printer" and t["id"] in identity_map}
+        target_rows = self.list_targets()
+        target_lookup = {t["id"]:[t["kind"],t["name"]] for t in target_rows}
+        exported_tiles = []
+        for tile in self.list_kiosk_tiles():
+            item = dict(tile)
+            item["targets"] = [target_lookup[i] for i in tile["targets"]]
+            exported_tiles.append(item)
         return {"version": 1, "profiles": profiles, "selected": selected,
                 "targets": [{k: item[k] for k in ("kind","name","address")}
                             for item in self.list_targets()],
                 "settings": self.get_settings(),
                 "profile_printers": printer_map,
+                "kiosk_tiles": exported_tiles,
                 "printer_identities": printer_identity_export,
                 "note": "Enthält keine Passwörter, Tokens oder Sitzungsdaten."}
 
@@ -453,6 +461,30 @@ class ConfigStore:
                     for name, meta in identities.items()) or
                 len({meta["identity"] for meta in identities.values()}) != len(identities)):
             raise ConfigError("Ungültige Druckeridentitäten.")
+        from itomiscan.storage import kiosk_tiles
+        imported_tiles = payload.get("kiosk_tiles", [])
+        if not isinstance(imported_tiles,list) or len(imported_tiles)>kiosk_tiles.MAX_TILES:
+            raise ConfigError("Ungültige Startseitenbuttons.")
+        known = {(t["kind"],t["name"]) for t in valid_targets}
+        seen = {}
+        for item in imported_tiles:
+            if not isinstance(item,dict) or type(item.get("id")) is not int or item["id"]<=0:
+                raise ConfigError("Ungültige Button-ID.")
+            if item["id"] in seen:
+                raise ConfigError("Doppelte Button-ID.")
+            seen[item["id"]] = item
+            refs = item.get("targets",[])
+            if not isinstance(refs,list) or any(
+                    not isinstance(ref,list) or len(ref)!=2 or
+                    not all(isinstance(v,str) for v in ref) or
+                    tuple(ref) not in known for ref in refs):
+                raise ConfigError("Ungültige Zielverknüpfung im Buttonexport.")
+        for item in imported_tiles:
+            parent=item.get("parent")
+            if parent is not None and (parent not in seen or
+                    seen[parent].get("action")!="group" or
+                    seen[parent].get("parent") is not None):
+                raise ConfigError("Ungültige Gruppenzuordnung.")
         for key, value in settings.items():
             validate_setting(key, value)
         with self._connection(write=True) as db:
@@ -466,6 +498,16 @@ class ConfigStore:
             for item in valid_targets:
                 db.execute("INSERT INTO targets(kind,name,address) VALUES(?,?,?)",
                            (item["kind"], item["name"], item["address"]))
+            kiosk_tiles.initialize(db)
+            db.execute("DELETE FROM kiosk_tiles")
+            resolved = {(r["kind"],r["name"]):r["id"] for r in
+                        db.execute("SELECT id,kind,name FROM targets")}
+            for position,item in enumerate(imported_tiles):
+                raw={k:v for k,v in item.items() if k!="id"}
+                raw["targets"]=[resolved[tuple(ref)] for ref in item["targets"]]
+                clean=kiosk_tiles.validate_tile(raw,set(resolved.values()))
+                db.execute("INSERT INTO kiosk_tiles(id,position,data) VALUES(?,?,?)",
+                           (item["id"],position,json.dumps(clean,ensure_ascii=False)))
             for name, meta in identities.items():
                 row = db.execute(
                     "SELECT id FROM targets WHERE kind='printer' AND name=?",
