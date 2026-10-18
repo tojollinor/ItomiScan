@@ -7,7 +7,7 @@ HELP = {
     "network": "smb://server/freigabe/ordner",
     "email": "smtp://server:587/empfaenger@example.org (STARTTLS) oder smtps://server:465/...",
     "usb": "usb://DATENTRAEGER/ordner (Datenträger muss eingehängt sein)",
-    "printer": "ipp://drucker/ipp/print (Drucken folgt in Block 7)",
+    "printer": "ipp://drucker/ipp/print (Drucker separat einrichten)",
 }
 LABELS = {"paperless": "Paperless", "network": "SMB-Netzwerkordner",
           "email": "E-Mail", "usb": "USB-Datenträger", "printer": "Drucker"}
@@ -15,7 +15,7 @@ LABELS = {"paperless": "Paperless", "network": "SMB-Netzwerkordner",
 
 def targets_page(targets, csrf, configured, notice="", *, discovered=None, searched=False):
     body = ('<h1>Zielverbindungen</h1><p>Paperless, SMB-Netzwerkordner, '
-            'E-Mail und USB sind als Zustellziele vorbereitet. '
+            'E-Mail und USB sind als Zustellziele verfügbar. '
             'Für den tatsächlichen Versand muss der separate '
             'ItomiScan-Zustelldienst gestartet sein. '
             'Drucker werden im separaten Menü eingerichtet.</p>'
