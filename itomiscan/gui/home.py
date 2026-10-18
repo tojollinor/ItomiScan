@@ -223,28 +223,46 @@ class HomeScreen:
         for widget in container.winfo_children():
             widget.destroy()
         selected = [x for x in self.configured_tiles if x["parent"] == parent]
+        canvas = tk.Canvas(container, bg=BASE, bd=0, highlightthickness=0)
+        scrollbar = tk.Scrollbar(container, command=canvas.yview, width=22)
+        scrollbar.pack(side="right", fill="y")
+        canvas.pack(side="left", fill="both", expand=True)
+        canvas.configure(yscrollcommand=scrollbar.set)
+        grid = tk.Frame(canvas, bg=BASE)
+        slot = canvas.create_window((0, 0), anchor="nw", window=grid)
+        grid.bind("<Configure>", lambda _e: canvas.configure(
+            scrollregion=canvas.bbox("all")))
+        canvas.bind("<Configure>", lambda e: canvas.itemconfigure(slot, width=e.width))
+        canvas.bind("<MouseWheel>", lambda e: canvas.yview_scroll(
+            -1 if e.delta > 0 else 1, "units"))
         for col in range(3):
-            container.grid_columnconfigure(col, weight=1, uniform="tiles")
-        for idx, tile in enumerate(selected[:18]):
+            grid.grid_columnconfigure(col, weight=1, uniform="tiles")
+        visible_index = 0
+        for tile in selected:
             if self.allowed is not None and tile["action"] == "scan":
-                # Security remains checked again at the application action.
-                if not ({"scan", "copy", "paperless", "email", "usb", "network"} & self.allowed):
+                if not ({"scan", "copy", "paperless", "email", "usb", "network"}
+                        & self.allowed):
                     continue
             color = tile["color"]
-            # WCAG-inspired luminance threshold: dark text on light backgrounds.
-            value = [int(color[n:n+2], 16)/255 for n in (1,3,5)]
+            value = [int(color[n:n+2], 16)/255 for n in (1, 3, 5)]
             lum = sum(weight * (c/12.92 if c <= .04045 else
-                ((c+.055)/1.055)**2.4) for c,weight in zip(value,(.2126,.7152,.0722)))
+                ((c+.055)/1.055)**2.4) for c, weight in
+                zip(value, (.2126, .7152, .0722)))
             fg = "#101927" if lum > .34 else "#ffffff"
+            symbols = {"scan":"▣","printer":"▤","archive":"▥","folder":"▦",
+                       "file":"▤","copy":"▣","mail":"✉","network":"◇"}
             command = (lambda t=tile: self._open_tile_group(t)
                        if tile["action"] == "group" else self.run_tile(tile))
-            button = tk.Button(container, text=tile["label"], command=command,
-                               font=("DejaVu Sans", 15, "bold"),
-                               bg=color, fg=fg, activebackground=color,
-                               activeforeground=fg, relief="flat", bd=0,
-                               padx=10, pady=18, wraplength=235, cursor="none")
-            button.grid(row=idx//3, column=idx%3, sticky="nsew", padx=7,pady=7)
-            container.grid_rowconfigure(idx//3, weight=1, minsize=100)
+            button = tk.Button(
+                grid, text=symbols.get(tile["icon"], "▣") + "  " + tile["label"],
+                command=command, font=("DejaVu Sans", 15, "bold"),
+                bg=color, fg=fg, activebackground=color,
+                activeforeground=fg, relief="flat", bd=0,
+                padx=10, pady=18, wraplength=235, cursor="none")
+            button.grid(row=visible_index//3, column=visible_index%3,
+                        sticky="nsew", padx=7, pady=7)
+            grid.grid_rowconfigure(visible_index//3, weight=1, minsize=100)
+            visible_index += 1
 
     def _open_tile_group(self, tile):
         if self.group_page is not None:
