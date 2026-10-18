@@ -283,6 +283,26 @@ class ConfigStore:
                 db.execute("INSERT OR REPLACE INTO settings(key,value) VALUES (?,?)",
                            (key, json.dumps(value, ensure_ascii=False)))
 
+    def list_kiosk_tiles(self):
+        from itomiscan.storage import kiosk_tiles
+        with self._connection(write=True) as db:
+            return kiosk_tiles.list_tiles(db)
+
+    def save_kiosk_tile(self, data, tile_id=None):
+        from itomiscan.storage import kiosk_tiles
+        with self._connection(write=True) as db:
+            kiosk_tiles.save_tile(db, data, tile_id)
+
+    def delete_kiosk_tile(self, tile_id):
+        from itomiscan.storage import kiosk_tiles
+        with self._connection(write=True) as db:
+            kiosk_tiles.delete_tile(db, tile_id)
+
+    def move_kiosk_tile(self, tile_id, direction):
+        from itomiscan.storage import kiosk_tiles
+        with self._connection(write=True) as db:
+            kiosk_tiles.move_tile(db, tile_id, direction)
+
     def list_targets(self):
         with self._connection() as db:
             rows = db.execute(
@@ -341,6 +361,10 @@ class ConfigStore:
             raise ConfigError("Ungültige Ziel-ID.")
         with self._connection(write=True) as db:
             db.execute("DELETE FROM profile_printers WHERE target_id=?", (target_id,))
+            from itomiscan.storage import kiosk_tiles
+            for tile in kiosk_tiles.list_tiles(db):
+                if target_id in tile["targets"]:
+                    raise ConfigError("Ziel ist mit einem Startseitenbutton verknüpft.")
             db.execute("DELETE FROM printer_identity WHERE target_id=?", (target_id,))
             db.execute("DELETE FROM targets WHERE id=?", (target_id,))
 
