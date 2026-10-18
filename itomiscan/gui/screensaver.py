@@ -12,10 +12,14 @@ CYAN = branding.CYAN
 
 
 class IdleScreen:
-    def __init__(self, root, busy, seconds=300):
+    def __init__(self, root, busy, seconds=300, on_timeout=None, logout_delay=30):
         self.root = root
         self.busy = busy
         self.seconds = seconds
+        self.on_timeout = on_timeout
+        self.logout_delay = logout_delay
+        self.started_at = None
+        self.logout_done = False
         self.last = time.monotonic()
         self.active = False
         self.frame = tk.Frame(root, bg=BG)
@@ -40,7 +44,7 @@ class IdleScreen:
                 grandchild.bind("<ButtonPress>", self.wake_event)
         self.root.bind_all("<ButtonPress>", self.activity, add="+")
         self.root.bind_all("<KeyPress>", self.activity, add="+")
-        self.root.after(10000, self.tick)
+        self.root.after(1000, self.tick)
 
     def activity(self, _event=None):
         self.last = time.monotonic()
@@ -53,17 +57,23 @@ class IdleScreen:
         self.last = time.monotonic()
         if self.active:
             self.active = False
+            self.started_at = None
+            self.logout_done = False
             self.frame.place_forget()
 
     def _show(self):
+        if self.active:
+            return
+        self.started_at = time.monotonic()
+        self.logout_done = False
         self.active = True
         self.clock.set(time.strftime("%H:%M"))
         self.frame.place(x=0, y=0, relwidth=1, relheight=1)
         self.frame.lift()
 
     def show_now(self):
-        """Manual debug/preview activation; never bypass busy or modal checks."""
-        if self.busy() or self.root.grab_current():
+        """Manual preview; protect active scan operations."""
+        if self.busy():
             return False
         self.last = time.monotonic()
         self._show()
@@ -75,9 +85,15 @@ class IdleScreen:
                 return
             if self.active:
                 self.clock.set(time.strftime("%H:%M"))
-            elif (not self.busy() and not self.root.grab_current()
-                  and time.monotonic() - self.last >= self.seconds):
+                if (not self.logout_done and self.on_timeout is not None
+                        and self.started_at is not None
+                        and time.monotonic() - self.started_at >= self.logout_delay
+                        and not self.busy()):
+                    if self.on_timeout():
+                        self.logout_done = True
+                    self.frame.lift()
+            elif not self.busy() and time.monotonic() - self.last >= self.seconds:
                 self._show()
-            self.root.after(10000, self.tick)
+            self.root.after(1000, self.tick)
         except tk.TclError:
             pass
