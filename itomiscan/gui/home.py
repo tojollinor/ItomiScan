@@ -258,7 +258,7 @@ class HomeScreen:
             symbols = {"scan":"▣","printer":"▤","archive":"▥","folder":"▦",
                        "file":"▤","copy":"▣","mail":"✉","network":"◇"}
             command = (lambda t=tile: self._open_tile_group(t)
-                       if tile["action"] == "group" else self.run_tile(tile))
+                       if t["action"] == "group" else self.run_tile(t))
             button = tk.Button(
                 grid, text=symbols.get(tile["icon"], "▣") + "  " + tile["label"],
                 command=command, font=("DejaVu Sans", 15, "bold"),
