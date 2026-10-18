@@ -31,7 +31,10 @@ def _edit_form(csrf, tile, targets, groups):
         options(("Color","Gray","Lineart","Halftone"),scan.get("mode","Color")),
         '</select><label>Ausgabe</label><select name="output">',
         options(("PDF","Bild (PNG)"),scan.get("output","PDF")),
-        '</select></fieldset>',
+        '</select><details><summary>Weitere SANE-Einstellungen (JSON)</summary>'
+        '<textarea name="advanced" rows="3">'+
+        e(__import__("json").dumps(scan.get("settings", {}),ensure_ascii=False))+
+        '</textarea></details></fieldset>',
         '<fieldset><legend>Zielverbindungen (Mehrfachauswahl)</legend>',
         '<p class="status-note">Ein Dokument, mehrere gespeicherte Ziele. '
         'Die tatsächliche parallele Zustellung folgt in Block 7.</p>'
@@ -47,7 +50,9 @@ def _edit_form(csrf, tile, targets, groups):
                  'name="background" value="yes"'+
                  (' checked' if tile.get("background") else '')+
                  '>Im Hintergrund zustellen (Block 7)</label>',
-                 '<button type="submit">Button speichern</button></form>'])
+                 '<label class="tile-check"><input type="checkbox" name="enabled" value="yes"'+
+                 (' checked' if tile.get("enabled", True) else '')+
+                 '>Button aktiv</label><button type="submit">Button speichern</button></form>'])
     return ''.join(bits)
 
 def home_buttons_page(tiles, targets, csrf, notice=""):
