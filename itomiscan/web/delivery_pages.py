@@ -48,6 +48,30 @@ def targets_page(targets, csrf, configured, notice="", *, discovered=None, searc
                      + '<input type="hidden" name="target_id" value="' + e(tid) + '">'
                      '<input type="hidden" name="clear" value="yes">'
                      '<button class="danger">Zugangsdaten entfernen</button></form>')
+        if kind == "paperless":
+            detail += (
+                '<section class="card"><h3>Paperless-Anmeldung</h3>'
+                '<p>Einmal mit Paperless-Benutzername und Passwort anmelden. '
+                'ItomiScan tauscht die Zugangsdaten über HTTPS gegen einen API-Token '
+                'aus und speichert nur diesen Token.</p>'
+                '<form method="post" action="/targets/paperless/login">' + token(csrf)
+                + '<input type="hidden" name="target_id" value="' + e(tid) + '">'
+                '<label>Paperless-Benutzername</label>'
+                '<input name="username" autocomplete="username" required maxlength="200">'
+                '<label>Paperless-Passwort</label>'
+                '<input type="password" name="password" autocomplete="new-password" '
+                'required maxlength="400">'
+                '<button>Mit Paperless anmelden</button></form>'
+                '<details><summary>Hilfe zur Token-Einrichtung</summary>'
+                '<p>In Paperless unter „Mein Profil“ einen API-Token erstellen '
+                'oder erneuern. Nur den Tokenwert ohne vorangestelltes „Token “ '
+                'eingeben. Der Benutzer benötigt für Uploads die Berechtigung '
+                '„Dokumente hinzufügen“. Als Zieladresse die HTTPS-Basisadresse '
+                'ohne /api/documents/post_document/ verwenden.</p></details>'
+                '<form method="post" action="/targets/paperless/test">' + token(csrf)
+                + '<input type="hidden" name="target_id" value="' + e(tid) + '">'
+                '<button class="secondary">Erweiterte Diagnose / Verbindung testen</button>'
+                '</form></section>')
         detail += ('<form method="post" action="/targets/delete">' + token(csrf)
                  + '<input type="hidden" name="id" value="' + e(tid) + '">'
                  '<button class="danger">Ziel entfernen</button></form></article>')
@@ -186,3 +210,24 @@ def jobs_page(jobs, summary, csrf, notice=""):
              'Automatische Speicherbereinigung und vollständige Datensicherung '
              'folgen in Block 8.</p>')
     return layout("Zustellaufträge", body, active="/jobs", csrf=csrf, notice=notice)
+
+def paperless_diagnostic_page(target, result, csrf):
+    """No secrets, document names, tokens or raw remote response bodies."""
+    heading = ('<h1>Paperless: Erweiterte Diagnose</h1>'
+               '<p><strong>' + e(target["name"]) + '</strong> · ' +
+               e(target["address"]) + '</p>')
+    content = heading + '<section class="entry-list">'
+    for step in result.get("steps", ()):
+        state = ("OK" if step["ok"] is True else
+                 "Nicht geprüft" if step["ok"] is None else "Problem")
+        code = (" · HTTP " + str(step["http"])) if "http" in step else ""
+        content += ('<article class="card"><h2>' + e(step["name"]) + '</h2>'
+                    '<p><strong>' + e(state) + '</strong>' + e(code) + '</p>'
+                    '<p>' + e(step["message"]) + '</p></article>')
+    content += '</section>'
+    if result.get("message"):
+        content += '<p role="status">' + e(result["message"]) + '</p>'
+    content += ('<p class="status-note">Es wurde kein Dokument hochgeladen. '
+                'Ein erfolgreicher API-Lesetest bestätigt nicht die Uploadberechtigung.</p>'
+                '<p><a href="/targets">Zurück zur Zielverwaltung</a></p>')
+    return layout("Paperless-Diagnose", content, active="/targets", csrf=csrf)
