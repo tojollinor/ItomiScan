@@ -401,6 +401,37 @@ class WebAdminTests(unittest.TestCase):
             "job_id":"a"*32})[0],403)
         self.assertEqual(self.req("GET", "/jobs")[0],200)
 
+    def test_home_button_editor_multi_target_and_csrf(self):
+        self.assertEqual(self.req("GET", "/home-buttons")[0], 303)
+        self.login()
+        self.assertEqual(self.req("POST", "/home-buttons/save",
+                                  {"label":"Unbefugt","action":"scan"})[0],403)
+        self.server.store.save_target({
+            "kind":"paperless","name":"DMS","address":"https://paperless.example"})
+        self.server.store.save_target({
+            "kind":"network","name":"Archiv","address":"smb://nas.local/archive"})
+        identifiers=[t["id"] for t in self.server.store.list_targets()]
+        fields={"csrf":self.csrf,"label":"Kopieren & Archivieren",
+                "action":"scan","icon":"copy","color":"#226744",
+                "source":"ADF Duplex","resolution":"300",
+                "mode":"Color","output":"PDF",
+                "targets":[str(i) for i in identifiers],
+                "background":"yes"}
+        code,_,_=self.req("POST","/home-buttons/save",fields)
+        self.assertEqual(code,303)
+        saved=self.server.store.list_kiosk_tiles()
+        self.assertEqual(len(saved),1)
+        self.assertEqual(saved[0]["targets"],identifiers)
+        self.assertEqual(saved[0]["color"],"#226744")
+        page=self.req("GET","/home-buttons")[2]
+        self.assertIn("Kopieren &amp; Archivieren",page)
+        self.assertIn('type="color"',page)
+        self.assertIn('name="targets"',page)
+        self.assertIn("Startseite gestalten",page)
+        self.assertEqual(self.req("POST","/home-buttons/delete",
+                         {"csrf":self.csrf,"tile_id":str(saved[0]["id"])})[0],303)
+        self.assertEqual(self.server.store.list_kiosk_tiles(),[])
+
     def test_printer_page_and_safe_web_registration(self):
         self.login()
         with patch("itomiscan.web.server.list_queues", return_value=[]):
