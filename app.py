@@ -814,6 +814,10 @@ class ItomiScan:
                 "Ein zugewiesenes Ziel wurde entfernt. Bitte im Webeditor korrigieren.",
                 parent=self.root)
             return
+        for target in linked:
+            if target and not self._allowed(
+                    'copy' if target['kind'] == 'printer' else target['kind']):
+                return
         if len(linked) > 1:
             messagebox.showinfo("Mehrere Ziele",
                 "Der Button ist gespeichert. Die parallele Zustellung an "
@@ -896,7 +900,8 @@ class ItomiScan:
             self.home.set_access(None)
         self._detail_buttons()
         try:
-            self.home.set_tiles(self.delivery_queue.db.list_kiosk_tiles())
+            self.home.set_tiles(self.delivery_queue.db.list_kiosk_tiles(),
+                                self.delivery_queue.db.list_targets())
         except (OSError, ValueError) as exc:
             self.status_var.set("Startseitenkonfiguration nicht lesbar: "+str(exc))
             self.home.set_tiles([])
