@@ -36,4 +36,5 @@ Stand: 2026-10-18. **Freigabe des Nutzers: alle besprochenen Änderungen umsetze
 | --- | --- |
 | 1 | Abgeschlossen: Ist-Stand/Plan/Register, keine Anwendungsänderung |
 | 2 | Code umgesetzt: IdleScreen (PIN zulässig, Logout nach 30 s, sichere Verzögerung bei Scan), Cursor nach Klick parken, DOC-2 Filmstreifen/Icons/Viewer; virtuelle GUI-Regression ergänzt. N1800-Abnahme offen. CI des letzten Commits prüfen. |
-| 3–9 | Offen, Freigabe je Fortsetzung über „Weiter“ |
+| 3 | Auf `develop/1.0.0` umgesetzt: globale Web-Ladeansicht (ItomiScan-Scanlogo, kontextspezifische Texte, Doppelsubmit-Sperre), Bildseitenverhältnis und 900-ms-Bildabfrage in Web-Fernsteuerung, 800-ms-Bildaufnahmen bei aktivem Viewer mit 120-ms-Kiosk-Polling. Bestehendes 1-s-Monitoring (CPU-/RAM-Werte und 300-Punkte-Diagramme) geprüft und erhalten. Neue Web-Regressionsprüfung; CI-/Hardwareergebnis gesondert nachweisen. |
+| 4–9 | Offen, Freigabe je Fortsetzung über „Weiter“ |
