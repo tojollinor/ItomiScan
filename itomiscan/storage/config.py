@@ -417,6 +417,18 @@ class ConfigStore:
                        or k not in names or v not in valid_printers
                        for k, v in profile_printers.items())):
             raise ConfigError("Ungültige Profil-Druckerzuordnung.")
+        identities = payload.get("printer_identities", {})
+        if (not isinstance(identities, dict) or
+                any(name not in valid_printers or not isinstance(meta, dict)
+                    or not isinstance(meta.get("identity"), str)
+                    or not re.fullmatch(
+                        r"[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}",
+                        meta["identity"])
+                    or not isinstance(meta.get("name"), str)
+                    or not 1 <= len(meta["name"]) <= 80
+                    for name, meta in identities.items()) or
+                len({meta["identity"] for meta in identities.values()}) != len(identities)):
+            raise ConfigError("Ungültige Druckeridentitäten.")
         for key, value in settings.items():
             validate_setting(key, value)
         with self._connection(write=True) as db:
@@ -425,10 +437,18 @@ class ConfigStore:
                 db.execute("INSERT INTO profiles(name,data) VALUES(?,?)",
                            (item["name"], json.dumps(item, ensure_ascii=False)))
             db.execute("DELETE FROM profile_printers")
+            db.execute("DELETE FROM printer_identity")
             db.execute("DELETE FROM targets")
             for item in valid_targets:
                 db.execute("INSERT INTO targets(kind,name,address) VALUES(?,?,?)",
                            (item["kind"], item["name"], item["address"]))
+            for name, meta in identities.items():
+                row = db.execute(
+                    "SELECT id FROM targets WHERE kind='printer' AND name=?",
+                    (name,)).fetchone()
+                db.execute("INSERT INTO printer_identity "
+                           "(target_id,device_uuid,display_name) VALUES(?,?,?)",
+                           (row[0], meta["identity"], meta["name"]))
             for name, printer in profile_printers.items():
                 row = db.execute(
                     "SELECT id FROM targets WHERE kind='printer' AND name=?",
