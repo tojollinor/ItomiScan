@@ -423,6 +423,45 @@ class WebAdminTests(unittest.TestCase):
             self.assertEqual(self.req("POST", "/printers/uninstall", body)[0], 303)
             remove.assert_called_once_with("OfficeLaser")
 
+    def test_verified_network_printer_one_click_install(self):
+        self.login()
+        printer = {"name":"Brother HL-3152CDW", "ip":"10.20.1.44",
+                   "uri":"ipp://10.20.1.44:631/ipp/print",
+                   "identity":"11111111-2222-3333-4444-555555555555"}
+        with patch("itomiscan.integrations.printer_identity.discover_verified_printers",
+                   return_value=([printer], 0)) as discovery, \
+             patch("itomiscan.web.server.list_queues", return_value=[]), \
+             patch("itomiscan.web.server.install_queue", return_value="Installed") as install:
+            code, _, html = self.req("GET", "/printers?search=1")
+            self.assertEqual(code, 200)
+            self.assertIn("Brother HL-3152CDW", html)
+            self.assertIn('action="/printers/add"', html)
+            install.assert_not_called()
+            code, _, _ = self.req("POST", "/printers/add", {
+                "csrf":self.csrf, "identity":printer["identity"],
+                "uri":printer["uri"]})
+            self.assertEqual(code, 303)
+            install.assert_called_once()
+            self.assertEqual(discovery.call_count, 2)
+        saved = [x for x in self.server.store.list_targets()
+                 if x["kind"] == "printer"]
+        self.assertEqual(len(saved), 1)
+        self.assertEqual(saved[0]["address"], printer["uri"])
+
+    def test_one_click_rejects_forged_or_stale_printer_candidate(self):
+        self.login()
+        with patch("itomiscan.integrations.printer_identity.discover_verified_printers",
+                   return_value=([], 1)), \
+             patch("itomiscan.web.server.install_queue") as install:
+            status, _, _ = self.req("POST", "/printers/add", {
+                "csrf":self.csrf,
+                "identity":"11111111-2222-3333-4444-555555555555",
+                "uri":"ipp://10.20.1.44:631/ipp/print"})
+            self.assertEqual(status, 400)
+            install.assert_not_called()
+        self.assertEqual(self.req("POST", "/printers/add", {
+            "csrf":"wrong", "identity":"bad", "uri":"bad"})[0], 403)
+
     def test_printer_admin_authorization_invalid_uri_and_errors(self):
         self.assertEqual(self.req("GET", "/printers")[0], 303)
         self.assertEqual(self.req("POST", "/printers/save", {
