@@ -65,6 +65,13 @@ source_dir="$(dirname "$0")/../itomiscan-overlay/itomiscan"
 dest_dir="${DESTDIR}/usr/share/plymouth/themes/itomiscan"
 [ -d "$source_dir" ] && [ -d "$dest_dir" ] || exit 1
 cp -a "$source_dir/." "$dest_dir/"
+# initramfs-tools may generate /conf/modules independently of the -d config.
+# Write explicitly into the image staging tree, never to the host.
+mkdir -p "${DESTDIR}/conf"
+touch "${DESTDIR}/conf/modules"
+for module in i915 uhci_hcd; do
+  grep -Fxq "$module" "${DESTDIR}/conf/modules" || printf '%s\\n' "$module" >> "${DESTDIR}/conf/modules"
+done
 HOOK
 chmod 0755 "$work/config/hooks/zzzz-itomiscan-i915-overlay"
 mkinitramfs -d "$work/config" -o "$work/candidate.initrd" "$kernel"
