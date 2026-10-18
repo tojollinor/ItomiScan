@@ -45,8 +45,8 @@ class TileStoreTests(unittest.TestCase):
         group=self.db.list_kiosk_tiles()[0]["id"]
         self.db.save_kiosk_tile(tile("Beide",parent=group,targets=self.ids))
         backup=self.db.backup()
-        self.assertEqual(backup["kiosk_tiles"][1]["targets"],
-                         [["paperless","DMS"],["network","NAS"]])
+        self.assertEqual({tuple(x) for x in backup["kiosk_tiles"][1]["targets"]},
+                         {("paperless","DMS"),("network","NAS")})
         self.db.restore(backup)
         tiles=self.db.list_kiosk_tiles()
         self.assertEqual(len(tiles),2)
