@@ -151,8 +151,18 @@ def deliver_paperless(job, path, credentials):
                 return "Paperless-Verarbeitung gestartet; Task " + task_id
             return "Paperless-Verarbeitung gestartet (HTTP " + str(response.status) + ")"
         if response.status in (401, 403, 404, 413, 415, 422):
-            raise DeliveryError("Paperless HTTP " + str(response.status),
-                                permanent=True)
+            reasons = {
+                401: "Token abgelehnt. Zugangsdaten in der Paperless-Zielverwaltung prüfen.",
+                403: ("Zugriff verweigert. In Paperless die Berechtigung zum Hinzufügen "
+                      "von Dokumenten und gegebenenfalls den Reverse Proxy prüfen. "
+                      "Erweiterte Diagnose in der Zielverwaltung öffnen."),
+                404: "Upload-API nicht gefunden. Paperless-Basisadresse prüfen.",
+                413: "Dokument für Paperless oder Proxy zu groß.",
+                415: "Dokumentenformat von Paperless nicht akzeptiert.",
+                422: "Dokument oder Upload-Daten von Paperless abgelehnt.",
+            }
+            raise DeliveryError("Paperless HTTP " + str(response.status) +
+                                ": " + reasons[response.status], permanent=True)
         raise DeliveryError("Paperless HTTP " + str(response.status),
                             uncertain=True)
     except DeliveryError:
