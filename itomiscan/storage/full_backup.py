@@ -42,13 +42,13 @@ def safe_name(name):
     return name.startswith("scans/") and len(parts) >= 2
 
 
-def check_regular(path):
+def check_regular(path, *, allow_spool_links=False):
     path = Path(path)
     for candidate in (path, *path.parents):
         if candidate.is_symlink():
             raise BackupError("Symbolische Links sind nicht erlaubt.")
     st = path.stat()
-    if not stat.S_ISREG(st.st_mode) or st.st_nlink > 1:
+    if not stat.S_ISREG(st.st_mode) or (st.st_nlink > 1 and not allow_spool_links):
         raise BackupError("Nur normale, unverlinkte Dateien zulässig.")
 
 
@@ -130,13 +130,27 @@ def _create_backup(output, *, home=None, config_dir=None):
                     delete=False) as tmp:
                 tmp_file = Path(tmp.name)
                 os.chmod(tmp_file, 0o600)
+            # Multi-target jobs intentionally share spool inodes via hardlinks.
+            # Permit only complete, closed link sets confined to this spool.
+            spool_links = {}
+            for name, path in sources:
+                if name.startswith("spool/"):
+                    check_regular(path, allow_spool_links=True)
+                    state = path.stat()
+                    key = (state.st_dev, state.st_ino)
+                    spool_links[key] = spool_links.get(key,0) + 1
+            for name,path in sources:
+                if name.startswith("spool/"):
+                    state = path.stat()
+                    if state.st_nlink != spool_links[(state.st_dev,state.st_ino)]:
+                        raise BackupError("Spool-Hardlink verweist außerhalb des Backups.")
             files, total = [], 0
             with zipfile.ZipFile(tmp_file, "w",
                     compression=zipfile.ZIP_STORED, allowZip64=True) as zf:
                 for name, path in sources:
                     if not safe_name(name):
                         raise BackupError("Unsicherer Dateiname in der Sicherung.")
-                    check_regular(path)
+                    check_regular(path,allow_spool_links=name.startswith("spool/"))
                     before = path.stat()
                     total += before.st_size
                     if total > MAX_TOTAL:
