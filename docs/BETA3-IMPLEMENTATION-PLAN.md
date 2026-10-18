@@ -35,4 +35,5 @@ Stand: 2026-10-18. **Freigabe des Nutzers: alle besprochenen Änderungen umsetze
 | Block | Stand |
 | --- | --- |
 | 1 | Abgeschlossen: Ist-Stand/Plan/Register, keine Anwendungsänderung |
-| 2–9 | Offen, Freigabe je Fortsetzung über „Weiter“ |
+| 2 | Code umgesetzt: IdleScreen (PIN zulässig, Logout nach 30 s, sichere Verzögerung bei Scan), Cursor nach Klick parken, DOC-2 Filmstreifen/Icons/Viewer; virtuelle GUI-Regression ergänzt. N1800-Abnahme offen. CI des letzten Commits prüfen. |
+| 3–9 | Offen, Freigabe je Fortsetzung über „Weiter“ |
