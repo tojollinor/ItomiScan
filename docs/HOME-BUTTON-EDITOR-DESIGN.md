@@ -8,8 +8,8 @@ Jeder Startseitenbutton ist eine eigenständige, frei konfigurierbare Scanaktion
 
 ## Webeditor „Startseite gestalten“
 
-- Buttons erstellen, bearbeiten, umbenennen, duplizieren, deaktivieren, verschieben/sortieren, löschen; Symbol und Bezeichnung aus bestehendem ItomiScan-Design.
-- Gruppenbutton erstellen und Unterseite mit eigenen Buttons gestalten; Zurück/Home-Navigation. Sichere Navigation ohne Gruppenzyklen, Tiefe später festlegen.
+- **Ausschließlich in der Webadministration** Buttons erstellen, bearbeiten, umbenennen, duplizieren, deaktivieren, verschieben/sortieren und löschen. Pro Button **Farbe frei wählen** (vordefinierte abgestimmte Palette und optional eigener HEX-Farbwert), Symbol und Beschriftung festlegen. Automatisch gut lesbare Kontrastfarben für Text/Symbole; nicht betroffene Gestaltungsbereiche unverändert. Auf dem Scanner selbst keine Bearbeitungsoberfläche.
+- Gruppenbutton inklusive eigener Farbe erstellen und Unterseite mit eigenen Buttons gestalten; Zurück/Home-Navigation. Sichere Navigation ohne Gruppenzyklen, Tiefe später festlegen.
 - **Scanoptionen je Scanbutton**: ein-/doppelseitig (ADF Front/Duplex), Auflösung/DPI, Farbe/Graustufen/Schwarzweiß, Dokumentformat/Ausgabe (PDF usw.), gegebenenfalls weitere SANE-Optionen, sofern Scanner und gewählter Modus sie tatsächlich unterstützen. Optional vorhandenes Scanprofil als Ausgangsvorlage übernehmen; Änderungen am Button unabhängig davon speichern. Nicht unterstützte Kombinationen erkennbar ablehnen, nicht still ignorieren.
 - **Ziele je Button** als Mehrfachauswahl vorhandener gespeicherter Verbindungen: Paperless, eingerichteter Drucker, Netzwerkordner und andere implementierte Zielarten. Eine Verbindung kann mehreren Buttons zugewiesen sein; Credentials bleiben ausschließlich in der Zielverwaltung.
 - **Übertragungsmodus pro Button**: „Fortschritt anzeigen“ (Standard) oder „Im Hintergrund übertragen“. Beide verwenden die gleiche zuverlässige Auftragserfassung und -überwachung.
