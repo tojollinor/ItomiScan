@@ -421,10 +421,10 @@ class AdminHandler(BaseHTTPRequestHandler):
         if ctype.startswith("application/x-www-form-urlencoded"):
             values = parse_qs(raw.decode("utf-8"), keep_blank_values=True,
                               max_num_fields=70)
-            if any(len(value) != 1 and key != "assigned_profiles"
+            if any(len(value) != 1 and key not in ("assigned_profiles", "targets")
                    for key, value in values.items()):
                 raise ValueError("Doppelte Formularfelder sind nicht erlaubt.")
-            return {key: value if key == "assigned_profiles" else value[0]
+            return {key: value if key in ("assigned_profiles", "targets") else value[0]
                     for key, value in values.items()}
         if ctype.startswith("multipart/form-data;"):
             prefix = ("MIME-Version: 1.0\r\nContent-Type: "
