@@ -292,6 +292,9 @@ class AdminHandler(BaseHTTPRequestHandler):
             if path == "/assets/admin-dialogs.js":
                 return self._response(200, pages.DIALOG_JS,
                                       mime="text/javascript; charset=utf-8")
+            if path == "/assets/loading.js":
+                return self._response(200, pages.LOADING_JS,
+                                      mime="text/javascript; charset=utf-8")
             if path == "/assets/status.js":
                 return self._response(
                     200, pages.STATUS_JS,
