@@ -350,7 +350,8 @@ class AdminHandler(BaseHTTPRequestHandler):
                     discovered, unknown = discover_verified_printers()
                 html = printing_pages.printers_page(
                     targets, cups, csrf, notice=notice, issue=issue,
-                    discovered=discovered, searched=searching, unknown=unknown)
+                    discovered=discovered, searched=searching, unknown=unknown,
+                    identities=self.server.store.printer_identities())
             elif path == "/jobs":
                 html = delivery_pages.jobs_page(self.server.queue.all(),
                                                 self.server.queue.summary(), csrf, notice)
@@ -583,7 +584,9 @@ class AdminHandler(BaseHTTPRequestHandler):
                     raise ValueError("Druckeridentität nicht mehr bestätigt. Erneut suchen.")
                 existing = [x for x in self.server.store.list_targets()
                             if x["kind"] == "printer"]
-                if any(x["address"] == uri for x in existing):
+                if (any(x["address"] == uri for x in existing) or
+                        any(x["identity"] == identity for x in
+                            self.server.store.printer_identities().values())):
                     raise ValueError("Dieser Drucker ist bereits hinterlegt.")
                 import re
                 slug = re.sub(r"[^A-Za-z0-9_-]+", "_", device["name"]).strip("_")
@@ -597,11 +600,19 @@ class AdminHandler(BaseHTTPRequestHandler):
                 try:
                     self.server.store.save_target(
                         {"kind": "printer", "name": name, "address": uri})
+                    assigned = next(x for x in self.server.store.list_targets()
+                                    if x["kind"] == "printer" and x["name"] == name)
+                    self.server.store.assign_printer_identity(
+                        assigned["id"], identity, device["name"])
                 except Exception:
                     try:
                         uninstall_queue(name)
                     except PrintError:
                         pass
+                    created = next((x for x in self.server.store.list_targets()
+                                    if x["kind"] == "printer" and x["name"] == name), None)
+                    if created:
+                        self.server.store.delete_target(created["id"])
                     raise
                 return self._redirect("/printers?ok=Drucker%20hinzugefuegt")
             if path == "/printers/save":
