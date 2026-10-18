@@ -132,7 +132,7 @@ def list_queues():
         raise PrintError("CUPS-Geräteliste nicht abrufbar.")
     found = set()
     for line in result.stdout.splitlines():
-        match = re.match(r"^device for ([A-Za-z][A-Za-z0-9_-]{0,39}):\\s+\\S+", line)
+        match = re.match(r"^device for ([A-Za-z][A-Za-z0-9_-]{0,39}):\s+\S+", line)
         if match:
             found.add(match.group(1))
     return sorted(found, key=str.casefold)
