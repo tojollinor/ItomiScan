@@ -97,6 +97,9 @@ def save_tile(connection, raw, tile_id=None):
             raise TileError("Nur eine Gruppenebene ist erlaubt.")
         if tile_id == tile["parent"]:
             raise TileError("Eine Gruppe kann sich nicht selbst enthalten.")
+    if current and current['action'] == 'group' and tile['action'] != 'group':
+        if any(x['parent'] == tile_id for x in all_tiles):
+            raise TileError('Gruppe enthält Buttons; zuerst verschieben oder entfernen.')
     if tile["action"] == "group" and (
             tile["parent"] is not None or
             current and current["action"] != "group" and
