@@ -67,6 +67,32 @@ class TouchLayoutTests(unittest.TestCase):
         self.assertFalse(self.app.idle_screen.show_now())
         self.assertFalse(self.app.idle_screen.active)
 
+    def test_screensaver_over_pin_and_logout_without_exposing_login(self):
+        self.app.pin_screen.show()
+        self.app.pin_screen.press("1")
+        self.assertTrue(self.app.idle_screen.show_now())
+        self.assertEqual(self.app.pin_screen.digits, "1")
+        # The idle screen must expire the session without revealing PIN widgets.
+        self.app.idle_screen.started_at -= 31
+        self.app.idle_screen.tick()
+        self.assertTrue(self.app.idle_screen.logout_done)
+        self.assertTrue(self.app.idle_screen.active)
+        self.assertEqual(self.app.idle_screen.frame.winfo_manager(), "place")
+        self.assertEqual(self.app.pin_screen.digits, "")
+        self.app.idle_screen.wake_event()
+        self.assertFalse(self.app.idle_screen.active)
+        self.assertEqual(self.app.idle_screen.frame.winfo_manager(), "")
+        
+    def test_screensaver_defers_logout_while_scan_busy(self):
+        self.app.idle_screen.show_now()
+        self.app.idle_screen.started_at -= 31
+        self.app.busy = True
+        self.app.idle_screen.tick()
+        self.assertFalse(self.app.idle_screen.logout_done)
+        self.app.busy = False
+        self.app.idle_screen.tick()
+        self.assertTrue(self.app.idle_screen.logout_done)
+
     def test_pin_keypad_sits_below_midline(self):
         pin = self.app.pin_screen
         pin.show()
