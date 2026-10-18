@@ -55,6 +55,21 @@ class PrinterIdentityTests(unittest.TestCase):
            stdout="device for Office: ipp://10.0.0.25/ipp/print\n",stderr="")
         self.assertEqual(list_queues(), ["Office"])
 
+    def test_device_identity_survives_backup_restore(self):
+        import tempfile
+        from pathlib import Path
+        from itomiscan.storage.config import ConfigStore
+        with tempfile.TemporaryDirectory() as directory:
+            store=ConfigStore(Path(directory)/'itomiscan.db')
+            store.save_target({'kind':'printer','name':'Office','address':'ipp://10.0.0.25/ipp/print'})
+            ident=next(x['id'] for x in store.list_targets() if x['name']=='Office')
+            uuid='11111111-2222-3333-4444-555555555555'
+            store.assign_printer_identity(ident,uuid,'Brother HL-3152CDW')
+            backup=store.backup()
+            self.assertEqual(backup['printer_identities']['Office']['identity'],uuid)
+            store.restore(backup)
+            self.assertIn(uuid,[x['identity'] for x in store.printer_identities().values()])
+
     def test_ipp_parser_extracts_uuid(self):
         name=b"printer-uuid"
         value=b"urn:uuid:11111111-2222-3333-4444-555555555555"
