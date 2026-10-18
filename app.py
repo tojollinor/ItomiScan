@@ -1292,7 +1292,9 @@ class ItomiScan:
             self.show_delivery_status(focus_batch=batch_id)
 
     def _delivery_notification(self, message, severe=False):
-        if self.busy or self.pin_screen.active or self.delivery_status_page.frame is not None:
+        if (self.busy or self.pin_screen.active or
+                (self.idle_screen is not None and self.idle_screen.active) or
+                self.delivery_status_page.frame is not None):
             return
         if self._notification_toast is not None:
             self._notification_toast.destroy()
