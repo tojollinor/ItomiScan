@@ -42,6 +42,23 @@ class QueueTests(unittest.TestCase):
     def create(self, kind="usb"):
         return self.queue.enqueue(self.pdf, self.targets[kind])
 
+    def test_existing_batch_table_migrates_read_state_without_job_loss(self):
+        from sqlite3 import connect
+        with self.db._connection(write=True) as db:
+            db.execute('DROP TABLE delivery_batches')
+            db.execute('CREATE TABLE delivery_batches ('
+                       'id TEXT PRIMARY KEY, created_at REAL NOT NULL, '
+                       'label TEXT NOT NULL, background INTEGER NOT NULL DEFAULT 0, '
+                       'owner_id INTEGER, source TEXT NOT NULL)')
+            db.execute('INSERT INTO delivery_batches '
+                       '(id,created_at,label,source) VALUES(?,?,?,?)',
+                       ('legacy-batch',1000,'Alt','source.pdf'))
+        migrated=DeliveryQueue(self.path,clock=self.clock)
+        result=migrated.batch('legacy-batch')
+        self.assertEqual(result['batch']['read_at'],0)
+        migrated.mark_batch_read('legacy-batch')
+        self.assertGreater(migrated.batch('legacy-batch')['batch']['read_at'],0)
+
     def test_multitarget_batch_spools_once_and_survives_restart(self):
         import os
         ids=[self.targets["paperless"],self.targets["network"]]
