@@ -1,5 +1,6 @@
 """Web-only kiosk tile editor: existing ItomiScan forms and detail dialogs."""
 from itomiscan.web.pages import e, layout, token, detail_dialog, options
+import json
 from itomiscan.storage.kiosk_tiles import ICONS, COLORS
 
 def _edit_form(csrf, tile, targets, groups):
@@ -10,7 +11,8 @@ def _edit_form(csrf, tile, targets, groups):
     bits.extend([
         '<label>Beschriftung</label><input name="label" maxlength="42" required value="'+e(tile.get("label",""))+'">',
         '<label>Art</label><select name="action">',
-        options(("scan","group"),tile.get("action","scan")),
+        '<option value="scan"'+(' selected' if tile.get("action","scan")=="scan" else '')+'>Scanaktion</option>'+
+        '<option value="group"'+(' selected' if tile.get("action")=="group" else '')+'>Gruppe öffnen</option>',
         '</select><p class="status-note">scan = Scanaktion; group = Unterseite öffnen.</p>',
         '<label>Symbol</label><select name="icon">',
         options(ICONS,tile.get("icon","scan")),'</select>',
@@ -33,7 +35,7 @@ def _edit_form(csrf, tile, targets, groups):
         options(("PDF","Bild (PNG)"),scan.get("output","PDF")),
         '</select><details><summary>Weitere SANE-Einstellungen (JSON)</summary>'
         '<textarea name="advanced" rows="3">'+
-        e(__import__("json").dumps(scan.get("settings", {}),ensure_ascii=False))+
+        e(json.dumps(scan.get("settings", {}),ensure_ascii=False))+
         '</textarea></details></fieldset>',
         '<fieldset><legend>Zielverbindungen (Mehrfachauswahl)</legend>',
         '<p class="status-note">Ein Dokument, mehrere gespeicherte Ziele. '
