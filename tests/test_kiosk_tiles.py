@@ -67,7 +67,7 @@ class TileStoreTests(unittest.TestCase):
         saved=self.db.backup()
         bad=dict(saved)
         bad["targets"]=[dict(t) for t in saved["targets"]]
-        bad["targets"][0]["address"]="https://different.example"
+        bad["targets"][0]["address"]=("smb://different.example/share" if bad["targets"][0]["kind"]=="network" else "https://different.example")
         with self.assertRaisesRegex(ConfigError,"Zieländerung"):
             self.db.restore(bad)
         self.assertEqual(secrets.get(self.ids[0])["token"],"private-test-token")
@@ -83,7 +83,7 @@ class TileStoreTests(unittest.TestCase):
         queue.enqueue_batch(src,[self.ids[0]])
         bad=self.db.backup()
         bad["targets"]=[dict(t) for t in bad["targets"]]
-        bad["targets"][0]["address"]="https://changed.example"
+        bad["targets"][0]["address"]=("smb://changed.example/share" if bad["targets"][0]["kind"]=="network" else "https://changed.example")
         with self.assertRaisesRegex(ConfigError,"offenen Zustellaufträgen"):
             self.db.restore(bad)
         self.assertEqual(queue.all()[0]["status"],"queued")
