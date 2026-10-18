@@ -54,7 +54,8 @@ class DeliveryQueue:
             db.execute("""CREATE TABLE IF NOT EXISTS delivery_batches (
                 id TEXT PRIMARY KEY, created_at REAL NOT NULL,
                 label TEXT NOT NULL, background INTEGER NOT NULL DEFAULT 0,
-                owner_id INTEGER, source TEXT NOT NULL
+                owner_id INTEGER, source TEXT NOT NULL,
+                read_at REAL NOT NULL DEFAULT 0
             )""")
             if "print_copies" not in existing:
                 db.execute("ALTER TABLE delivery_jobs ADD COLUMN print_copies INTEGER NOT NULL DEFAULT 1")
@@ -230,6 +231,11 @@ class DeliveryQueue:
             jobs=db.execute("SELECT * FROM delivery_jobs WHERE batch_id=? ORDER BY created_at,id",
                             (batch_id,)).fetchall()
         return {"batch":dict(batch),"jobs":[dict(j) for j in jobs]}
+
+    def mark_batch_read(self,batch_id):
+        with self.db._connection(write=True) as db:
+            db.execute("UPDATE delivery_batches SET read_at=? WHERE id=?",
+                       (self.clock(),batch_id))
 
     def recent_batches(self,limit=40):
         with self.db._connection() as db:
