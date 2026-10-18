@@ -167,6 +167,8 @@ class ItomiScan:
         self.users = UserStore(self.profile_store.path)
         self.delivery_queue = DeliveryQueue(self.profile_store.path)
         self.delivery_status_page = None
+        self._batch_seen = {}
+        self._notification_toast = None
         self.remote_commands = (RemoteCommands(self.profile_store.path)
                                 if self.profile_store.path else None)
         self.current_user = None
@@ -1278,6 +1280,19 @@ class ItomiScan:
         if not background:
             self.show_delivery_status(focus_batch=batch_id)
 
+    def _delivery_notification(self, message, severe=False):
+        if self.busy or self.pin_screen.active or self.delivery_status_page.frame is not None:
+            return
+        if self._notification_toast is not None:
+            self._notification_toast.destroy()
+        note=tk.Label(self.root,text=message,bg="#7d3434" if severe else "#245b4a",
+                      fg=FG,font=("DejaVu Sans",12,"bold"),
+                      wraplength=750,padx=15,pady=10)
+        note.place(relx=.5,rely=.05,anchor="n")
+        note.lift()
+        self._notification_toast=note
+        self.root.after(4500, lambda:note.destroy() if note.winfo_exists() else None)
+
     def delivery_tick(self):
         try:
             counts = self.delivery_queue.summary()
@@ -1285,6 +1300,25 @@ class ItomiScan:
                           for k in ("queued", "retry", "review", "failed"))
             if pending and not self.busy:
                 self.status_var.set(str(pending) + " Zustellauftrag/-aufträge offen")
+            if self.users.settings()["enabled"] and not self.current_user:
+                self._batch_seen.clear()
+            else:
+                owner = self.current_user["id"] if self.users.settings()["enabled"] else None
+                for group in self.delivery_queue.recent_batches(30):
+                    batch=group["batch"]
+                    if owner is not None and batch["owner_id"] != owner:
+                        continue
+                    states=tuple((j["id"],j["status"]) for j in group["jobs"])
+                    previous=self._batch_seen.get(batch["id"])
+                    self._batch_seen[batch["id"]]=states
+                    if previous is None or previous == states:
+                        continue
+                    failure=any(j["status"] in ("failed","review") for j in group["jobs"])
+                    finished=all(j["status"] in ("done","failed","review") for j in group["jobs"])
+                    if finished:
+                        self._delivery_notification(
+                            ("Zustellung prüfen: " if failure else "Übertragung abgeschlossen: ")+
+                            batch["label"],severe=failure)
         except (OSError, ValueError):
             pass
         if self.root.winfo_exists():
