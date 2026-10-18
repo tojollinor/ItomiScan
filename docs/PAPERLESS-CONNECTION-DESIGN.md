@@ -56,3 +56,13 @@ Auf `develop/1.0.0` umgesetzt, aber noch **nicht auf dem N1800 getestet**:
 - Automatisierte Tests unter `tests/test_paperless_diagnostics.py`. Hardware- und externe Paperless-Integrationstests stehen aus.
 
 **Grenze:** Ohne tatsächlichen PDF-Test-Upload kann die Berechtigung zum Hinzufügen von Dokumenten nicht sicher bestätigt werden. Kein OAuth/OIDC-Login implementiert. Token-Login via Benutzername/Passwort setzt lokale Paperless-API-Zugangsdaten voraus.
+
+## Block 5: Erweiterte Diagnose und Zielverwaltung (2026-10-19)
+
+- Bestehende Paperless-Anmeldung mittels lokalem Benutzername/Passwort und Austausch gegen API-Token über HTTPS erhalten; Token auch weiterhin manuell hinterlegbar. Kein Passwort im Konfigurationsbackup.
+- Lesende Diagnose prüft HTTPS-Basisadresse, authentifiziertes `GET /api/profile/`, `GET /api/documents/?page_size=1` sowie eine **nicht schreibende OPTIONS-Anfrage** an `/api/documents/post_document/`. Ergebnisse sind getrennt; fehlende Leseberechtigung bedeutet nicht automatisch fehlende Uploadberechtigung.
+- **OPTIONS kann eine server-/proxyabhängige 403/405-Meldung liefern.** Auch bei 200/204 wird damit **keine tatsächliche Uploadberechtigung oder Archivierung bestätigt**. Kein Test-PDF wird erzeugt oder hochgeladen.
+- Bedienung der Ziele in der Webadministration vereinfacht (gespeicherte Ziele, Ziel hinzufügen, Paperless-Hilfe zu 403, erweiterte technische Beispiele).
+- HTTP 403 kann neben fehlender Dokumentberechtigung auch vom Reverse Proxy und in neueren Paperless-Konstellationen durch nicht richtig erkannte Trusted-Proxies bzw. Login-Ratelimits kommen. Die Diagnose nennt mögliche Ursachen, behauptet aber keine unbewiesene.
+- LAN-Fundstellen über DNS-SD bleiben Vorschläge; sie werden **nur durch ausdrückliche Übernahme** gespeichert. Nicht angekündigte Paperless-Instanzen weiterhin manuell konfigurieren. Zertifikatsvalidierung bleibt aktiv.
+- Automatisierte Tests ergänzen OPTIONS und 403; tatsächlicher Test mit dem Paperless des Benutzers, Reverse Proxy und N1800 steht noch aus. OAuth/OIDC weiterhin nicht implementiert.
