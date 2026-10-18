@@ -30,8 +30,8 @@ class PrinterIdentityTests(unittest.TestCase):
         xs = [endpoint("ipp://10.0.0.25:631/ipp/print","10.0.0.25"),
               endpoint("ipp://10.0.0.26:631/ipp/print","10.0.0.26")]
         def query(x):
-            suffix = "000000000025" if x["ip"].endswith("25") else "000000000026"
-            return {"printer-uuid":"urn:uuid:11111111-2222-3333-4444-"+suffix[:4]+"-"+suffix,
+            suffix = "555555555525" if x["ip"].endswith("25") else "555555555526"
+            return {"printer-uuid":"urn:uuid:11111111-2222-3333-4444-"+suffix,
                     "printer-make-and-model":"Brother HL-3152CDW"}
         rows, unknown = discover_verified_printers(browse=lambda:xs,query=query)
         self.assertEqual(len(rows), 2)
