@@ -7,8 +7,8 @@ def remote_page(profiles, selected, latest, csrf, notice="", *, live=False):
              f"Letzter Auftrag #{latest['id']}: {latest['action']} · "
              f"{latest['status']} · {latest['detail']}")
     view = ('<article class="card"><h2>Liveansicht des Touchscreens</h2>'
-            '<p>Ressourcenschonende Bildschirmbilder ungefähr alle 1,5 Sekunden. '
-            'Klicks und ausgewählte Tastaturbefehle werden an den lokalen Kiosk '
+            '<p>Ressourcenschonende Livebilder mit verkürztem Aktualisierungsintervall. '
+            'Das Bild behält das echte Seitenverhältnis. Klicks und ausgewählte Tastaturbefehle werden an den lokalen Kiosk '
             'gesendet. Die lokale PIN-Anmeldung bleibt erforderlich.</p>')
     if live:
         view += ('<div class="remote-screen" id="remote-screen">'
