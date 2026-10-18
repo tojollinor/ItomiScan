@@ -138,7 +138,7 @@ class DeliveryQueue:
                 temp.unlink()
 
     def enqueue_batch(self, source, target_ids, *, label="Dokument",
-                      background=False, owner_id=None):
+                      background=False, owner_id=None, expected_targets=None):
         """Copy the PDF only once; atomically register one durable job per target.
 
         Hardlinks share immutable spool bytes. If linking is unavailable, fail
@@ -198,7 +198,9 @@ class DeliveryQueue:
                         (target_id,)).fetchone()
                     original=targets[target_id]
                     if (current is None or current["kind"]!=original["kind"]
-                            or current["address"]!=original["address"]):
+                            or current["address"]!=original["address"]
+                            or (expected_targets is not None and
+                                expected_targets.get(target_id)!=original["address"])):
                         raise QueueError("Ziel wurde während der Planung geändert.")
                 db.execute("""INSERT INTO delivery_batches
                     (id,created_at,label,background,owner_id,source)
