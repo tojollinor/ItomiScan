@@ -8,6 +8,7 @@ import fcntl
 import os
 import stat
 import time
+from concurrent.futures import ThreadPoolExecutor, wait
 from pathlib import Path
 
 from itomiscan.integrations.delivery import deliver
@@ -18,6 +19,13 @@ from itomiscan.storage.secrets import SecretStore
 def process_once(queue):
     return queue.process_once(
         lambda job, path: deliver(job, path, SecretStore(queue.db.path)))
+
+
+def process_parallel(queue, pool):
+    """At most two concurrent network/print I/O operations per cycle."""
+    futures=[pool.submit(process_once,queue) for _ in range(2)]
+    wait(futures)
+    return [future.result() for future in futures]
 
 
 def main():
@@ -48,12 +56,13 @@ def main():
         except BlockingIOError:
             parser.error("Zustelldienst läuft bereits. Kein zweiter Worker.")
         queue.recover()
-        if args.once:
-            process_once(queue)
-            return
-        while True:
-            process_once(queue)
-            time.sleep(args.interval)
+        with ThreadPoolExecutor(max_workers=2, thread_name_prefix="delivery") as pool:
+            if args.once:
+                process_parallel(queue,pool)
+                return
+            while True:
+                process_parallel(queue,pool)
+                time.sleep(args.interval)
     finally:
         os.close(fd)
 
