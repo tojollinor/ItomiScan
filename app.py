@@ -1288,7 +1288,9 @@ class ItomiScan:
     def _batch_enqueued(self, batch_id, background):
         self.active_batch_id = batch_id
         self.status_var.set("Alle Ziele sicher vorgemerkt")
-        if not background:
+        if background:
+            self.show_home()
+        else:
             self.show_delivery_status(focus_batch=batch_id)
 
     def _delivery_notification(self, message, severe=False):
