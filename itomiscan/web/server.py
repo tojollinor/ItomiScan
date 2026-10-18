@@ -26,7 +26,7 @@ from urllib.parse import parse_qs, urlsplit
 from itomiscan.core.profiles import validate_profile
 from itomiscan.storage.config import ConfigError, ConfigStore
 from itomiscan.storage.users import PERMISSIONS, PinError, UserStore
-from itomiscan.web import pages, user_pages, delivery_pages, printing_pages, remote_pages
+from itomiscan.web import pages, user_pages, delivery_pages, printing_pages, remote_pages, home_buttons_pages
 from itomiscan.web.system_status import StatusSampler
 from itomiscan.integrations.discovery import discover_paperless
 from itomiscan.web.target_forms import target_from_form
@@ -307,6 +307,10 @@ class AdminHandler(BaseHTTPRequestHandler):
                 targets = self.server.store.list_targets()
                 html = pages.overview(status, {
                     "profiles": len(profiles), "targets": len(targets)}, csrf, notice)
+            elif path == "/home-buttons":
+                html = home_buttons_pages.home_buttons_page(
+                    self.server.store.list_kiosk_tiles(),
+                    self.server.store.list_targets(), csrf, notice)
             elif path == "/profiles":
                 profiles, selected = self.server.store.list_profiles()
                 printers = [t for t in self.server.store.list_targets()
@@ -559,6 +563,34 @@ class AdminHandler(BaseHTTPRequestHandler):
             if path == "/profiles/select":
                 self.server.store.select_profile(form.get("name", ""))
                 return self._redirect("/profiles?ok=Standardprofil%20gewechselt")
+            if path in ("/home-buttons/save", "/home-buttons/delete", "/home-buttons/move"):
+                from itomiscan.storage.kiosk_tiles import TileError
+                tile_id = int(form.get("tile_id", "0"))
+                if path == "/home-buttons/delete":
+                    self.server.store.delete_kiosk_tile(tile_id)
+                elif path == "/home-buttons/move":
+                    self.server.store.move_kiosk_tile(
+                        tile_id, int(form.get("direction", "0")))
+                else:
+                    targets = [int(v) for v in form.get("targets", [])] if isinstance(
+                        form.get("targets"), list) else (
+                        [int(form["targets"])] if form.get("targets") else [])
+                    data = {
+                        "label": form.get("label",""),
+                        "action": form.get("action","scan"),
+                        "icon": form.get("icon","scan"),
+                        "color": form.get("color","#192738"),
+                        "parent": int(form["parent"]) if form.get("parent") else None,
+                        "targets": targets,
+                        "background": form.get("background") == "yes",
+                        "scan": {"source":form.get("source","ADF Duplex"),
+                                 "resolution":int(form.get("resolution","300")),
+                                 "mode":form.get("mode","Color"),
+                                 "output":form.get("output","PDF")},
+                    }
+                    self.server.store.save_kiosk_tile(
+                        data, tile_id if tile_id else None)
+                return self._redirect("/home-buttons?ok=Startseite%20aktualisiert")
             if path == "/targets/save":
                 self.server.store.save_target(target_from_form(form))
                 return self._redirect("/targets?ok=Ziel%20gespeichert")
