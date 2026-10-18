@@ -219,8 +219,9 @@ class ItomiScan:
         self.root.bind_all("<KeyPress>", self.record_activity, add="+")
         idle_minutes = self.profile_store.db.get_settings().get("screensaver_minutes", 5) if self.profile_store.db else 5
         self.idle_screen = IdleScreen(
-            self.root, lambda: self.busy or self.pin_screen.active,
-            seconds=idle_minutes * 60)
+            self.root, lambda: self.busy,
+            seconds=idle_minutes * 60,
+            on_timeout=self._screensaver_logout)
         self.touch_feedback = install_touch_feedback(self.root)
         if self.login_enabled:
             self.show_login()
@@ -498,7 +499,7 @@ class ItomiScan:
         return next((dict(p) for p in self.profile_store.profiles
                      if p["name"] == name), None)
 
-    def show_login(self, message="Persönliche PIN mit 4 bis 6 Ziffern"):
+    def show_login(self, message="Persönliche PIN mit 4 bis 6 Ziffern", *, keep_saver=False):
         if self.busy:
             return
         self.device_menu.hide()
@@ -509,7 +510,7 @@ class ItomiScan:
         if self.copy_screen:
             self.copy_screen.hide()
         self.scan_view.place_forget()
-        if self.idle_screen:
+        if self.idle_screen and not keep_saver:
             self.idle_screen.wake()
         if self.pin_screen:
             self.pin_screen.show(message)
@@ -556,16 +557,24 @@ class ItomiScan:
             self.tempdir.cleanup()
             self.tempdir = None
 
-    def logout(self):
+    def logout(self, *, keep_saver=False):
         if self.busy:
-            return
+            return False
         self._clear_previous_scan()
         if self.users.settings()["enabled"]:
-            self.show_login("Abgemeldet. Bitte persönliche PIN eingeben.")
+            self.show_login("Abgemeldet. Bitte persönliche PIN eingeben.", keep_saver=keep_saver)
         else:
             self.current_user = None
             self.session_profile = None
             self.show_home()
+
+        return True
+
+    def _screensaver_logout(self):
+        """Expire local session while retaining the saver above login/home."""
+        if self.busy:
+            return False
+        return self.logout(keep_saver=True)
 
     def auth_tick(self):
         """Pick up web changes, expiration and account revocation without restart."""
@@ -740,7 +749,7 @@ class ItomiScan:
 
     def preview_screensaver(self):
         """Enter the actual idle screen immediately for visual/touch debugging."""
-        if not self.busy and not self.pin_screen.active:
+        if not self.busy:
             self.idle_screen.show_now()
 
     def _detail_buttons(self):
