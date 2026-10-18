@@ -85,6 +85,17 @@ class QueueTests(unittest.TestCase):
         self.assertEqual(list(self.queue.folder.glob("*.pdf")),[])
         self.assertTrue(self.pdf.exists())
 
+    def test_changed_target_during_scan_fails_whole_batch(self):
+        before={t["id"]:t["address"] for t in self.db.list_targets()}
+        self.db.save_target({"kind":"paperless","name":"paperless",
+                             "address":"https://new.example.org"})
+        with self.assertRaisesRegex(QueueError,"Ziel wurde"):
+            self.queue.enqueue_batch(
+                self.pdf,[self.targets["paperless"],self.targets["network"]],
+                expected_targets=before)
+        self.assertEqual(self.queue.all(),[])
+        self.assertTrue(self.pdf.exists())
+
     def test_two_workers_actually_overlap(self):
         import threading
         from concurrent.futures import ThreadPoolExecutor
