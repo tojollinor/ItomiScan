@@ -79,7 +79,7 @@ class RemoteDesktop:
                     _xtest_input(event, self.root.winfo_screenwidth(),
                                  self.root.winfo_screenheight())
                 now = time.monotonic()
-                if not self.capturing and now - self.last_capture >= 1.5:
+                if not self.capturing and now - self.last_capture >= 0.8:
                     self.last_capture = now
                     self.capturing = True
                     threading.Thread(target=self._capture, daemon=True).start()
@@ -87,7 +87,7 @@ class RemoteDesktop:
             LOG.warning("Fernsteuerung nicht verfügbar: %s", exc)
         finally:
             if self.root.winfo_exists():
-                self.root.after(200, self._poll)
+                self.root.after(120, self._poll)
 
     def _capture(self):
         try:
