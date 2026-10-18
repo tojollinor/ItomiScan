@@ -1,6 +1,6 @@
 # ItomiScan – nächstes Beta-Änderungspaket
 
-Stand: 2026-10-16. Status: BEAUFTRAGT, UMSETZUNG AUSSTEHEND. Nicht als veröffentlicht, installiert oder am N1800 abgenommen betrachten.
+Stand: 2026-10-18. Status: Umsetzung freigegeben; neuer Blockplan in `docs/BETA3-IMPLEMENTATION-PLAN.md`. Nicht als veröffentlicht, installiert oder am N1800 abgenommen betrachten.
 
 ## Geltung und Grenzen
 
@@ -28,7 +28,11 @@ Stand: 2026-10-16. Status: BEAUFTRAGT, UMSETZUNG AUSSTEHEND. Nicht als veröffen
 | WEB-8 | Druckersuche mit eindeutiger Geräteidentität und IP-Zuordnung: DNS-SD/mDNS (SRV/TXT/A/AAAA) auflösen und via IPP/IPPS Get-Printer-Attributes u. a. `printer-uuid`, `printer-device-id`, Hersteller/Modell sowie erreichbaren Endpunkt prüfen; Adressen nur bei belastbarer Übereinstimmung (z. B. identische UUID/Gerätekennung oder verifizierte gemeinsame Geräteidentität) zu einem physischen Drucker gruppieren. Namen, gleiche Modelle und bloße IP-Nähe reichen nicht; mehrdeutige Geräte getrennt anzeigen. In der normalen Liste ausschließlich Gerätename, zugeordnete IP-Adresse und „Hinzufügen“ anzeigen, keine Bestätigungs- oder Protokollstatus; bevorzugt intern IPPS/IPP vor LPD. Genau ein „Hinzufügen“-Button je eindeutig identifiziertem Gerät, Rückmeldung bei Verbindung/Einrichtung, keine automatische Installation ohne Klick. Details siehe `docs/PRINTER-IDENTITY-DESIGN.md`. | Geplant, nicht implementiert |
 | WEB-9 | Druckerverwaltung vollständig vereinfachen: oben eingerichtete Geräte mit kompakten Aktionen, darunter automatisch erkannte Geräte je physischem Drucker mit „Hinzufügen“; manuelle technische Einrichtung nur unter „Erweitert“, CUPS-Details nicht in Hauptliste, globale Lade-/Erfolg-/Fehlerrückmeldungen und unveränderte Sicherheitsprüfungen; Konzept in `docs/PRINTER-PAGE-UX-DESIGN.md`. | Geplant, nicht implementiert |
 | UI-2.1 | Frei erstellbare/änderbare Startseiten- und Gruppenbuttons mit **Farbwahl und eigenen Scaneinstellungen je Button** (Duplex, DPI, Farbe, Ausgabe etc.), beliebig mehreren gespeicherten Zielverbindungen, tatsächlicher ressourcenbegrenzter paralleler Zustellung nach einmaligem Scan; pro Button Fortschrittsfenster oder Hintergrundübertragung; Status aller Ziele, persistentem zentralem Erfolg-/Fehler-/Warnungsbereich auf dem Scanner. Konzept: `docs/HOME-BUTTON-EDITOR-DESIGN.md`. | Geplant, nicht implementiert | 
-| WEB-10 | Paperless-ngx-Integration verständlicher: Schritt-für-Schritt-Tokenhilfe, erforderliche Upload-Berechtigungen, HTTPS-Basisadresse, Tokenprüfung mit sicherem nicht-schreibendem API-Request, testbare Verbindung pro gespeichertem Ziel, differenzierte Ursachen für 401/403/404/TLS/Proxy/Timeout ohne Offenlegung von Token/Servergeheimnissen; optional OAuth/OIDC als gesonderte spätere Erweiterung nach Machbarkeits-/Sicherheitsprüfung. Konzept: `docs/PAPERLESS-CONNECTION-DESIGN.md`. | Geplant, nicht implementiert |
+| WEB-10 | Paperless-ngx-Integration verständlicher: Schritt-für-Schritt-Tokenhilfe, erforderliche Upload-Berechtigungen, HTTPS-Basisadresse, Tokenprüfung mit sicherem nicht-schreibendem API-Request, testbare Verbindung pro gespeichertem Ziel, differenzierte Ursachen für 401/403/404/TLS/Proxy/Timeout ohne Offenlegung von Token/Servergeheimnissen; optional OAuth/OIDC als gesonderte spätere Erweiterung nach Machbarkeits-/Sicherheitsprüfung. Konzept: `docs/PAPERLESS-CONNECTION-DESIGN.md`. | Im Code implementiert (Token-Login/Lesediagnose), CI grün, N1800-Abnahme offen; OAuth nicht implementiert |
+| UI-2.2 | Bildschirmschoner immer nach konfigurierter Leerlaufzeit, auch bei offener PIN-Eingabe; 30 s später sicherer Logout, aktiven Scan/Druck nicht abbrechen; Aufwachen ohne Klickdurchgriff | Offen |
+| UI-2.3 | Nach jedem abgeschlossenen Touchklick unsichtbaren Mauszeiger auf (0,0) bewegen; keine Buttons im Hoverzustand, ohne Remote-Klicks zu verfälschen | Offen |
+| UI-2.4 | Einheitliche, ressourcensparende Ladeanzeige für potenziell längere Vorgänge (Suche, Speichern, Scannen, Senden, Updates etc.), mit echten Status- und Fehlerzuständen | Offen |
+| WEB-11 | Fernsteuerung: tatsächliches Screenshot-Seitenverhältnis, korrekte Touchkoordinaten und geringere Latenz bei begrenzter CPU-Last; bestehende Sitzungserneuerung beibehalten | Offen |
 | SCAN-1 | Scannerinitialisierung nach bedienbarer Oberfläche im Hintergrund, Hardwarebereitschaft vor Scan erzwingen | Offen |
 | SCAN-2 | Geräte-/Optionscache mit Hintergrundvalidierung; kein Cache als Nachweis echter Geräteverfügbarkeit | Offen |
 | SCAN-3 | Früher Scanstart wartet mit Ladeanzeige, beginnt erst nach Scannerbereitschaft | Offen |
@@ -48,7 +52,11 @@ Stand: 2026-10-16. Status: BEAUFTRAGT, UMSETZUNG AUSSTEHEND. Nicht als veröffen
 - Scanner- und Touch-Funktion **nach** Initramfs-Test noch nicht durch den Nutzer bestätigt.
 - iTCO-Hardware-Watchdog durch BIOS deaktiviert; keine automatische Rückfallgarantie. Deshalb vor jeder bleibenden Bootänderung physische Rettungsmöglichkeit vorsehen.
 
-## Blockplan (nach jedem Block Stopp bis „Weiter“)
+## Neuer freigegebener Umsetzungsauftrag
+
+Der bisherige Blockplan war vor WEB-8–11 und UI-2.1–2.4 entstanden. Der vollständige neue Blockplan ist in [BETA3-IMPLEMENTATION-PLAN.md](BETA3-IMPLEMENTATION-PLAN.md) dokumentiert. Nach jedem Block Stopp bis „Weiter“.
+
+## Historischer Blockplan (ersetzt durch BETA3-IMPLEMENTATION-PLAN.md)
 
 1. Ist-Stand, KB/Weisungen und Änderungsregister prüfen/erstellen.
 2. GUI: PIN, Branding/Tab, Touchrückmeldung, zusammenhängender Splash.
