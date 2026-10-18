@@ -78,9 +78,10 @@ class HomeScreen:
     def __init__(self, root, profiles, select_profile, open_scan, quick_scan,
                  unavailable, shutdown, update, exit_app, status, logout=None,
                  deliver=None, open_copy=None, destination_status=None, restart=None,
-                 open_menu=None, run_tile=None):
+                 open_menu=None, run_tile=None, show_status=None):
         self.root = root
         self.run_tile = run_tile or (lambda tile: None)
+        self.show_status = show_status or (lambda: None)
         self.configured_tiles = []
         self.tile_target_kinds = {}
         self.group_page = None
@@ -177,6 +178,9 @@ class HomeScreen:
             bottom, "Menü", self.open_menu or
             (lambda: self.show_menu(shutdown, update, exit_app)),
             font=13, pad_y=9)
+        self.controls["notifications"] = self._button(
+            bottom, "Meldungen", self.show_status, font=12, pad_y=9)
+        self.controls["notifications"].pack(side="left", padx=4)
         self.controls["menu"].pack(side="left", padx=4)
         self.controls["shutdown"] = self._button(bottom, "Ausschalten", shutdown,
                                                  font=11, pad_y=7)
