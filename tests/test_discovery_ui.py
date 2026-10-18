@@ -43,9 +43,13 @@ class DiscoveryTests(unittest.TestCase):
 
     def test_printer_search_results_and_no_results(self):
         html = printers_page([], [], "csrf-token", searched=True,
-                             discovered=["ipps://192.168.44.20:631/ipp/print"])
+                             discovered=[{"name":"Brother HL-3152CDW",
+                               "ip":"192.168.44.20",
+                               "uri":"ipps://192.168.44.20:631/ipp/print",
+                               "identity":"11111111-2222-3333-4444-555555555555"}])
         self.assertIn("Drucker suchen", html)
-        self.assertIn("data-select-printer", html)
+        self.assertIn('action="/printers/add"', html)
+        self.assertIn("Brother HL-3152CDW", html)
         self.assertIn("Keine", printers_page([], [], "csrf-token", searched=True,
                                             discovered=[]))
         self.assertIn('action="/printers/save"', html)
