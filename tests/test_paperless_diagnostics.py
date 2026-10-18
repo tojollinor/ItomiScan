@@ -17,7 +17,7 @@ from itomiscan.web.server import build_server
 class DiagnosticTests(unittest.TestCase):
     def test_profile_and_document_read(self):
         def response(_address, method, suffix, **kwargs):
-            self.assertEqual(method, "GET")
+            self.assertIn(method, ("GET", "OPTIONS"))
             self.assertEqual(kwargs["token"], "secret")
             if suffix == "/api/profile/":
                 return 200, "application/json", b'{"username":"scanner"}'
@@ -30,6 +30,37 @@ class DiagnosticTests(unittest.TestCase):
         self.assertNotIn("secret", str(result))
         self.assertTrue(any(s["ok"] is None for s in result["steps"]))
         
+    def test_upload_probe_is_read_only_and_not_a_permission_grant(self):
+        def reply(_address, method, suffix, **kwargs):
+            self.assertEqual(kwargs["token"], "secret")
+            if suffix == "/api/profile/":
+                return 200, "application/json", b'{"username":"scanner"}'
+            if method == "OPTIONS":
+                return 204, "application/json", b""
+            return 200, "application/json", b"{}"
+        with patch("itomiscan.integrations.paperless_diagnostics._request",
+                   side_effect=reply) as caller:
+            result = diagnose_paperless("https://paperless.example", "secret")
+        self.assertTrue(result["ok"])
+        self.assertEqual(caller.call_count, 3)
+        self.assertTrue(any("OPTIONS" in x["message"] for x in result["steps"]))
+        self.assertTrue(any(x["ok"] is None and x["name"] == "Tatsächliche Archivierung"
+                            for x in result["steps"]))
+        self.assertNotIn("secret", str(result))
+
+    def test_403_upload_probe_keeps_token_success(self):
+        def reply(_address, method, suffix, **_kwargs):
+            if suffix == "/api/profile/":
+                return 200, "application/json", b'{"username":"scanner"}'
+            if method == "OPTIONS":
+                return 403, "application/json", b""
+            return 200, "application/json", b"{}"
+        with patch("itomiscan.integrations.paperless_diagnostics._request",
+                   side_effect=reply):
+            result = diagnose_paperless("https://paperless.example", "secret")
+        self.assertTrue(result["ok"])
+        self.assertTrue(any(x.get("http") == 403 for x in result["steps"]))
+
     def test_token_exchange_not_stored_password(self):
         with patch("itomiscan.integrations.paperless_diagnostics._request",
                    return_value=(200, "application/json", b'{"token":"tokenvalue"}')) as call:
