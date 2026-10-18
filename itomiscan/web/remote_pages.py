@@ -11,10 +11,18 @@ def remote_page(profiles, selected, latest, csrf, notice="", *, live=False):
             'Klicks und ausgewählte Tastaturbefehle werden an den lokalen Kiosk '
             'gesendet. Die lokale PIN-Anmeldung bleibt erforderlich.</p>')
     if live:
-        view += ('<div class="remote-screen"><img id="remote-live-frame" '
-                 'alt="Aktueller Scannerbildschirm; per Klick bedienen" '
-                 'draggable="false"></div>'
-                 '<p id="remote-live-status" role="status">Livebild wird geladen …</p>'
+        view += ('<div class="remote-screen" id="remote-screen">'
+                 '<img id="remote-live-frame" alt="Aktueller Scannerbildschirm" '
+                 'draggable="false" hidden>'
+                 '<div id="remote-live-placeholder" class="remote-placeholder" role="status">'
+                 '<strong id="remote-live-heading">Livebild wird geladen …</strong>'
+                 '<p id="remote-live-detail">Verbindung zum Scanner wird hergestellt.</p>'
+                 '<button type="button" id="remote-reconnect" hidden>'
+                 'Wiederherstellen</button>'
+                 '<a id="remote-login-link" href="/login" hidden>Erneut anmelden</a>'
+                 '</div></div>'
+                 '<p id="remote-live-status" role="status" aria-live="polite">'
+                 'Verbindung wird hergestellt …</p>'
                  '<form method="post" action="/remote/live/stop">' + token(csrf)
                  + '<button class="secondary">Liveansicht beenden</button></form>'
                  '<div class="remote-keys"><label for="remote-text">Tastatureingabe</label>'
