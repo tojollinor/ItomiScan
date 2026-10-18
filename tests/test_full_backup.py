@@ -59,6 +59,31 @@ class OfflineBackupTests(unittest.TestCase):
         self.assertEqual((staging / "config" / "tls" / "key.pem").read_bytes(),
                          b"test-private-key")
 
+    def test_full_backup_allows_only_internal_batch_hardlinks(self):
+        self.store.save_target({"kind":"network","name":"NAS",
+                                "address":"smb://nas.local/Scans"})
+        ids=[t["id"] for t in self.store.list_targets()]
+        batch=self.queue.enqueue_batch(self.pdf,ids,label="Parallel")
+        jobs=self.queue.batch(batch)["jobs"]
+        first,second=[self.queue.file_for(j) for j in jobs]
+        self.assertEqual(first.stat().st_ino,second.stat().st_ino)
+        result=create_backup(self.archive,home=self.home,config_dir=self.conf)
+        self.assertGreater(result["files"],4)
+        recovered=self.base/"restored"
+        restore_to_staging(self.archive,recovered)
+        for job in jobs:
+            self.assertEqual((recovered/"spool"/(job["id"]+".pdf")).read_bytes(),
+                             self.pdf.read_bytes())
+
+    def test_rejects_spool_hardlink_escaping_backup_tree(self):
+        outside=self.base/"outside.pdf"
+        outside.write_bytes(self.pdf.read_bytes())
+        leaked=self.conf/"spool"/("f"*32+".pdf")
+        import os
+        os.link(outside,leaked)
+        with self.assertRaisesRegex(BackupError,"Hardlink"):
+            create_backup(self.archive,home=self.home,config_dir=self.conf)
+
     def test_refuses_busy_worker_and_archive_overwrite(self):
         with self.store._connection(write=True) as db:
             db.execute("UPDATE delivery_jobs SET status='sending'")
