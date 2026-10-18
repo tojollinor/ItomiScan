@@ -69,6 +69,10 @@ class DeliveryStatusPage:
         self._refresh()
 
     def _refresh(self):
+        if self.refresh_id is not None:
+            try: self.root.after_cancel(self.refresh_id)
+            except tk.TclError: pass
+            self.refresh_id=None
         if self.frame is None or not self.frame.winfo_exists():
             return
         groups=self.queue.recent_batches(35)
