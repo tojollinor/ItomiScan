@@ -583,10 +583,12 @@ class AdminHandler(BaseHTTPRequestHandler):
                         "parent": int(form["parent"]) if form.get("parent") else None,
                         "targets": targets,
                         "background": form.get("background") == "yes",
+                        "enabled": form.get("enabled") == "yes",
                         "scan": {"source":form.get("source","ADF Duplex"),
                                  "resolution":int(form.get("resolution","300")),
                                  "mode":form.get("mode","Color"),
-                                 "output":form.get("output","PDF")},
+                                 "output":form.get("output","PDF"),
+                                 "settings":json.loads(form.get("advanced","{}"))},
                     }
                     self.server.store.save_kiosk_tile(
                         data, tile_id if tile_id else None)
