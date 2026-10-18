@@ -78,8 +78,13 @@ def browse_endpoints(timeout=4):
 
 def _attribute(name, value):
     encoded = name.encode("ascii")
-    tag = {"attributes-charset": 0x47, "attributes-natural-language": 0x48,\n           "printer-uri": 0x45}.get(name, 0x44)\n    return bytes((tag,)) + struct.pack(">H", len(encoded)) + encoded + struct.pack(">H", len(value)) + value
-
+    tag = {
+        "attributes-charset": 0x47,
+        "attributes-natural-language": 0x48,
+        "printer-uri": 0x45,
+    }.get(name, 0x44)
+    return (bytes((tag,)) + struct.pack(">H", len(encoded)) + encoded +
+            struct.pack(">H", len(value)) + value)
 
 def _request(endpoint):
     """IPP Get-Printer-Attributes, bounded response and validated TLS for IPPS."""
