@@ -62,9 +62,13 @@ def validate_tile(raw, target_ids=()):
         })
         settings.pop("name")
     background = bool(raw.get("background", False))
+    enabled = raw.get("enabled", True)
+    if type(enabled) is not bool:
+        raise TileError("Ungültiger Aktivierungszustand.")
     return {"label":label.strip(), "action":action, "icon":icon,
             "color":color.lower(), "parent":parent, "targets":targets,
-            "scan":settings, "background":background}
+            "scan":settings, "background":background,
+            "enabled":enabled}
 
 
 def initialize(connection):
