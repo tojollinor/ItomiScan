@@ -70,7 +70,7 @@ cp -a "$source_dir/." "$dest_dir/"
 mkdir -p "${DESTDIR}/conf"
 touch "${DESTDIR}/conf/modules"
 for module in i915 uhci_hcd; do
-  grep -Fxq "$module" "${DESTDIR}/conf/modules" || printf '%s\\n' "$module" >> "${DESTDIR}/conf/modules"
+  grep -Fxq "$module" "${DESTDIR}/conf/modules" || printf '%s\n' "$module" >> "${DESTDIR}/conf/modules"
 done
 HOOK
 chmod 0755 "$work/config/hooks/zzzz-itomiscan-i915-overlay"
