@@ -47,6 +47,29 @@ class TouchLayoutTests(unittest.TestCase):
         self.assertGreaterEqual(home.tiles["copy"].winfo_height(), 160)
         self.assertGreaterEqual(int(self.app.home_button["font"].split()[-2]), 24)
 
+    def test_persistent_delivery_status_and_back(self):
+        target=self.app.delivery_queue.db.list_targets()
+        if not target:
+            self.app.delivery_queue.db.save_target({
+                "kind":"paperless", "name":"Test-Archiv",
+                "address":"https://paperless.example"})
+        import os
+        scanned=Path(self.temp.name)/"status.pdf"
+        scanned.write_bytes(b"%PDF-1.4\\n"+b"X"*200+b"\\n%%EOF")
+        tid=self.app.delivery_queue.db.list_targets()[0]["id"]
+        batch_id=self.app.delivery_queue.enqueue_batch(
+            scanned,[tid],label="Statusbeispiel",background=True)
+        self.app.show_delivery_status(focus_batch=batch_id)
+        self.root.update_idletasks()
+        page=self.app.delivery_status_page
+        self.assertIsNotNone(page.frame)
+        self.assertEqual(page.frame.winfo_manager(),"place")
+        page._read(batch_id)
+        self.assertGreater(self.app.delivery_queue.batch(batch_id)["batch"]["read_at"],0)
+        page.close()
+        self.assertIsNone(page.frame)
+        self.assertTrue(self.app.home.visible)
+
     def test_custom_tiles_and_group_navigation(self):
         home=self.app.home
         group={"id":11,"label":"Büro","action":"group","icon":"folder",
