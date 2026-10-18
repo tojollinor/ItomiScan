@@ -455,6 +455,9 @@ table{width:100%;border-collapse:collapse}td,th{padding:10px;text-align:left;bor
 @media(max-width:650px){.wrap{padding:14px}nav a{padding:8px 5px}.card{padding:16px}table{font-size:.86rem}.brand{font-size:1.5rem}}
 
 .entry-list{display:flex;flex-direction:column;gap:10px}
+.tile-check{display:flex;align-items:center;gap:10px}
+.tile-check input{width:auto;min-width:18px;height:18px;margin:0}
+fieldset{border:1px solid var(--line);border-radius:9px;margin-top:12px;padding:10px 14px}
 .entry-row{display:flex;align-items:center;justify-content:space-between;gap:14px;background:var(--pane);padding:12px 17px;border-radius:12px}
 .entry-row p{margin:3px 0 0;overflow-wrap:anywhere}
 .entry-row button{margin:0;flex:none}
@@ -486,7 +489,7 @@ def layout(title, body, *, active="", csrf="", notice="", error="", logged=True,
     navigation = ""
     if logged:
         links = (("/", "Übersicht"), ("/profiles", "Scanprofile"),
-                 ("/users", "Benutzer"), ("/remote", "Fernsteuerung"), ("/targets", "Zielsysteme"), ("/printers", "Drucker"), ("/jobs", "Aufträge"), ("/system", "System"),
+                 ("/users", "Benutzer"), ("/home-buttons", "Startseite"), ("/remote", "Fernsteuerung"), ("/targets", "Zielsysteme"), ("/printers", "Drucker"), ("/jobs", "Aufträge"), ("/system", "System"),
                  ("/backups", "Sicherung"))
         navigation = '<nav aria-label="Hauptnavigation">' + "".join(
             f'<a class="{("active" if url == active else "")}" href="{url}">{e(label)}</a>'
