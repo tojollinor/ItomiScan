@@ -44,3 +44,15 @@ Stand: 2026-10-18. **Konzept, nicht implementiert**. Zielbranch `develop/1.0.0`.
 
 - https://docs.paperless-ngx.com/api/
 - https://github.com/paperless-ngx/paperless-ngx/blob/dev/docs/api.md
+
+## Implementierungsstand 2026-10-18
+
+Auf `develop/1.0.0` umgesetzt, aber noch **nicht auf dem N1800 getestet**:
+- Paperless-Benutzername und Passwort als **einmaliger** Austausch gegen API-Token via HTTPS `POST /api/token/`; das Passwort wird nicht persistiert.
+- Vorhandene manuelle Token-Eingabe bleibt bestehen.
+- „Erweiterte Diagnose / Verbindung testen“ im gespeicherten Paperless-Ziel: HTTPS/Profil-Tokenprüfung, lesender Dokumenten-API-Check, Hinweise zu 401/403/404/429, TLS/Netzwerk/Timeout.
+- Kein Testdokument und keine Änderung vorhandener Aufträge beim Verbindungstest.
+- Bei Uploadfehlern präzisere HTTP-Meldungen mit Hinweis auf die erweiterte Diagnose.
+- Automatisierte Tests unter `tests/test_paperless_diagnostics.py`. Hardware- und externe Paperless-Integrationstests stehen aus.
+
+**Grenze:** Ohne tatsächlichen PDF-Test-Upload kann die Berechtigung zum Hinzufügen von Dokumenten nicht sicher bestätigt werden. Kein OAuth/OIDC-Login implementiert. Token-Login via Benutzername/Passwort setzt lokale Paperless-API-Zugangsdaten voraus.
