@@ -25,6 +25,7 @@ Stand: 2026-10-16. Status: BEAUFTRAGT, UMSETZUNG AUSSTEHEND. Nicht als veröffen
 | WEB-5 | Zielauswahl, Namen, Auswahl- und Eingabedialoge vereinheitlichen | Offen |
 | WEB-6 | Geschützte browserbasierte Fernbedienung von Profilwahl, Scanstart und Ergebnis; Konflikte mit lokaler Bedienung verhindern | Offen |
 | WEB-7 | Neustart-/Herunterfahren-Buttons mit Bestätigung, Berechtigung und Auftragsschutz | Offen |
+| WEB-8 | Druckersuche: mehrere Adressen desselben physischen Druckers nach verifizierbarer Geräteidentität gruppieren, genau einen verständlichen Geräteeintrag mit direktem Button „Hinzufügen“ zeigen; IPP/IPPS bevorzugen, Alternativadressen intern aufbewahren, keine falsche Zusammenfassung nur anhand ähnlicher Namen; Erreichbarkeit und CUPS-Einrichtung prüfen, Erfolgs-/Fehlerstatus anzeigen | Geplant, nicht implementiert |
 | SCAN-1 | Scannerinitialisierung nach bedienbarer Oberfläche im Hintergrund, Hardwarebereitschaft vor Scan erzwingen | Offen |
 | SCAN-2 | Geräte-/Optionscache mit Hintergrundvalidierung; kein Cache als Nachweis echter Geräteverfügbarkeit | Offen |
 | SCAN-3 | Früher Scanstart wartet mit Ladeanzeige, beginnt erst nach Scannerbereitschaft | Offen |
