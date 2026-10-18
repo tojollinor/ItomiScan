@@ -1,6 +1,6 @@
 # UI-2.1: Frei konfigurierbare Startseite und Mehrziel-Workflows
 
-Stand: 2026-10-19. **Webeditor und dynamische Scanner-Startseite implementiert; Mehrziel-Zustellung folgt in Block 7.** Zielbranch `develop/1.0.0`; bestehendes bestätigtes ItomiScan-Design verwenden.
+Stand: 2026-10-19. **Webeditor, dynamische Scanner-Startseite und Mehrziel-Zustellkern im Entwicklungsbranch implementiert; Praxistest am N1800 weiterhin offen.** Zielbranch `develop/1.0.0`; bestehendes bestätigtes ItomiScan-Design verwenden.
 
 ## Grundprinzip
 
@@ -63,7 +63,7 @@ Bestehende Scanneransichten hinsichtlich Platznutzung, konsistenter Header-/Foot
 
 - `itomiscan/gui/home.py`: aktuell überwiegend fest programmierte Startaktionen; dynamische Button- und Gruppenverwaltung erforderlich.
 - `itomiscan/storage/config.py`: Profile und Ziele bereits getrennt gespeichert; neue persistente Buttondefinitionen und gruppierte Zielreferenzen erforderlich.
-- `itomiscan/storage/queue.py`: vorhandene Zustelljobs werden einzeln eingeplant und durch den bisherigen Worker bearbeitet. Für die zugesagte **tatsächliche parallele Zustellung** braucht es Batch-Identität, sichere Mehrziel-Einplanung und begrenzte gleichzeitige Worker. In der bestehenden Implementierung noch **nicht vorhanden**.
+- `itomiscan/storage/queue.py`: vorhandene Zustelljobs werden einzeln eingeplant und durch den bisherigen Worker bearbeitet. Für die zugesagte **tatsächliche parallele Zustellung** braucht es Batch-Identität, sichere Mehrziel-Einplanung und begrenzte gleichzeitige Worker. Seit Block 7 vorhanden: Batch-ID, atomare Job-Erzeugung, auf dem Dateisystem einmal gespeicherte PDF per Hardlinks und höchstens zwei parallele Worker.
 - Bestehende Benutzerberechtigungen, PDF-/Vorschauverarbeitung und unbestätigte Zustellfälle integrieren. Keine unnötigen Vollkopien großer PDFs im RAM.
 
 ## Abnahmetests
@@ -90,3 +90,16 @@ Bestehende Scanneransichten hinsichtlich Platznutzung, konsistenter Header-/Foot
 - Ein Scanbutton mit höchstens einem Ziel kann seine Einstellungen für den bestehenden Scanablauf verwenden. **Wichtig: Bei mehreren Zielen erscheint vorerst eine erklärende Meldung, kein unvollständiger Teilversand.** Tatsächliche parallele Jobs, Fortschrittsfenster und Hintergrund-Zustellung werden erst mit Block 7 implementiert.
 - CI- und Xvfb-Regressionstests für CRUD, CSRF, Gruppen, mehrfach gewählte Ziele, und Touch-Navigation ergänzt.
 - Noch offen für Block 7/8: Zielgruppenberechtigung pro Button vollständig prüfen, PDF-Ausgabe-/Druckoptionen in Kombinationsabläufen, Sicherung/Wiederherstellung von Buttondefinitionen mit stabiler Zielreferenz, Hardwaretest auf N1800 sowie Laufzeit-/Speicherabnahme. Keine Änderung an main/Stable.
+
+## Block 7: Tatsächlicher Umsetzungsstand
+
+- Ein Scanbutton mit mehreren gewählten Zielen erstellt nach **einem** Scan und abgeschlossener Vorschau genau **eine gemeinsame Batch-ID**. Sämtliche Zielaufträge werden in **einer SQLite-Transaktion** eingetragen. Die unveränderte PDF wird nur einmal im gesicherten Spool abgelegt und pro Ziel mit Hardlinks referenziert; die ursprüngliche Scan-PDF bleibt erhalten.
+- Der gesonderte `itomiscan-delivery.service`-Worker arbeitet nun mit maximal **zwei parallelen Übertragungs-Threads**. Jeder Zielauftrag behält eigene Zustände (`queued`, `sending`, `retry`, `done`, `failed`, `review`) und Wiederholungsregeln. Die bestehenden Sperrdatei- und Lease-Regeln bleiben.
+- Vordergrundmodus: Nach sicherer Batch-Einplanung öffnet sich die Statusseite mit separatem Zustand für **jedes** Ziel, sichtbarer Gesamtzahl und periodischer Aktualisierung (keine erfundenen Prozentwerte). Hintergrundmodus: Rückkehr zum normalen Scannerbetrieb, Status weiterhin über **Meldungen** erreichbar.
+- Erfolge/Fehler erscheinen dort dauerhaft aus SQLite; neue abgeschlossen/fehlgeschlagen gemeldete Hintergrundaufträge können eine kurze, nicht blockierende Meldung zeigen. Diese Meldung erscheint nicht über einer PIN-Eingabe oder einem Bildschirmschoner.
+- Benutzerbezogene Statusansichten zeigen nur Batches desselben lokalen Benutzers, sofern Benutzerverwaltung aktiv ist. Gelesen-Markierung wird dauerhaft gespeichert und löscht keinen Auftrag.
+- Bei Status `failed` kann ein Auftrag nach ausdrücklicher Bestätigung neu eingeplant werden; `review` darf wegen möglicher Doppelzustellung **nicht** automatisch erneut gesendet werden und verlangt zuerst manuelle Zielprüfung.
+- Beim Drücken des Startbuttons wird die Zieladresse festgehalten. Eine zwischenzeitliche Änderung verhindert die gesamte Einplanung und bewahrt die lokale PDF.
+- Regressionstests: parallele Worker mit Barriere, gemeinsamer PDF-Inode, Absturz-/Neustartpersistenz, unabhängiger Fehler pro Ziel, Schutz vor ungewisser Wiederholung, abweichende Zieladresse und Touch-Statusnavigation.
+- Offene Hardwareabnahme: echtes SANE-Duplex/PDF, Parallelität mit Paperless und CUPS auf N1800, Reaktionszeit, Speicherverbrauch bei längeren Dokumenten und Statusdialog auf 1024×768; keine Live-Hardwarezugriffe durchgeführt.
+- Paperless: „An Ziel übergeben“ bedeutet bestätigte API-Annahme, **nicht** zwingend abgeschlossene Paperless-Dokumentenverarbeitung. CUPS: angenommen ist **nicht** gleich gedruckt.
