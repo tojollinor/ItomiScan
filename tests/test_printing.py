@@ -79,8 +79,8 @@ class CUPSIntegrationTests(unittest.TestCase):
     def test_install_and_uninstall_queue_no_shell(self, runner, _which):
         runner.side_effect = [
             Mock(returncode=0, stdout="", stderr=""),
-            Mock(returncode=0, stdout="OfficeLaser\n", stderr=""),
-            Mock(returncode=0, stdout="OfficeLaser\n", stderr=""),
+            Mock(returncode=0, stdout="device for OfficeLaser: ipps://printer.lan/ipp/print\n", stderr=""),
+            Mock(returncode=0, stdout="device for OfficeLaser: ipps://printer.lan/ipp/print\n", stderr=""),
             Mock(returncode=0, stdout="", stderr=""),
         ]
         self.assertEqual(install_queue("OfficeLaser", "ipps://printer.lan/ipp/print"),
@@ -99,7 +99,7 @@ class CUPSIntegrationTests(unittest.TestCase):
     @patch("itomiscan.integrations.printing.subprocess.run")
     def test_lp_receives_validated_number_and_duplex(self, runner, _which, _accepting):
         runner.side_effect = [
-            Mock(returncode=0, stdout="OfficeLaser\n", stderr=""),
+            Mock(returncode=0, stdout="device for OfficeLaser: ipps://printer.lan/ipp/print\n", stderr=""),
             Mock(returncode=0,
                  stdout="request id is OfficeLaser-91 (1 file(s))", stderr=""),
         ]
@@ -118,7 +118,7 @@ class CUPSIntegrationTests(unittest.TestCase):
     @patch("itomiscan.integrations.printing.subprocess.run")
     def test_print_disconnect_is_uncertain_and_never_auto_replayed(self, runner, _which, _accepting):
         runner.side_effect = [
-            Mock(returncode=0, stdout="OfficeLaser\n", stderr=""),
+            Mock(returncode=0, stdout="device for OfficeLaser: ipps://printer.lan/ipp/print\n", stderr=""),
             subprocess.TimeoutExpired(["lp"], 30),
         ]
         ident = self.queue.enqueue(self.pdf, self.target_id, copies=2,
@@ -176,7 +176,7 @@ class CUPSIntegrationTests(unittest.TestCase):
     @patch("itomiscan.integrations.printing.subprocess.run")
     def test_text_only_print_test_page(self, runner, _which):
         runner.side_effect = [
-            Mock(returncode=0, stdout="OfficeLaser\n", stderr=""),
+            Mock(returncode=0, stdout="device for OfficeLaser: ipps://printer.lan/ipp/print\n", stderr=""),
             Mock(returncode=0, stdout="request id is OfficeLaser-10", stderr=""),
         ]
         self.assertIn("CUPS angenommen", test_page("OfficeLaser"))
@@ -208,9 +208,9 @@ class CUPSIntegrationTests(unittest.TestCase):
 
     @patch("itomiscan.integrations.printing.run_cups")
     def test_default_printer_reads_only_installed_queue(self, run):
-        run.side_effect = ["system default destination: OfficeLaser",
-                           "OfficeLaser\nOtherPrinter"]
-        self.assertEqual(default_printer(), "OfficeLaser")
+        run.side_effect = ["system default destination: OfficeLaser"]
+        with patch("itomiscan.integrations.printing.list_queues", return_value=["OfficeLaser", "OtherPrinter"]):
+            self.assertEqual(default_printer(), "OfficeLaser")
 
 
 if __name__ == "__main__":
