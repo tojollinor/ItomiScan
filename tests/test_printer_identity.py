@@ -83,6 +83,12 @@ class PrinterIdentityTests(unittest.TestCase):
             store.restore(backup)
             self.assertIn(uuid,[x['identity'] for x in store.printer_identities().values()])
 
+    def test_ipp_request_uses_correct_protocol_value_tags(self):
+        from itomiscan.integrations.printer_identity import _attribute
+        self.assertEqual(_attribute("attributes-charset",b"utf-8")[0],0x47)
+        self.assertEqual(_attribute("attributes-natural-language",b"en")[0],0x48)
+        self.assertEqual(_attribute("printer-uri",b"ipp://host/ipp/print")[0],0x45)
+
     def test_ipp_parser_extracts_uuid(self):
         name=b"printer-uuid"
         value=b"urn:uuid:11111111-2222-3333-4444-555555555555"
