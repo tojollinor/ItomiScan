@@ -38,6 +38,7 @@ from itomiscan.storage.queue import DeliveryQueue, QueueError
 from itomiscan.storage.remote_commands import RemoteCommands
 from itomiscan.storage.remote_live import RemoteLive, viewer_id, FRAME_SECONDS
 from itomiscan.storage.secrets import SecretStore, SecretError
+from itomiscan.integrations.paperless_diagnostics import (diagnose_paperless, exchange_credentials, PaperlessDiagnosticError)
 
 
 MAX_BODY = 160 * 1024
@@ -607,6 +608,29 @@ class AdminHandler(BaseHTTPRequestHandler):
                     return self._redirect("/printers?ok=CUPS%20hat%20Testauftrag%20angenommen")
                 uninstall_queue(target["name"])
                 return self._redirect("/printers?ok=CUPS%20Zuordnung%20entfernt")
+            if path in ("/targets/paperless/test", "/targets/paperless/login"):
+                target_id = int(form.get("target_id", ""))
+                target = next((t for t in self.server.store.list_targets()
+                               if t["id"] == target_id and t["kind"] == "paperless"), None)
+                if target is None:
+                    raise ValueError("Paperless-Ziel existiert nicht.")
+                if path == "/targets/paperless/login":
+                    try:
+                        generated_token = exchange_credentials(
+                            target["address"], form.get("username", ""),
+                            form.get("password", ""))
+                    except PaperlessDiagnosticError as exc:
+                        return self._response(200, pages.layout(
+                            "Paperless-Anmeldung",
+                            '<h1>Paperless-Anmeldung</h1><div class="alert">' +
+                            pages.e(str(exc)) + '</div><p><a href="/targets">Zurück zu den Zielen</a></p>',
+                            active="/targets", csrf=csrf))
+                    self.server.secrets.update(target_id, token=generated_token)
+                    return self._redirect("/targets?ok=Paperless%20Token%20hinterlegt")
+                result = diagnose_paperless(
+                    target["address"], self.server.secrets.get(target_id).get("token", ""))
+                return self._response(200, delivery_pages.paperless_diagnostic_page(
+                    target, result, csrf))
             if path == "/targets/secrets":
                 target_id = int(form.get("target_id", ""))
                 target = next((t for t in self.server.store.list_targets()
