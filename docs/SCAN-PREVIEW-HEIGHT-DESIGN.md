@@ -1,54 +1,59 @@
-# DOC-2: Scanvorschau nutzt volle verfügbare Höhe (Entwurf)
+# DOC-2: Scanvorschau über volle Inhaltshöhe (überarbeiteter Entwurf)
 
-Status: 2026-10-18. **Geplant, nicht implementiert und nicht auf dem N1800 getestet.** Änderungsregister: `docs/BETA-NEXT-CHANGEPLAN.md`.
-Auslöser: Screenshot des Nutzers vom 18.10.2026, Scanvorschau mit zwei Seiten auf 1024×768.
+Status: 2026-10-18. **Geplant; noch nicht implementiert oder am N1800 getestet.** Bezug: Screenshot vom 18.10.2026; Änderungsregister `docs/BETA-NEXT-CHANGEPLAN.md`.
 
-## Problem
+## Ziel
 
-Die Thumbnail-Leiste links endet bereits mit dem aktuellen Vorschaufenster. Ein erheblicher Teil der Fensterhöhe wird von separaten Seitenwechsel-Schaltflächen, mehreren Aktionszeilen und Abstand unterhalb der Seitenansicht belegt. Die eigentliche Dokumentenvorschau wird dadurch zu klein. Die geforderte volle Inhaltshöhe wird nicht erreicht.
+Auf dem 1024×768-Touchdisplay muss die Dokumentenvorschau die maximal nutzbare **Höhe** erhalten. Die bisherige breite Werkzeugleiste unter dem Viewer entfällt vollständig. Werkzeuge und Seitennavigation ziehen **nach links** und verwenden eindeutige Symbole statt breiter Textbuttons. Die bestehende Designsystematik (Farben, Abstände, Rahmen, Klickverhalten) bleibt erhalten.
 
-## Vorgesehene Anordnung (1024×768)
+## Schematischer Aufbau (keine pixelgenaue Darstellung)
 
 ```text
-┌─────────────────────────────────────────────────────────────────┐
-│ ItomiScan                                  IP …                 │ Kopfbereich, bestehender Stil
-├─────────────┬───────────────────────────────────────────────────┤
-│ Seiten      │ SCANVORSCHAU                    Seite 1 / 2       │
-│ ┌─────────┐ │                                                   │
-│ │ Seite 1 │ │                                                   │
-│ └─────────┘ │                                                   │
-│ ┌─────────┐ │          Dokument (fit-to-area)                    │ Gemeinsamer
-│ │ Seite 2 │ │          mit neutralem Hintergrund                │ flexibler
-│ └─────────┘ │                                                   │ Vorschaubereich
-│  Scrollen   │                                                   │
-│             │                                                   │
-├─────────────┴───────────────────────────────────────────────────┤
-│ Erneut scannen | Drehen | Löschen | Leer prüfen | ← Seite | →   │ Kompakte Werkzeugleiste
-├─────────────────────────────────────────────────────────────────┤
-│ Home | Menü          Weitere Seiten scannen | Fertig übernehmen│ Bestehende Navigation
-└─────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────┐
+│ ItomiScan                                            IP …               │
+├──────────────────┬───────┬──────────────────────────────────────────────┤
+│ SEITEN           │TOOLS  │ SCANVORSCHAU                  Seite 1 / 2     │
+│ ┌──────────────┐ │  ↻    │                                              │
+│ │ Miniatur 1   │ │  ⟳    │                                              │
+│ └──────────────┘ │  ✕    │                                              │
+│ ┌──────────────┐ │  ◫    │          DOKUMENT MAXIMAL GROSS              │
+│ │ Miniatur 2   │ │       │          und proportional eingepasst         │
+│ └──────────────┘ │  ↑    │                                              │
+│   ⇅ scrollen     │  ↓    │                                              │
+│                  │       │                                              │
+│                  │       │                                              │
+├──────────────────┴───────┴──────────────────────────────────────────────┤
+│ Home  Menü                     Weitere Seiten scannen  Fertig übernehmen│
+└─────────────────────────────────────────────────────────────────────────┘
 ```
 
-## Layoutregeln
+- Die **linke Funktionszone** umfasst eine scrollbare Miniaturspalte und direkt daneben eine schmale vertikale Symbolleiste. Beides ist Teil des selben hochflexiblen Hauptbereichs wie die rechte Dokumentenvorschau.
+- Symbolfunktionen von oben: erneutes Scannen (↻), aktuelle Seite drehen (⟳), aktuelle Seite löschen (✕), leere Seiten prüfen (◫), vorherige/nächste Seite (↑/↓). Die endgültigen Piktogramme aus den **vorhandenen UI-Iconmustern** auswählen und auf Verständlichkeit überprüfen; diese Textzeichen sind nur Platzhalter.
+- **Keine** zusätzliche Zeile mit `Zurück / Weiter` und **keine** mehrzeilige Aktionsmatrix unter dem Viewer.
+- Die untere, dauerhaft erreichbare Hauptnavigation enthält weiterhin Home, Menü, **Weitere Seiten scannen** und **Fertig · Dokument übernehmen**. Diese entscheidenden Textbeschriftungen bleiben, damit sie sich nicht mit den Seitenwerkzeugen verwechseln.
+- Dokumentstatus/Dateipfad nicht als permanenten zusätzlichen Höhenverbrauch anzeigen. Kurzstatus in die obere Zeile integrieren, vollständigen Pfad bei Bedarf im Detail anzeigen.
 
-1. Hauptansicht füllt die nutzbare Fläche zwischen bestehendem Header und unverändert erforderlicher Bottom-Navigation. Keine zusätzliche vertikale Leerfläche.
-2. Linke Miniaturleiste über die **gesamte Höhe des flexiblen Vorschaubereichs**, unabhängig von Anzahl und Höhe der Seiten. Bei vielen Seiten vertikal scrollbar; jeweils aktive Seite mit vorhandener Akzentfarbe hervorgehoben.
-3. Rechts nimmt der Viewer die komplette verbleibende Breite und dieselbe Höhe wie die Miniaturleiste ein. Die PDF-/Bildseite wird proportional und ohne Abschneiden in die **größtmögliche verfügbare Fläche** eingepasst. Hochkantdokumente bleiben hochkant, kein Stretching.
-4. Titel „SCANVORSCHAU“, Seitenzähler und Dokumentstatus möglichst in die obere schmale Zeile legen. Den langen gespeicherten Dateipfad nicht ständig als zusätzliche eigene Zeile zeigen; optional im Informationsdialog oder gekürzt als Status.
-5. Alle bereits vorhandenen Aktionen erhalten: Erneut scannen, Drehen, Löschen, Leere Seiten prüfen, Seite zurück/vor, Weitere Seiten scannen und Fertig/Dokument übernehmen. Die Werkzeugaktionen kompakt auf einer Leiste; bei zu wenig Breite priorisiert gruppieren, nicht unlesbar verkleinern.
-6. Feste Home-/Menü- und Abschlussbuttons bleiben erreichbar und in den bestehenden Größen/Abständen. Keine neue Farbwelt, keine abweichenden Rundungen/Icons. Berührungsflächen groß genug für die Originalhardware.
-7. Die Inhalte werden **reaktiv** zur verfügbaren Höhe positioniert. Keine festen Pixelhöhen für den Dokument-Viewer, die bei unterschiedlichen Seitenzahlen oder Textlängen ungenutzten Raum erzeugen. Rendering/PDF-Skalierung ohne zusätzliche Vollauflösungs-Kopien im RAM (Atom N270, ca. 1 GiB).
-8. Auswahl einer Miniatur aktualisiert Viewer und Seitenzähler; Drehen/Löschen/Seitenwechsel hält Auswahl und Leiste synchron. Die bereits bestehenden Scan- und Abschlussaktionen dürfen keine Funktion verlieren.
+## Layout- und Interaktionsregeln
 
-## Abnahme auf dem N1800
+1. Die Kopfzeile und die untere Hauptnavigation behalten das bestätigte ItomiScan-Design. Der dazwischenliegende Bereich wächst bis zur maximal verfügbaren Höhe.
+2. Links Seitenminiaturen über die gesamte freie Inhaltshöhe scrollbar; der aktive Eintrag behält die vorhandene blaue Markierung. Viele Seiten verändern die Höhe des Viewers nicht.
+3. Daneben schmale vertikale Iconleiste, als Richtgröße ca. **52–60 px Breite** mit **mindestens 44–48 px hohen Touchzielen** (vor der Implementierung anhand realer Geometrie prüfen). Nicht skalierbare winzige Iconbuttons vermeiden.
+4. Die rechte Vorschau bekommt **sämtliche restliche Breite und Höhe** des Hauptbereichs. Seiten proportional und vollständig einpassen (fit-to-area), ohne Verzerrung oder Abschneiden, unabhängig von Hoch-/Querformat.
+5. Seitennavigation wählt immer eine der Miniaturen an und aktualisiert den Zähler; Drehen/Löschen/Leerseitenprüfung hält Auswahl, Reihenfolge und Vorschau synchron. Nicht verfügbare Aktionen deaktivieren.
+6. Für riskante Aktionen (insbesondere Löschen) das vorhandene Bestätigungsmuster wiederverwenden; keine neuen Dialogdesigns.
+7. Symbolbuttons erhalten eindeutige Tooltips bzw. im UI vorhandene Hilfe-/Langdruckmuster, soweit auf Touch nutzbar. Sie dürfen nicht auf farbliche Unterscheidung allein angewiesen sein.
+8. Kein unnötiges Neurendern aller PDF-Seiten in voller Auflösung. Die ressourcensparende Vorschau auf Atom N270 (~1 GiB RAM) beibehalten.
+9. Nur die Scanvorschauseite ändern. Andere Seiten, Startlogik, Benutzerverwaltung, Bootkonfiguration und Releases bleiben unberührt.
 
-- 1024×768: Miniaturleiste und Hauptviewer sind vom unteren Rand der Vorschau-Kopfzeile bis zur kompakten Werkzeugleiste gleich hoch, kein künstlicher Leerstreifen dazwischen.
-- Einzelnes A4, zweiseitiger Duplex-Scan und mehrseitiger Stapel: Dokument jeweils maximal groß, ohne Verzerrung, vollständig sichtbar.
-- Zehn und mehr Seiten: Miniaturen scrollbar, ausgewählte Seite sichtbar, Vorschauhöhe unverändert.
-- Touch-Test sämtlicher Aktionen und Seitenwechsel, keine Überlappungen, kein abgeschnittener Text.
-- Neu scannen, Drehen, Löschen, Leerseitenprüfung und Abschließen funktionsfähig. PDF-/Bildansicht bleibt speicherschonend.
-- Nicht betroffene Bildschirme und bestehende Gestaltung unverändert.
+## Abnahmekriterien
 
-## Grenzen
+- Auf 1024×768 füllen Miniaturzone, Werkzeug-Icons und Dokument-Viewer gemeinsam die volle Höhe **zwischen Kopfzeile und einziger Bottom-Navigation**. Keine zusätzliche Aktionszeile unter der Vorschau.
+- Mindestens eine, zwei und zehn Seiten: Viewerhöhe konstant maximal; Miniaturen scrollbar; aktive Auswahl sofort sichtbar.
+- Erneut scannen, Drehen, Löschen, Leerseitenprüfung, Vor-/Zurückblättern, weitere Seiten scannen und Fertig/Dokument übernehmen funktionieren per Touch.
+- Keine überlappenden oder abgeschnittenen Bedienelemente. Die Hauptaktionen bleiben eindeutig beschriftet und ausreichend groß.
+- PDF- und Bildansichten passen A4 hochkant sowie Querformat vollständig ein. Keine auffällige Vergrößerung des Speicherverbrauchs.
+- Bestehende UI-Farben/-Größen/-Muster übernommen; nicht betroffene Ansichten unverändert.
 
-Dies ist ein **Layout- und Umsetzungskonzept**, kein bestätigter Mockup- oder Code-Stand. Vor Implementierung aktuelle Tkinter-Widget-Hierarchie und reale verfügbare Pixelhöhe ermitteln. Keine Änderungen an anderen Ansichten, GRUB, Splash oder Releases.
+## Umsetzung
+
+Vor der Implementierung die vorhandene Tkinter-Widgethierarchie und tatsächlichen Innenmaße messen. Dieser Entwurf ist der verbindliche geplante DOC-2-Layoutstand, **kein bereits realisierter GUI-Code**.
