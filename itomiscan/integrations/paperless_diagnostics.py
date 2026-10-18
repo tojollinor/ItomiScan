@@ -49,12 +49,13 @@ def _request(address, method, suffix, *, token=None, payload=None):
         connection.close()
 
 
-def _explain(code):
+def _explain(code, *, operation="api"):
     if code == 401:
         return "Authentifizierung abgelehnt. API-Token oder Benutzeranmeldung prüfen."
     if code == 403:
         return ("Zugriff verweigert (403). Paperless-Benutzerrechte und "
-                "vorgeschalteten Proxy bzw. CSRF-Einstellungen prüfen.")
+                "Reverse Proxy prüfen. Bei 403 während der Anmeldung auch "
+                "Anmeldelimits/Trusted-Proxies des Paperless-Servers prüfen.")
     if code == 404:
         return "API-Endpunkt nicht gefunden (404). Paperless-Basisadresse und Proxy-Pfad prüfen."
     if code == 429:
@@ -79,23 +80,25 @@ def _network_error(exc):
 
 
 def diagnose_paperless(address, token):
-    """No uploads or mutations. Structured, secret-free diagnostic summary."""
-    if not token:
-        return {"ok": False, "steps": [{"name": "Token", "ok": False,
-                 "message": "Kein API-Token gespeichert. Bitte zuerst anmelden oder Token hinterlegen."}]}
+    """Read-only checks. Never claim document upload/archiving without POST."""
     steps = []
+    if not token:
+        return {"ok": False, "steps": [{
+            "name": "Token", "ok": False,
+            "message": "Kein Token gespeichert. Bitte anmelden oder API-Token hinterlegen."}]}
     try:
         _base(address)
-        steps.append({"name": "HTTPS-Adresse", "ok": True,
-                      "message": "HTTPS-Basisadresse gültig."})
-        status, content_type, body = _request(address, "GET", "/api/profile/", token=token)
+        steps.append({"name": "HTTPS und Adresse", "ok": True,
+                      "message": "HTTPS-Basisadresse gültig; Zertifikatsprüfung bleibt aktiv."})
+        status, content_type, body = _request(
+            address, "GET", "/api/profile/", token=token)
         if status != 200:
-            steps.append({"name": "Anmeldung", "ok": False, "http": status,
+            steps.append({"name": "Token-Anmeldung", "ok": False, "http": status,
                           "message": _explain(status)})
             return {"ok": False, "steps": steps}
         if "json" not in content_type.lower():
             steps.append({"name": "API-Antwort", "ok": False,
-                          "message": "Statt JSON wird eine andere Seite geliefert. Proxy prüfen."})
+                          "message": "Paperless liefert kein JSON. Proxy/Anmeldeumleitung prüfen."})
             return {"ok": False, "steps": steps}
         try:
             profile = json.loads(body)
@@ -103,26 +106,46 @@ def diagnose_paperless(address, token):
             profile = None
         if not isinstance(profile, dict):
             steps.append({"name": "API-Antwort", "ok": False,
-                          "message": "Ungültige Profilantwort von Paperless."})
+                          "message": "Ungültige Profilantwort. API-Adresse und Proxy prüfen."})
             return {"ok": False, "steps": steps}
         steps.append({"name": "Token-Anmeldung", "ok": True,
-                      "message": "Token wird von der Paperless-API akzeptiert."})
-        status, _, _ = _request(address, "GET", "/api/documents/?page_size=1", token=token)
-        if status == 200:
-            steps.append({"name": "Dokumenten-Lesezugriff", "ok": True,
-                          "message": "Dokumentenliste kann gelesen werden."})
+                      "message": "Paperless akzeptiert den gespeicherten API-Token."})
+        status, content_type, _body = _request(
+            address, "GET", "/api/documents/?page_size=1", token=token)
+        if status == 200 and "json" in content_type.lower():
+            steps.append({"name": "Dokumentenliste", "ok": True,
+                          "message": "Lesender Zugriff auf Dokumente ist möglich."})
         else:
-            steps.append({"name": "Dokumenten-Lesezugriff", "ok": False, "http": status,
-                          "message": _explain(status) +
-                          " Das sagt noch nichts über die Berechtigung zum Hochladen."})
-        steps.append({"name": "Upload-Berechtigung", "ok": None,
-                      "message": "Nicht durch einen rein lesenden Test nachweisbar. "
-                                 "Für das Hochladen braucht der Benutzer die Berechtigung "
-                                 "zum Hinzufügen von Dokumenten."})
+            message = (_explain(status) if status != 200 else
+                       "API liefert keine JSON-Dokumentenliste. Proxy prüfen.")
+            steps.append({"name": "Dokumentenliste", "ok": False,
+                          "http": status, "message": message})
+        # OPTIONS is not an upload, but it may reveal whether the endpoint
+        # exists. Never interpret a 200/204/405/403 as permission to upload.
+        status, _type, _body = _request(
+            address, "OPTIONS", "/api/documents/post_document/", token=token)
+        if status in (200, 204):
+            message = ("Upload-Endpunkt antwortet auf OPTIONS. "
+                       "Das ist kein Nachweis für Uploadrechte.")
+            valid = True
+        elif status == 405:
+            message = ("OPTIONS wird nicht unterstützt. Das bestätigt weder "
+                       "Uploadrechte noch eine Fehlkonfiguration.")
+            valid = None
+        else:
+            message = _explain(status) + (
+                " Es wurde kein Dokument hochgeladen.")
+            valid = False if status in (401, 403, 404) else None
+        steps.append({"name": "Upload-API (ohne Upload)", "ok": valid,
+                      "http": status, "message": message})
+        steps.append({"name": "Tatsächliche Archivierung", "ok": None,
+                      "message": "Nicht geprüft: Dafür wäre ein ausdrücklich bestätigter "
+                                 "Test-Upload mit Verarbeitungskontrolle nötig."})
         return {"ok": True, "steps": steps,
-                "message": "Anmeldung erfolgreich; ein Dokument wurde nicht hochgeladen."}
+                "message": "Token-Anmeldung erfolgreich. Kein Dokument übertragen."}
     except (OSError, ssl.SSLError, TimeoutError, http.client.HTTPException) as exc:
-        steps.append({"name": "Verbindung", "ok": False, "message": _network_error(exc)})
+        steps.append({"name": "Netzwerk/TLS", "ok": False,
+                      "message": _network_error(exc)})
         return {"ok": False, "steps": steps}
     except (PaperlessDiagnosticError, ValueError) as exc:
         steps.append({"name": "Adresse", "ok": False, "message": str(exc)})
