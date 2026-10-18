@@ -78,8 +78,11 @@ class HomeScreen:
     def __init__(self, root, profiles, select_profile, open_scan, quick_scan,
                  unavailable, shutdown, update, exit_app, status, logout=None,
                  deliver=None, open_copy=None, destination_status=None, restart=None,
-                 open_menu=None):
+                 open_menu=None, run_tile=None):
         self.root = root
+        self.run_tile = run_tile or (lambda tile: None)
+        self.configured_tiles = []
+        self.group_page = None
         self.profiles = profiles
         self.select_profile = select_profile
         self.open_scan = open_scan
@@ -181,6 +184,76 @@ class HomeScreen:
             pad_y=7)
         self.controls["logout"].pack(side="right", padx=4)
         self.controls["logout"].pack_forget()
+
+    def set_tiles(self, tiles):
+        """Web-defined tiles replace the default action cards when configured."""
+        self.configured_tiles = list(tiles)
+        if not hasattr(self, "tile_grid"):
+            self.tile_grid = tk.Frame(self.frame, bg=BASE)
+            self.tile_grid.pack(fill="both", expand=True, padx=30, pady=10,
+                                before=self.controls["profile_bar"])
+        for widget in self.tile_grid.winfo_children():
+            widget.destroy()
+        active = bool(tiles)
+        for card in self.tiles.values():
+            if active:
+                card.grid_remove()
+        if active:
+            self.controls["profile_bar"].pack_forget()
+            self._render_tiles(self.tile_grid, None)
+        else:
+            if self.allowed is None or {"scan", "paperless", "network", "email", "usb"} & self.allowed:
+                self.controls["profile_bar"].pack(fill="x", padx=37, pady=(2, 12),
+                    before=self.controls["footer"])
+
+    def _render_tiles(self, container, parent):
+        for widget in container.winfo_children():
+            widget.destroy()
+        selected = [x for x in self.configured_tiles if x["parent"] == parent]
+        for col in range(3):
+            container.grid_columnconfigure(col, weight=1, uniform="tiles")
+        for idx, tile in enumerate(selected[:18]):
+            if self.allowed is not None and tile["action"] == "scan":
+                # Security remains checked again at the application action.
+                if not ({"scan", "copy", "paperless", "email", "usb", "network"} & self.allowed):
+                    continue
+            color = tile["color"]
+            # WCAG-inspired luminance threshold: dark text on light backgrounds.
+            value = [int(color[n:n+2], 16)/255 for n in (1,3,5)]
+            lum = sum(weight * (c/12.92 if c <= .04045 else
+                ((c+.055)/1.055)**2.4) for c,weight in zip(value,(.2126,.7152,.0722)))
+            fg = "#101927" if lum > .34 else "#ffffff"
+            command = (lambda t=tile: self._open_tile_group(t)
+                       if tile["action"] == "group" else self.run_tile(tile))
+            button = tk.Button(container, text=tile["label"], command=command,
+                               font=("DejaVu Sans", 15, "bold"),
+                               bg=color, fg=fg, activebackground=color,
+                               activeforeground=fg, relief="flat", bd=0,
+                               padx=10, pady=18, wraplength=235, cursor="none")
+            button.grid(row=idx//3, column=idx%3, sticky="nsew", padx=7,pady=7)
+            container.grid_rowconfigure(idx//3, weight=1, minsize=100)
+
+    def _open_tile_group(self, tile):
+        if self.group_page is not None:
+            self.group_page.destroy()
+        page=tk.Frame(self.root,bg=BASE)
+        self.group_page=page
+        page.place(x=0,y=0,relwidth=1,relheight=1)
+        page.lift()
+        tk.Label(page,text=tile["label"],bg=BASE,fg=FG,
+                 font=("DejaVu Sans",24,"bold")).pack(padx=24,pady=16)
+        footer=tk.Frame(page,bg=BASE)
+        footer.pack(side="bottom",fill="x",padx=30,pady=20)
+        self._button(footer,"← Zurück",self._close_tile_group).pack(side="left")
+        grid=tk.Frame(page,bg=BASE)
+        grid.pack(fill="both",expand=True,padx=30,pady=12)
+        self._render_tiles(grid,tile["id"])
+
+    def _close_tile_group(self):
+        if self.group_page:
+            self.group_page.destroy()
+            self.group_page=None
+        self.show()
 
     def show_destinations(self):
         """Show scan targets as a full-screen kiosk page."""
@@ -290,6 +363,9 @@ class HomeScreen:
         if self.destination_page is not None:
             self.destination_page.destroy()
             self.destination_page = None
+        if self.group_page is not None:
+            self.group_page.destroy()
+            self.group_page=None
         self.frame.place_forget()
 
     @property
