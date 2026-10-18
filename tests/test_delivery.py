@@ -42,6 +42,67 @@ class QueueTests(unittest.TestCase):
     def create(self, kind="usb"):
         return self.queue.enqueue(self.pdf, self.targets[kind])
 
+    def test_multitarget_batch_spools_once_and_survives_restart(self):
+        import os
+        ids=[self.targets["paperless"],self.targets["network"]]
+        batch_id=self.queue.enqueue_batch(self.pdf,ids,label="Kopieren + Paperless",
+                                          background=True,owner_id=21)
+        group=self.queue.batch(batch_id)
+        self.assertEqual(len(group["jobs"]),2)
+        self.assertTrue(group["batch"]["background"])
+        self.assertEqual(group["batch"]["owner_id"],21)
+        first,second=(self.queue.file_for(j) for j in group["jobs"])
+        self.assertEqual((first.stat().st_dev,first.stat().st_ino),
+                         (second.stat().st_dev,second.stat().st_ino))
+        self.assertEqual(first.read_bytes(),self.pdf.read_bytes())
+        recovered=DeliveryQueue(self.path,clock=self.clock)
+        self.assertEqual(len(recovered.batch(batch_id)["jobs"]),2)
+        recovered.mark_batch_read(batch_id)
+        self.assertGreater(recovered.batch(batch_id)["batch"]["read_at"],0)
+        self.assertEqual({j["status"] for j in recovered.batch(batch_id)["jobs"]},
+                         {"queued"})
+
+    def test_multitarget_independent_success_and_uncertain_failure(self):
+        ids=[self.targets["paperless"],self.targets["network"]]
+        batch=self.queue.enqueue_batch(self.pdf,ids,label="Mehrfach")
+        def handler(job,path):
+            if job["kind"]=="paperless":
+                raise DeliveryError("Antwort unklar",uncertain=True)
+            return "Im Netzwerk gespeichert"
+        self.queue.process_once(handler)
+        self.queue.process_once(handler)
+        self.assertEqual({j["status"] for j in self.queue.batch(batch)["jobs"]},
+                         {"review","done"})
+        self.assertIsNone(self.queue.process_once(handler))
+        review=next(j for j in self.queue.batch(batch)["jobs"] if j["status"]=="review")
+        with self.assertRaises(QueueError):
+            self.queue.retry(review["id"])
+
+    def test_atomic_batch_rejects_invalid_target_without_jobs(self):
+        with self.assertRaises(QueueError):
+            self.queue.enqueue_batch(self.pdf,[self.targets["paperless"],999999])
+        self.assertEqual(self.queue.all(),[])
+        self.assertEqual(list(self.queue.folder.glob("*.pdf")),[])
+        self.assertTrue(self.pdf.exists())
+
+    def test_two_workers_actually_overlap(self):
+        import threading
+        from concurrent.futures import ThreadPoolExecutor
+        from itomiscan.integrations.worker import process_parallel
+        ids=[self.targets["paperless"],self.targets["network"]]
+        batch=self.queue.enqueue_batch(self.pdf,ids)
+        barrier=threading.Barrier(2,timeout=5)
+        seen=[]
+        def sender(job,path,secrets):
+            seen.append(job["kind"])
+            barrier.wait()
+            return "OK"
+        with patch("itomiscan.integrations.worker.deliver",side_effect=sender):
+            with ThreadPoolExecutor(max_workers=2) as pool:
+                self.assertEqual(len([x for x in process_parallel(self.queue,pool) if x]),2)
+        self.assertEqual(set(seen),{"paperless","network"})
+        self.assertEqual({j["status"] for j in self.queue.batch(batch)["jobs"]},{"done"})
+
     def test_removed_or_changed_target_never_sends_to_stale_destination(self):
         original = self.create("usb")
         self.db.delete_target(self.targets["usb"])
