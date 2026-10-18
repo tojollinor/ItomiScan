@@ -3,7 +3,7 @@
 Stand: 2026-10-18. **Anforderung/Entwurf, noch nicht implementiert.** Ziel: `develop/1.0.0`.
 
 ## Anforderungen
-- Je tatsächlich identifiziertem physischem Drucker **ein Geräteeintrag** mit erkennbarem Hersteller/Modell, zugeordneter IP-Adresse und Button **„Hinzufügen“**.
+- Je eindeutig identifiziertem physischem Drucker **ein Geräteeintrag** mit erkennbarem Hersteller/Modell, zugeordneter IP-Adresse und Button **„Hinzufügen“**. Der Identitätsnachweis ist zwingende interne Voraussetzung und wird nicht als Status „Identität bestätigt“ in der normalen Oberfläche angezeigt.
 - Mehrere Drucker gleichen Modells dürfen niemals nur aufgrund ihres Anzeigenamens zusammengeführt werden.
 - Eine URL oder IP ist **nicht automatisch** ein Beweis für die Geräteidentität. Bei unklarer Zuordnung Einträge getrennt zeigen und Benutzer nicht mit einer unbewiesenen Identität täuschen.
 - Auf Wunsch technische Verbindungsdetails anzeigen, ohne die Hauptliste mit LPD-/IPP-/DNS-SD-URLs zu überladen.
@@ -14,7 +14,7 @@ Stand: 2026-10-18. **Anforderung/Entwurf, noch nicht implementiert.** Ziel: `dev
 3. Gruppierung primär über identische belastbare Geräte-UUID oder eine überprüfte andere eindeutige Kennung. Mehrere Services desselben Geräts können so zusammengeführt werden; bei widersprechenden Kennungen nicht gruppieren. Eine gleiche IP allein ist kein verlässlicher Nachweis, da IPP-Server mehrere Warteschlangen/Geräte hosten können.
 4. Kann eine LPD-URL keine Kennung bereitstellen, nur dann mit IPP verbinden, wenn die Adresse über DNS-/Service-Auflösung und weitere technische Daten eindeutig zugeordnet werden kann; sonst als separater nicht bestätigter Kandidat.
 5. IPPS bevorzugen, dann IPP; LPD nur als Fallback, wenn Einrichtung unterstützt und eindeutig. Die Erreichbarkeit vor Übernahme prüfen; SSL/TLS-Fehler nicht stillschweigend ignorieren.
-6. Geräteliste nach physischem Drucker; pro Zeile Name, bestätigte IP (wenn ermittelt), Protokoll-/Erreichbarkeitsstatus und **„Hinzufügen“**. Bei unklarer Zuordnung „Identität nicht bestätigt“ sowie separate Auswahl und Diagnose, statt fälschlich 1 Gerät zu behaupten.
+6. Normale Geräteliste: **nur Gerätename, zugeordnete IP-Adresse und „Hinzufügen“**. Keine Statusetiketten wie „Identität bestätigt“ oder technische Protokollangaben in der Hauptliste. Bei nicht eindeutig identifizierbaren Kandidaten stattdessen einen separaten, verständlichen Hinweis mit optionalen Details anzeigen; keine ungeprüfte automatische Zusammenführung oder Einrichtung.
 7. „Hinzufügen“ richtet nur den ausgewählten, verifizierten Endpunkt über das bestehende CUPS-Setup ein, mit Ladeanzeige, Fehlerdiagnose und eindeutiger Erfolgsmeldung; keine Installation allein durch die Suche.
 
 ## Abnahmetests
