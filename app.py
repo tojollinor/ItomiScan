@@ -540,6 +540,11 @@ class ItomiScan:
         self.device_menu.hide()
         self.current_user = None
         self.session_profile = None
+        self.pending_batch = None
+        self.tile_scan_active = False
+        self._batch_seen.clear()
+        if self.delivery_status_page is not None:
+            self.delivery_status_page.hide()
         if self.home:
             self.home.hide()
         if self.copy_screen:
