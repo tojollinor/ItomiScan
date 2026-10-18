@@ -1,48 +1,82 @@
-# UI-2.1: Frei konfigurierbare Startseite und Gruppenbuttons
+# UI-2.1: Frei konfigurierbare Startseite und Mehrziel-Workflows
 
-Stand: 2026-10-18. **Geplant, nicht implementiert.** Zielbranch `develop/1.0.0`. Bestehende ItomiScan-Touch- und Web-Designmuster unverändert als Grundlage.
+Stand: 2026-10-18. **Fachkonzept aktualisiert, noch nicht implementiert.** Zielbranch `develop/1.0.0`; bestehendes bestätigtes ItomiScan-Design verwenden.
 
-## Nutzerziel
-In der Webadministration Scan-Ziele und Drucker unabhängig voneinander konfigurieren und anschließend **Startseitenbuttons** erstellen oder bearbeiten, die vorhandene Zielverbindungen und passende Scanprofile verknüpfen. Gruppenbuttons führen auf Unterseiten, deren Buttons ebenfalls bearbeitet und sortiert werden können. Ein einzelner Scan kann an **mehrere Ziele** verteilt werden.
+## Grundprinzip
 
-## Beispielkonfiguration
+Jeder Startseitenbutton ist eine eigenständige, frei konfigurierbare Scanaktion. Der Benutzer legt **direkt am Button** die gewünschten Scanoptionen und **beliebig mehrere bestehende Ziele** fest. Ein Klick scannt das Dokument genau einmal; das Ergebnis wird anschließend für alle ausgewählten Ziele verwendet. Ein Button muss nicht zwingend ein globales Scanprofil referenzieren. Gruppenbuttons führen zu frei gestaltbaren Unterseiten.
 
-- **Paperless**: Aktion „Scannen und zustellen“, vorhandene gespeicherte Paperless-Verbindung wählen. Nach einem Scan wird das erzeugte Dokument an Paperless übergeben.
-- **Kopieren**: „Scannen und drucken“, einen vorhandenen installierten Netzwerkdrucker und ein geeignetes Profil wählen.
-- **Kopieren + Paperless**: **Einmal** scannen, **dieselbe PDF** als unabhängige Aufträge an den gewählten Drucker und an die gewählte Paperless-Verbindung zustellen. Nicht zweimal scannen, keine Abhängigkeit zwischen Druck und Paperless.
-- **Gruppe „Büro“**: öffnet eine Unterseite mit eigenständigen Buttons; Navigation „Zurück“ bleibt sichtbar.
+## Webeditor „Startseite gestalten“
 
-## Webeditor
-1. Bereich **Startseite gestalten** mit visueller Vorschau auf 1024 × 768. Hinzufügen, Bearbeiten, Deaktivieren, Löschen, Umbenennen und Reihenfolge ändern.
-2. Pro Button: Beschriftung, vorhandenes Icon, Aktionstyp, optional Zielseite/Gruppe, Scanprofil sowie ein oder mehrere **gespeicherte** Ziele wählen (z. B. Drucker + Paperless). Keine Zugangsdaten im Button speichern.
-3. Gruppen: eigener Titel, eigene Reihenfolge und Unterbuttons; verschachtelte Gruppen nur, wenn Navigation und Speichergrenzen sicher und verständlich bleiben. Keine Zyklen.
-4. Zielarten nach Aktion filtern: Nur konfigurierte und verfügbare Drucker für „Kopieren“, nur gespeicherte Paperless-Ziele für Paperless-Zustellung. Fehlerhafte/entfernte Ziele im Editor markieren; keinen stillen Wechsel zu anderen Zielen.
-5. Vor Speichern: Pflichtfelder, eindeutige Referenzen, Benutzerrechte und gültige Kombinationen prüfen; Vorschau mit bestehenden Komponenten. Voreingestellte Buttons bei Migration übernehmen, damit alte Startseite weiterhin bedienbar bleibt.
-6. Relevante Berechtigungen bleiben auch beim Drücken des Buttons erhalten; Gruppen allein gewähren keine Rechte. Bei aktiver Benutzerverwaltung Benutzer ohne Berechtigung nur erlaubte Aktionen anzeigen.
-7. Kompakte Touchansicht 1024×768, klare einheitliche Karten, bei vielen Buttons Seiten/Scrolllogik, kein UI-Zoom oder neue Farbstile.
+- Buttons erstellen, bearbeiten, umbenennen, duplizieren, deaktivieren, verschieben/sortieren, löschen; Symbol und Bezeichnung aus bestehendem ItomiScan-Design.
+- Gruppenbutton erstellen und Unterseite mit eigenen Buttons gestalten; Zurück/Home-Navigation. Sichere Navigation ohne Gruppenzyklen, Tiefe später festlegen.
+- **Scanoptionen je Scanbutton**: ein-/doppelseitig (ADF Front/Duplex), Auflösung/DPI, Farbe/Graustufen/Schwarzweiß, Dokumentformat/Ausgabe (PDF usw.), gegebenenfalls weitere SANE-Optionen, sofern Scanner und gewählter Modus sie tatsächlich unterstützen. Optional vorhandenes Scanprofil als Ausgangsvorlage übernehmen; Änderungen am Button unabhängig davon speichern. Nicht unterstützte Kombinationen erkennbar ablehnen, nicht still ignorieren.
+- **Ziele je Button** als Mehrfachauswahl vorhandener gespeicherter Verbindungen: Paperless, eingerichteter Drucker, Netzwerkordner und andere implementierte Zielarten. Eine Verbindung kann mehreren Buttons zugewiesen sein; Credentials bleiben ausschließlich in der Zielverwaltung.
+- **Übertragungsmodus pro Button**: „Fortschritt anzeigen“ (Standard) oder „Im Hintergrund übertragen“. Beide verwenden die gleiche zuverlässige Auftragserfassung und -überwachung.
+- Pro Druckziel bei Bedarf Kopienzahl, ein-/doppelseitigen Ausdruck und verfügbare Druckeroptionen, ohne Scaneinstellungen (Duplex-Scan) mit Druckduplex zu verwechseln.
+- Vorschau im Editor im Verhältnis 1024×768; bestehende Tasten-/Layoutmuster. Keine unkontrollierte Änderung vorhandener Startbuttons bei Migration.
+- Benutzer- und Zielberechtigungen bei Anzeige **und** Ausführung prüfen; defekte oder entfernte Zielverknüpfungen als reparaturbedürftig markieren; keine stillen Ersatzadressen.
 
-## Ablauf Mehrziel-Button
+## Beispiele
 
-1. Benutzer tippt z. B. **Kopieren + Paperless**. Prüfen: Anmeldung/Rechte, Scannerbereit, gewähltes Profil und beide Zielreferenzen.
-2. Einmal scannen und **eine** unveränderte PDF als Dokument sichern; anschließend je Ziel einen getrennten haltbaren Zustellauftrag erzeugen: Druck an CUPS, Paperless-Upload.
-3. Beide Aufträge **unabhängig** bearbeiten; erfolgreicher Druck bedeutet nicht erfolgreichen Upload und umgekehrt. Fortschritt und Status pro Ziel sowie Gesamtergebnis anzeigen.
-4. Bei Offline-Drucker oder Paperless-Störung lokale PDF und ausstehende Zielaufträge erhalten. Wiederholversuche sicher handhaben; bei unsicherer Druck-/Uploadbestätigung keine blinde doppelte Übertragung. Vor Ausführung Mehrziel-Queue atomar bzw. mit eindeutigem dokumentbezogenem Ablauf erfassen, damit nicht versehentlich nur ein Ziel eingeplant wird, ohne dies kenntlich zu machen.
-5. Doppelklickschutz und prozessbezogene Ladeanzeige; während Scannen nicht erneut dieselbe Aktion anstoßen. Scanbearbeitung/Vorschau nach bestehenden Regeln ermöglichen.
-6. Bei Löschung oder Umkonfiguration eines Druckers/Paperless-Ziels Buttons als reparaturbedürftig markieren; alte Zielreferenzen niemals stillschweigend umbiegen.
+| Button | Scaneinstellungen | Ziele | Modus |
+| --- | --- | --- | --- |
+| Paperless | Duplex, 300 dpi, Farbe, PDF | gespeicherte Paperless-Verbindung | Fortschritt anzeigen |
+| Kopieren | Duplex, 200 dpi, Graustufen, PDF | Netzwerkdrucker | Fortschritt anzeigen |
+| Kopieren + Paperless | Duplex, 300 dpi, Farbe, PDF | Drucker **und** Paperless | Im Hintergrund |
+| Gruppe „Büro“ | entfällt | Unterseite | entfällt |
 
-## Abgrenzung
-- Startseiten-Editor verwaltet nur Darstellung, Aktionen, Zielreferenzen und Scanprofilreferenzen; **Druckerinstallation, Paperless-Zugangsdaten und Netzwerkkonfiguration bleiben** in der jeweiligen Zielverwaltung.
-- Vorhandene manuelle Scan-/Kopierfunktionen müssen weiterhin verfügbar bleiben. Ggf. unveränderliche Notfallnavigation/Home/Menü vorsehen, damit man sich nicht aussperrt.
-- Nicht Bestandteil dieses Entwurfs: beliebiger Skriptstart, frei programmierbare Shell-Aktionen oder anonyme Rechteumgehung.
+Diese Werte sind **Beispiele**, keine fest vorgegebenen Optionen.
 
-## Tests/Abnahme
-- Paperless-Button nutzt genau den zugewiesenen gespeicherten Endpunkt.
-- Kombinationsbutton scannt **nur einmal** und erzeugt getrennte Aufträge für Drucker und Paperless mit derselben Quell-PDF.
-- Paperless offline, Drucker online und umgekehrt: unabhängige Statusmeldung, lokale Wiederherstellbarkeit und kein unkontrollierter Doppeldruck.
-- Gruppen-Navigation und Rückkehr auf die Hauptstartseite funktionieren auf dem N1800 per Touch.
-- Bearbeiten, Anordnen, Löschen, inaktive/gelöschte Ziele, Berechtigungsprüfung und Migration vorhandener Startbuttons getestet.
-- Webeditor und echte Touch-UI folgen bestätigtem ItomiScan-Design; main/Stable unberührt.
+## Zustellung und Parallelität
 
-## Vor Umsetzung entscheiden
-- Sollen Gruppen beliebig tief verschachtelbar sein oder zunächst nur **eine Unterebene**? Für 1024 × 768 ist eine Unterebene die unkomplizierteste und robusteste Voreinstellung.
-- Können frei konfigurierte Buttons zusätzlich einen optionalen Bestätigungs-/Dokumentprüfschritt vor Zustellung erhalten? Bestehenden Scan-/Vorschauablauf bei der Implementierung prüfen.
+1. Button drücken, Berechtigungen, Scannerbereitschaft, Scanoptionen und alle Zielreferenzen prüfen. **Ein** Scan erzeugt ein Dokument, einschließlich mehrerer Seiten und ggf. bestehender Abschluss-/Vorschaufunktionen.
+2. Aus diesem Dokument werden für alle Ziele getrennte, dauerhaft gespeicherte Zustelljobs in einer gemeinsamen Dokument-/Batch-ID angelegt. Vollständige Planung sicherstellen; Teilfehler beim Einplanen sichtbar behandeln. Das Originaldokument bleibt erhalten.
+3. Nach dem Scannen die Jobs **parallel bzw. über begrenzte unabhängige Worker** abarbeiten, damit z. B. ein langsamer Drucker nicht den Paperless-Upload blockiert. Ressourcengrenzen für Atom N270 und ~1 GiB RAM vorsehen. Nicht nur parallel einreihen und dann absichtlich seriell bearbeiten.
+4. Jeder Zieljob besitzt einen eigenen Zustand: wartend, wird übertragen, erfolgreich an Ziel übergeben, fehlgeschlagen / erneuter Versuch notwendig. Beim Druck tatsächliche Papierausgabe **nicht** als bestätigt behaupten, wenn nur CUPS den Auftrag angenommen hat. Bei Paperless zwischen akzeptiertem Upload und tatsächlicher Archivierung unterscheiden, wenn keine Endbestätigung vorliegt.
+5. Fehler eines Ziels stoppen **nicht** die anderen. PDF und offene Zieljobs bleiben für Wiederholung/Diagnose erhalten; unsichere Zustellungen (Druck oder Upload möglicherweise schon angekommen) nicht blind nochmals senden.
+6. Fortschritt anhand tatsächlicher messbarer Daten (Seiten/Bytes) anzeigen, ansonsten klaren Status statt erfundener Prozentwerte. Keine Erfolgsmeldung für alle Ziele, solange nicht jedes Ziel den definierten Erfolgszustand erreicht hat.
+
+## Vordergrundmodus: Zustellfenster
+
+Direkt nach dem Scan öffnet sich eine im bestehenden Stil gestaltete Zustellübersicht mit **einer Zeile/Kachel je Ziel**:
+- Zielname mit Icon, aktueller Zustand und ggf. verständliche Fehlermeldung;
+- laufende Aktualisierung ohne flackernden Neuaufbau; gegebenenfalls echter Fortschrittswert;
+- Gesamthinweis „2 von 3 Zielen übergeben“ statt pauschalem „Erfolgreich“;
+- nach Fertigstellung klarer Abschluss mit Option „Schließen“; bei Fehlern Detailansicht mit sicherem „Erneut versuchen“ nur bei eindeutig fehlgeschlagener Zustellung;
+- während der Übertragung bleiben die Aufträge beim Schließen erhalten, nichts wird abgebrochen.
+
+## Hintergrundmodus und zentraler Statusbereich
+
+- Bei „Im Hintergrund übertragen“ kehrt der Scanner nach sicherer Jobannahme zur Startseite zurück; Zustellung läuft unabhängig weiter.
+- **Eigener, dauerhaft erreichbarer Statusbereich** in der Scanner-GUI: dezentes Statussymbol/Anzahl offener Meldungen in der bestehenden Navigation; beim Antippen öffnet sich eine passende Statusseite.
+- Meldungen für **Erfolg, Warnung und Fehler**, mit Uhrzeit, Dokument/Batch, betroffener Zielverbindung, technischem Zustand und optionalen Details/Handlungsmöglichkeiten; bei Mehrziel-Vorgängen Einzelergebnisse und zusammenfassender Gesamtstatus.
+- Neue relevante Ereignisse kurz als unaufdringliche Mitteilung anzeigen, aber laufendes Scannen/Touchaktionen nicht blockieren. Fehler deutlich kennzeichnen; erfolgte Übertragungen nicht dauerhaft störend einblenden.
+- Status/Jobs aus der persistenten lokalen Warteschlange lesen, damit Meldungen bei GUI-Neustart, Benutzerwechsel oder Netzwerkausfall nicht verloren gehen. Bei aktiver Benutzerverwaltung Dokumentnamen/Status nicht unberechtigten Benutzern preisgeben.
+- Benutzer kann Benachrichtigungen ansehen und als gelesen markieren; **Gelesen** ist nicht gleich **erfolgreich zugestellt**, und Einträge verschwinden nicht aus der Auftrags-/Fehlerhistorie.
+
+## Weiterführende GUI-Optimierung
+
+Bestehende Scanneransichten hinsichtlich Platznutzung, konsistenter Header-/Footer-Navigation, eindeutiger Symbole, erreichbarer Hauptaktionen, responsiven Ladezuständen und einheitlichen Status-/Fehlermeldungen prüfen. Ressourcensparend und touchfreundlich auf 1024×768; bestätigte Designs und nicht betroffene Bereiche unangetastet. Konkrete Änderungen vor Umsetzung getrennt abnehmen.
+
+## Technischer Ist-Zustand und notwendige Erweiterungen
+
+- `itomiscan/gui/home.py`: aktuell überwiegend fest programmierte Startaktionen; dynamische Button- und Gruppenverwaltung erforderlich.
+- `itomiscan/storage/config.py`: Profile und Ziele bereits getrennt gespeichert; neue persistente Buttondefinitionen und gruppierte Zielreferenzen erforderlich.
+- `itomiscan/storage/queue.py`: vorhandene Zustelljobs werden einzeln eingeplant und durch den bisherigen Worker bearbeitet. Für die zugesagte **tatsächliche parallele Zustellung** braucht es Batch-Identität, sichere Mehrziel-Einplanung und begrenzte gleichzeitige Worker. In der bestehenden Implementierung noch **nicht vorhanden**.
+- Bestehende Benutzerberechtigungen, PDF-/Vorschauverarbeitung und unbestätigte Zustellfälle integrieren. Keine unnötigen Vollkopien großer PDFs im RAM.
+
+## Abnahmetests
+
+1. Button mit frei gesetzten DPI/Duplex/Farboptionen startet die passenden unterstützten SANE-Optionen; anderer Button hat davon unabhängige Einstellungen.
+2. Button mit Drucker + Paperless scannt nur einmal; beide Ziele erhalten unabhängig ihre Jobs für dasselbe Dokument.
+3. Ein langsamer/nicht verfügbarer Drucker blockiert nicht die Übertragung an Paperless; Parallelität im Test nachweisen.
+4. Vordergrund-Fenster zeigt sämtliche Zielzustände korrekt und ohne erfundene Prozente; Hintergrundmodus zeigt Aufträge im Statusbereich.
+5. Fehler/Erfolge sind auch nach Neustart noch sichtbar, sicher wiederholbar und benutzergerecht geschützt.
+6. Gruppen/Buttons anlegen, sortieren, ändern und deaktivieren; fehlende Ziele, verweigerte Berechtigungen und ungültige Scanoptionen korrekt behandeln.
+7. 1024×768-Touchtest und Regression vorhandener GUI-/Webfunktionen, keine automatische Stable-Änderung.
+
+## Offene Gestaltungsdetails
+
+- Maximale Verschachtelungstiefe für Gruppen festlegen; als pragmatischer Entwurf zunächst eine Unterebene.
+- Welche Aktionen nach Abschluss einer Vorschau den Versand starten, ohne das Konzept „ein Scan = ein Dokument“ zu verändern.
