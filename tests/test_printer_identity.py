@@ -37,6 +37,19 @@ class PrinterIdentityTests(unittest.TestCase):
         self.assertEqual(len(rows), 2)
         self.assertEqual(unknown, 0)
 
+    def test_same_ip_with_multiple_queues_keeps_devices_separate(self):
+        devices=[endpoint('ipp://10.0.0.1:631/printers/a','10.0.0.1'),
+                 endpoint('ipp://10.0.0.1:631/printers/b','10.0.0.1')]
+        def query(dev):
+            serial='111111111111' if dev['path'].endswith('a') else '222222222222'
+            return {'printer-uuid':'urn:uuid:11111111-2222-3333-4444-'+serial,
+                    'printer-make-and-model':'Shared Print Server'}
+        for device in devices:
+            device['path']=device['uri'].split(':631',1)[1]
+        rows, unknown=discover_verified_printers(browse=lambda:devices,query=query)
+        self.assertEqual(len(rows),2)
+        self.assertEqual(unknown,0)
+
     def test_no_uuid_not_selectable(self):
         xs = [endpoint("ipp://10.0.0.25:631/ipp/print","10.0.0.25")]
         rows, missing = discover_verified_printers(
