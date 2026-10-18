@@ -203,8 +203,11 @@ class HomeScreen:
             self.tile_grid.pack_forget()
             self.default_tiles.pack(fill="x", padx=30, pady=(22,16),
                                     before=self.controls["footer"])
-        for card in self.tiles.values():
-            if active:
+        for permission, card in self.tiles.items():
+            visible = (self.allowed is None or permission in self.allowed or
+                       (permission == 'scan' and bool(
+                           {'scan','paperless','network','email','usb'} & self.allowed)))
+            if active or not visible:
                 card.grid_remove()
             else:
                 card.grid()
