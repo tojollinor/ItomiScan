@@ -1,6 +1,6 @@
 # UI-2.1: Frei konfigurierbare Startseite und Mehrziel-Workflows
 
-Stand: 2026-10-18. **Fachkonzept aktualisiert, noch nicht implementiert.** Zielbranch `develop/1.0.0`; bestehendes bestätigtes ItomiScan-Design verwenden.
+Stand: 2026-10-19. **Webeditor und dynamische Scanner-Startseite implementiert; Mehrziel-Zustellung folgt in Block 7.** Zielbranch `develop/1.0.0`; bestehendes bestätigtes ItomiScan-Design verwenden.
 
 ## Grundprinzip
 
@@ -80,3 +80,13 @@ Bestehende Scanneransichten hinsichtlich Platznutzung, konsistenter Header-/Foot
 
 - Maximale Verschachtelungstiefe für Gruppen festlegen; als pragmatischer Entwurf zunächst eine Unterebene.
 - Welche Aktionen nach Abschluss einer Vorschau den Versand starten, ohne das Konzept „ein Scan = ein Dokument“ zu verändern.
+
+## Block 6: Tatsächliche Code-Umsetzung
+
+- Webadministration **Startseite** (`/home-buttons`): Buttons anlegen/bearbeiten/löschen/sortieren; Gruppen-Buttons mit einer Unterebene, frei wählbare HEX-Farbe und Symbol.
+- Pro Scanbutton eigene SANE-Grundeinstellungen: Einzug (inkl. Duplex), DPI, Farbmodus, PDF/PNG. Datenbank verwendet dieselbe Scanprofilvalidierung wie bestehende Profile, ohne Benutzername/Passwort oder Token zu kopieren.
+- Gespeicherte Ziele werden per ID mehrfach auswählbar verknüpft; bei Löschen eines in Verwendung befindlichen Ziels schützt die Konfiguration vor ungültigen Referenzen. Formulare sind authentifiziert und CSRF-geschützt.
+- Die Scanner-Startseite liest neue Konfiguration beim Aufruf, zeigt individuell gefärbte Kacheln und scrollbare Gruppenseiten auf 1024×768. Ohne konfigurierte Kacheln bleibt die vorhandene Startseite. Benutzerrechte werden weiter geprüft.
+- Ein Scanbutton mit höchstens einem Ziel kann seine Einstellungen für den bestehenden Scanablauf verwenden. **Wichtig: Bei mehreren Zielen erscheint vorerst eine erklärende Meldung, kein unvollständiger Teilversand.** Tatsächliche parallele Jobs, Fortschrittsfenster und Hintergrund-Zustellung werden erst mit Block 7 implementiert.
+- CI- und Xvfb-Regressionstests für CRUD, CSRF, Gruppen, mehrfach gewählte Ziele, und Touch-Navigation ergänzt.
+- Noch offen für Block 7/8: Zielgruppenberechtigung pro Button vollständig prüfen, PDF-Ausgabe-/Druckoptionen in Kombinationsabläufen, Sicherung/Wiederherstellung von Buttondefinitionen mit stabiler Zielreferenz, Hardwaretest auf N1800 sowie Laufzeit-/Speicherabnahme. Keine Änderung an main/Stable.
