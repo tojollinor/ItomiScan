@@ -94,7 +94,10 @@ class TouchLayoutTests(unittest.TestCase):
         preview = self.app.preview
         self.assertEqual(strip.winfo_manager(), "pack")
         self.assertEqual(strip.pack_info()["side"], "left")
-        self.assertEqual(len(strip.winfo_children()), 3)
+        self.assertEqual(len(self.app.thumbnail_content.winfo_children()), 5)
+        self.assertEqual(self.app.review_editing.winfo_manager(), "pack")
+        self.assertEqual(len(self.app.review_tool_buttons), 8)
+        self.assertEqual(self.app.preview_area.winfo_manager(), "pack")
         self.assertLess(strip.winfo_rootx(), preview.winfo_rootx())
         self.assertEqual(self.app.page_var.get(), "Seite 3 / 5")
         self.assertGreater(preview.winfo_height(), 200)
