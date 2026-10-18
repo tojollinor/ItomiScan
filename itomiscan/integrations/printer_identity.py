@@ -86,14 +86,6 @@ def _request(endpoint):
     path = endpoint["path"]
     host = endpoint["ip"]
     uri = endpoint["uri"]
-    body = (b"\x02\x00\x00\x0b\x00\x00\x00\x01\x01" +
-            _attribute("attributes-charset", b"utf-8") +
-            _attribute("attributes-natural-language", b"en") +
-            _attribute("printer-uri", uri.encode("ascii")) +
-            _attribute("requested-attributes", b"printer-uuid") +
-            b"\x44\x00\x00" + struct.pack(">H", len("printer-make-and-model")) +
-            b"printer-make-and-model" +
-            _attribute("printer-device-id", b"")[:0] + b"\x03")
     # Request all printer attributes; the parser only keeps vetted names.
     body = (b"\x02\x00\x00\x0b\x00\x00\x00\x01\x01" +
             _attribute("attributes-charset", b"utf-8") +
