@@ -110,14 +110,32 @@ def run_cups(args, *, timeout=12, input_text=None):
 
 
 def list_queues():
-    """Return only genuinely installed CUPS destination identifiers."""
-    stdout = run_cups(["lpstat", "-e"], timeout=6)
-    result = []
-    for line in stdout.splitlines():
-        value = line.strip()
-        if QUEUE_RE.fullmatch(value):
-            result.append(value)
-    return sorted(set(result), key=str.casefold)
+    """Only persisted CUPS device queues, not auto-discovered destinations.
+
+    lpstat -e includes transient DNS-SD/implicit destinations (the user's
+    Brother example); lpstat -v lists configured device mappings instead.
+    """
+    if not shutil.which("lpstat"):
+        raise PrintError("lpstat ist nicht installiert.", permanent=True)
+    try:
+        import os
+        result = subprocess.run(
+            ["lpstat", "-v"], capture_output=True, text=True, timeout=6,
+            check=False, env=dict(os.environ, LC_ALL="C"))
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        raise PrintError("CUPS-Warteschlangen nicht abrufbar.") from exc
+    if result.returncode:
+        if not result.stdout.strip() and (
+                "no destinations" in result.stderr.lower() or
+                "no destinations" in result.stdout.lower()):
+            return []
+        raise PrintError("CUPS-Geräteliste nicht abrufbar.")
+    found = set()
+    for line in result.stdout.splitlines():
+        match = re.match(r"^device for ([A-Za-z][A-Za-z0-9_-]{0,39}):\\s+\\S+", line)
+        if match:
+            found.add(match.group(1))
+    return sorted(found, key=str.casefold)
 
 
 def accepting_jobs(name):
