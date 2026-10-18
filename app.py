@@ -828,12 +828,6 @@ class ItomiScan:
             if target and not self._allowed(
                     'copy' if target['kind'] == 'printer' else target['kind']):
                 return
-        if len(linked) > 1:
-            self.pending_batch = {
-                "ids": [x["id"] for x in linked],
-                "label": tile["label"],
-                "background": bool(tile.get("background")),
-                "owner_id": self.current_user["id"] if self.current_user else None}
         kind = linked[0]["kind"] if linked else "scan"
         required = "copy" if kind == "printer" else kind
         if not self._allowed(required):
@@ -845,6 +839,13 @@ class ItomiScan:
                     "Kein Scanprofil für diesen Benutzer freigegeben.",
                     parent=self.root)
                 return
+        self.pending_batch = None
+        if len(linked) > 1:
+            self.pending_batch = {
+                "ids": [x["id"] for x in linked],
+                "label": tile["label"],
+                "background": bool(tile.get("background")),
+                "owner_id": self.current_user["id"] if self.current_user else None}
         settings = dict(tile["scan"])
         settings["name"] = "Startseitenbutton"
         self.apply_profile(settings)
@@ -888,6 +889,9 @@ class ItomiScan:
             self.thumbnail_strip.pack_forget()
             self.pending_delivery = None
             self.pending_print = None
+        if not self.review_pending:
+            self.pending_batch = None
+            self.tile_scan_active = False
         self._set_review_layout(False)
         self.scan_view.place_forget()
         if self.copy_screen:
