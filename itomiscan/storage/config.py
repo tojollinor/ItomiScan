@@ -316,8 +316,10 @@ class ConfigStore:
                            (target_id,)).fetchone()
             if not row:
                 raise ConfigError("Druckerziel existiert nicht.")
-            db.execute("INSERT OR REPLACE INTO printer_identity "
-                       "(target_id,device_uuid,display_name) VALUES(?,?,?)",
+            db.execute("INSERT INTO printer_identity "
+                       "(target_id,device_uuid,display_name) VALUES(?,?,?) "
+                       "ON CONFLICT(target_id) DO UPDATE SET "
+                       "device_uuid=excluded.device_uuid,display_name=excluded.display_name",
                        (target_id,identity,display_name.strip()))
 
     def update_target_address(self, target_id, address, *, kind="printer"):
@@ -375,11 +377,16 @@ class ConfigStore:
                 "JOIN targets t ON t.id=pp.target_id AND t.kind='printer'"
             ).fetchall()
         printer_map = {row[0]: row[1] for row in printers}
+        identity_map = self.printer_identities()
+        printer_identity_export = {
+            t["name"]: identity_map[t["id"]] for t in self.list_targets()
+            if t["kind"] == "printer" and t["id"] in identity_map}
         return {"version": 1, "profiles": profiles, "selected": selected,
                 "targets": [{k: item[k] for k in ("kind","name","address")}
                             for item in self.list_targets()],
                 "settings": self.get_settings(),
                 "profile_printers": printer_map,
+                "printer_identities": printer_identity_export,
                 "note": "Enthält keine Passwörter, Tokens oder Sitzungsdaten."}
 
     def restore(self, payload):
