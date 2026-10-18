@@ -1,6 +1,6 @@
 # WEB-9: Vereinfachte ItomiScan-Druckerverwaltung (UI/UX-Entwurf)
 
-Stand: 2026-10-18. **Entwurf, nicht implementiert.** Bezug: WEB-8 Druckeridentifikation und IP-Zuordnung; bestehende ItomiScan-Webdesignsprache beibehalten.
+Stand: 2026-10-18. **Weboberfläche und Ein-Klick-Einrichtung im Entwicklungsbranch umgesetzt; N1800-Abnahme ausstehend.** Bezug: WEB-8 Druckeridentifikation und IP-Zuordnung; bestehende ItomiScan-Webdesignsprache beibehalten.
 
 ## Ausgangsproblem
 
@@ -52,3 +52,7 @@ Die jetzige Seite zeigt zuerst eine technische CUPS-/Zielverwaltung, verlangt Na
 ## Umsetzung
 
 Vor tatsächlicher Implementierung Workflow `itomiscan/web/printing_pages.py`, bestehende Webrouten, CUPS-Funktionen und Identitätsabfrage prüfen. Dies ist ein **freizugebender Entwurf**; noch kein geänderter Funktionscode.
+
+## Stand Block 4 (18.10.2026)
+
+Die IPv4-mDNS/IPP-basierte Umsetzung inklusive eindeutiger über IPP ermittelter UUID, Speicherung dieser Kennung, Duplikatschutz, vereinfachter Webansicht und sicherer CUPS-Installation ist programmiert. Automatisierte Regressionstests hinzugefügt. Noch offen: Prüfung am echten Fujitsu N1800, tatsächliche Treiberlosigkeit des Brother HL-3152CDW, IPPS-Zertifikat/SNI, Geräte ohne IPP-UUID sowie IPv6/AAAA. Unbestätigte Kandidaten werden nicht automatisch installiert. `main`/Stable unverändert.
