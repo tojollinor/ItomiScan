@@ -344,18 +344,13 @@ class AdminHandler(BaseHTTPRequestHandler):
                 targets = [x for x in self.server.store.list_targets()
                            if x["kind"] == "printer"]
                 searching = parse_qs(urlsplit(self.path).query).get("search", [""])[0] == "1"
-                discovered = []
+                discovered, unknown = [], 0
                 if searching:
-                    try:
-                        discovered = discover_printers()
-                    except PrintError as exc:
-                        issue = (issue + " " + str(exc)).strip()
-                    from itomiscan.integrations.discovery import discover_ipp_printers
-                    discovered = list(dict.fromkeys(
-                        discovered + discover_ipp_printers()))[:50]
+                    from itomiscan.integrations.printer_identity import discover_verified_printers
+                    discovered, unknown = discover_verified_printers()
                 html = printing_pages.printers_page(
                     targets, cups, csrf, notice=notice, issue=issue,
-                    discovered=discovered, searched=searching)
+                    discovered=discovered, searched=searching, unknown=unknown)
             elif path == "/jobs":
                 html = delivery_pages.jobs_page(self.server.queue.all(),
                                                 self.server.queue.summary(), csrf, notice)
@@ -577,6 +572,38 @@ class AdminHandler(BaseHTTPRequestHandler):
                                      "danach gespeichertes Ziel löschen.")
                 self.server.store.delete_target(target_id)
                 return self._redirect("/targets?ok=Ziel%20entfernt")
+            if path == "/printers/add":
+                from itomiscan.integrations.printer_identity import discover_verified_printers
+                identity = form.get("identity", "")
+                uri = form.get("uri", "")
+                devices, _unknown = discover_verified_printers()
+                device = next((item for item in devices
+                               if item["identity"] == identity and item["uri"] == uri), None)
+                if device is None:
+                    raise ValueError("Druckeridentität nicht mehr bestätigt. Erneut suchen.")
+                existing = [x for x in self.server.store.list_targets()
+                            if x["kind"] == "printer"]
+                if any(x["address"] == uri for x in existing):
+                    raise ValueError("Dieser Drucker ist bereits hinterlegt.")
+                import re
+                slug = re.sub(r"[^A-Za-z0-9_-]+", "_", device["name"]).strip("_")
+                if not slug or not slug[0].isalpha():
+                    slug = "Drucker_" + slug
+                name = (slug[:29] + "_" + identity.replace("-", "")[:9])[:40]
+                queue_name(name)
+                if name in list_queues() or any(x["name"] == name for x in existing):
+                    raise ValueError("Drucker bereits eingerichtet.")
+                install_queue(name, uri)
+                try:
+                    self.server.store.save_target(
+                        {"kind": "printer", "name": name, "address": uri})
+                except Exception:
+                    try:
+                        uninstall_queue(name)
+                    except PrintError:
+                        pass
+                    raise
+                return self._redirect("/printers?ok=Drucker%20hinzugefuegt")
             if path == "/printers/save":
                 name = form.get("name", "")
                 address = form.get("address", "").strip()
