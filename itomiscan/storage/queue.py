@@ -57,6 +57,11 @@ class DeliveryQueue:
                 owner_id INTEGER, source TEXT NOT NULL,
                 read_at REAL NOT NULL DEFAULT 0
             )""")
+            batch_columns = {r["name"] for r in
+                             db.execute("PRAGMA table_info(delivery_batches)")}
+            if "read_at" not in batch_columns:
+                db.execute("ALTER TABLE delivery_batches "
+                           "ADD COLUMN read_at REAL NOT NULL DEFAULT 0")
             if "print_copies" not in existing:
                 db.execute("ALTER TABLE delivery_jobs ADD COLUMN print_copies INTEGER NOT NULL DEFAULT 1")
             if "print_sides" not in existing:
