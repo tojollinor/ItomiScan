@@ -98,6 +98,59 @@ STATUS_JS = """(() => {
 })();"""
 
 
+
+# Short, dependency-free feedback for forms that may trigger I/O.
+# The message appears immediately; the CSS spinner starts only if navigation
+# takes more than a brief moment. Form data remains intact for all submitters.
+LOADING_JS = """(() => {
+  const layer = document.getElementById('itomiscan-working');
+  const message = document.getElementById('itomiscan-working-message');
+  if (!layer || !message) return;
+  let pending = false;
+  const names = {
+    '/printers': 'Netzwerk wird nach Druckern durchsucht …',
+    '/targets': 'Netzwerk wird nach Zielsystemen durchsucht …',
+    '/printers/install': 'Drucker wird eingerichtet …',
+    '/printers/test': 'Testseite wird an CUPS übergeben …',
+    '/targets/paperless/test': 'Paperless-Verbindung wird geprüft …',
+    '/targets/paperless/login': 'Paperless-Anmeldung wird geprüft …',
+    '/system/diagnose': 'Scanner und SANE werden geprüft …',
+    '/backups/restore': 'Konfiguration wird wiederhergestellt …',
+    '/system/password': 'Webpasswort wird geändert …',
+    '/remote/command': 'Auftrag wird an den Scanner übergeben …'
+  };
+  document.addEventListener('submit', event => {
+    const form = event.target;
+    if (!(form instanceof HTMLFormElement) || event.defaultPrevented) return;
+    if (pending) { event.preventDefault(); return; }
+    const submitter = event.submitter;
+    if (submitter && submitter.hasAttribute('data-no-loading')) return;
+    const action = new URL(form.getAttribute('action') || location.href, location.href);
+    const label = submitter && submitter.textContent ? submitter.textContent.trim() : '';
+    const query = form.querySelector('[name="search"][value="1"]');
+    const work = names[action.pathname] ||
+      (query ? 'Geräte werden gesucht …' : label ? label + ' …' : 'Änderungen werden gespeichert …');
+    message.textContent = work;
+    layer.hidden = false;
+    layer.setAttribute('aria-busy', 'true');
+    pending = true;
+    // Do not disable the submitter synchronously: its name/value are required
+    // for native form serialization (e.g. restart vs. shutdown).
+    window.setTimeout(() => {
+      form.querySelectorAll('button[type="submit"],button:not([type])')
+        .forEach(button => { button.disabled = true; });
+    }, 0);
+  }, false);
+  window.addEventListener('pageshow', () => {
+    pending = false;
+    layer.hidden = true;
+    layer.removeAttribute('aria-busy');
+    document.querySelectorAll('button:disabled').forEach(button => {
+      if (button.closest('form') && !button.dataset.remoteKey) button.disabled = false;
+    });
+  });
+})();"""
+
 TARGET_SELECT_JS = """(() => {
   const form = document.getElementById('new-target-form');
   if (!form) return;
@@ -309,7 +362,7 @@ REMOTE_JS = """(() => {
     } finally { fetching = false; }
   }
   refreshFrame();
-  const frameTimer = window.setInterval(refreshFrame, 1700);
+  const frameTimer = window.setInterval(refreshFrame, 900);
   const keepAlive = window.setInterval(async () => {
     if (halted || document.hidden || mode !== 'active') return;
     try { await post('/remote/live/ping'); }
@@ -413,11 +466,17 @@ table{width:100%;border-collapse:collapse}td,th{padding:10px;text-align:left;bor
 .memory-track{height:20px;background:#101d2e;border-radius:10px;overflow:hidden;border:1px solid var(--line)}
 .memory-fill{height:100%;width:0;background:#42bfea;transition:width .5s linear}
 .remote-screen{max-width:768px;background:#101d2e;border:1px solid var(--line);border-radius:10px;overflow:hidden;margin:12px 0}
-.remote-screen img{width:100%;aspect-ratio:4/3;display:block;object-fit:contain;cursor:crosshair}
-.remote-placeholder{aspect-ratio:4/3;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:24px;text-align:center}
+.remote-screen img{width:100%;height:auto;display:block;cursor:crosshair;touch-action:manipulation}
+.remote-placeholder{min-height:300px;aspect-ratio:4/3;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:24px;text-align:center}
 .remote-placeholder p{margin:0;max-width:450px}
 .remote-placeholder button{margin:0}
 [hidden]{display:none!important}
+.working-overlay{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(5,12,22,.7);z-index:1000;padding:18px}
+.working-panel{width:min(430px,95vw);background:var(--pane);border:1px solid var(--line);border-radius:14px;padding:24px;text-align:center;box-shadow:0 14px 40px #0007}
+.working-spinner{display:block;width:36px;height:36px;margin:0 auto 12px;border:4px solid #3c5c77;border-top-color:var(--accent);border-radius:50%;animation:itomi-spin 1s linear infinite;animation-delay:.18s}
+@keyframes itomi-spin{to{transform:rotate(360deg)}}
+@media(prefers-reduced-motion:reduce){.working-spinner{animation:none;border-top-color:var(--ok)}}
+button:disabled{opacity:.67;cursor:wait}
 .remote-keys{max-width:770px}.remote-keys button{margin-right:9px}
 """
 
@@ -446,6 +505,10 @@ def layout(title, body, *, active="", csrf="", notice="", error="", logged=True,
             'Webadministration nur im geschützten LAN/VPN</div></main>'
             + ('<script defer src="/assets/status.js"></script>' if live else '')
             + ('<script defer src="/assets/admin-dialogs.js"></script>' if logged else '')
+            + ('<script defer src="/assets/loading.js"></script>' if logged else '')
+            + ('<div id="itomiscan-working" class="working-overlay" role="status" aria-live="polite" hidden>'
+               '<div class="working-panel"><span class="working-spinner" aria-hidden="true"></span>'
+               '<strong id="itomiscan-working-message">Bitte warten …</strong></div></div>' if logged else '')
             + '</body></html>')
 
 
