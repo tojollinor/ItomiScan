@@ -1,6 +1,7 @@
 """Compact, persistent N1800 delivery notification and multi-target status page."""
 import time
 import tkinter as tk
+from tkinter import messagebox
 
 BG="#101927"
 PANEL="#192738"
@@ -101,11 +102,28 @@ class DeliveryStatusPage:
                          bg=PANEL,fg=BAD if j["status"] in ("failed","review") else MUTED,
                          anchor="w",justify="left",wraplength=830,
                          font=("DejaVu Sans",11)).pack(fill="x",padx=16,pady=2)
+            for job in jobs:
+                if job["status"]=="failed":
+                    self._button(card,"Fehlgeschlagenes Ziel erneut versuchen",
+                                 lambda jid=job["id"]:self._retry_failed(jid)).pack(
+                                     anchor="e",padx=10,pady=3)
             if not batch["read_at"]:
                 self._button(card,"Als gelesen markieren",
                              lambda bid=batch["id"]:self._read(bid)).pack(
                                  anchor="e",padx=10,pady=6)
         self.refresh_id=self.root.after(2500,self._refresh)
+
+    def _retry_failed(self,job_id):
+        if not messagebox.askyesno(
+                "Erneut versuchen",
+                "Nur wiederholen, wenn das Ziel nicht bereits ein Dokument "
+                "erhalten hat. Auftrag erneut einplanen?",parent=self.root):
+            return
+        try:
+            self.queue.retry(job_id)
+        except ValueError as exc:
+            messagebox.showerror("Auftrag",str(exc),parent=self.root)
+        self._refresh()
 
     def _read(self,batch_id):
         self.queue.mark_batch_read(batch_id)
