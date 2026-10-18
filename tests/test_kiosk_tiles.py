@@ -40,6 +40,31 @@ class TileStoreTests(unittest.TestCase):
         self.db.delete_kiosk_tile(item["id"])
         self.db.delete_target(self.ids[0])
 
+    def test_config_export_restores_targets_and_group_links(self):
+        self.db.save_kiosk_tile(tile("Büro",action="group",icon="folder",scan={}))
+        group=self.db.list_kiosk_tiles()[0]["id"]
+        self.db.save_kiosk_tile(tile("Beide",parent=group,targets=self.ids))
+        backup=self.db.backup()
+        self.assertEqual(backup["kiosk_tiles"][1]["targets"],
+                         [["paperless","DMS"],["network","NAS"]])
+        self.db.restore(backup)
+        tiles=self.db.list_kiosk_tiles()
+        self.assertEqual(len(tiles),2)
+        self.assertEqual(tiles[1]["parent"],tiles[0]["id"])
+        self.assertEqual(set(tiles[1]["targets"]),
+                         {t["id"] for t in self.db.list_targets()})
+        broken=dict(backup)
+        broken["kiosk_tiles"]=[dict(backup["kiosk_tiles"][1],
+                                    targets=[["paperless","MISSING"]])]
+        with self.assertRaises(ConfigError):
+            self.db.restore(broken)
+        self.assertEqual(self.db.list_kiosk_tiles(),tiles)
+
+    def test_restore_old_backup_without_tiles_keeps_compatibility(self):
+        old=self.db.backup()
+        old.pop("kiosk_tiles",None)
+        self.db.restore(old)
+        self.assertEqual(self.db.list_kiosk_tiles(),[])
     def test_group_reorder_and_single_level(self):
         self.db.save_kiosk_tile(tile("Büro",action="group",icon="folder",
                                      targets=[],scan={}))
