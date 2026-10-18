@@ -8,6 +8,7 @@ import hmac
 import ipaddress
 import json
 import os
+import re
 import secrets
 import sqlite3
 from contextlib import contextmanager
@@ -166,6 +167,10 @@ class ConfigStore:
                     kind TEXT NOT NULL, name TEXT NOT NULL,
                     address TEXT NOT NULL, UNIQUE(kind,name)
                 );
+                CREATE TABLE IF NOT EXISTS printer_identity (
+                    target_id INTEGER PRIMARY KEY, device_uuid TEXT NOT NULL UNIQUE,
+                    display_name TEXT NOT NULL
+                );
                 CREATE TABLE IF NOT EXISTS profile_printers (
                     profile_name TEXT PRIMARY KEY,
                     target_id INTEGER NOT NULL
@@ -291,6 +296,30 @@ class ConfigStore:
                        "ON CONFLICT(kind,name) DO UPDATE SET address=excluded.address",
                        (data["kind"], data["name"], data["address"]))
 
+    def printer_identities(self):
+        with self._connection() as db:
+            rows = db.execute(
+                "SELECT pi.target_id,pi.device_uuid,pi.display_name FROM printer_identity pi "
+                "JOIN targets t ON t.id=pi.target_id WHERE t.kind='printer'").fetchall()
+        return {r["target_id"]:{"identity":r["device_uuid"],"name":r["display_name"]}
+                for r in rows}
+
+    def assign_printer_identity(self, target_id, identity, display_name):
+        if (type(target_id) is not int or target_id <= 0 or
+                not isinstance(identity,str) or not re.fullmatch(
+                    r"[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}",identity) or
+                not isinstance(display_name,str) or
+                not 1 <= len(display_name.strip()) <= 80):
+            raise ConfigError("Ungültige Druckeridentität.")
+        with self._connection(write=True) as db:
+            row=db.execute("SELECT 1 FROM targets WHERE id=? AND kind='printer'",
+                           (target_id,)).fetchone()
+            if not row:
+                raise ConfigError("Druckerziel existiert nicht.")
+            db.execute("INSERT OR REPLACE INTO printer_identity "
+                       "(target_id,device_uuid,display_name) VALUES(?,?,?)",
+                       (target_id,identity,display_name.strip()))
+
     def update_target_address(self, target_id, address, *, kind="printer"):
         """Update an existing target by ID, never silently create a new target."""
         if type(target_id) is not int or target_id <= 0:
@@ -310,6 +339,7 @@ class ConfigStore:
             raise ConfigError("Ungültige Ziel-ID.")
         with self._connection(write=True) as db:
             db.execute("DELETE FROM profile_printers WHERE target_id=?", (target_id,))
+            db.execute("DELETE FROM printer_identity WHERE target_id=?", (target_id,))
             db.execute("DELETE FROM targets WHERE id=?", (target_id,))
 
     def has_password(self):
