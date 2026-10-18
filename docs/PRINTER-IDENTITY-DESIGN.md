@@ -1,6 +1,6 @@
 # WEB-8: Drucker eindeutig erkennen und Adressen zuordnen
 
-Stand: 2026-10-18. **Anforderung/Entwurf, noch nicht implementiert.** Ziel: `develop/1.0.0`.
+Stand: 2026-10-18. **IPv4/IPP-UUID-Erkennung im Entwicklungsbranch implementiert; Gerätetest ausstehend.** Ziel: `develop/1.0.0`.
 
 ## Anforderungen
 - Je eindeutig identifiziertem physischem Drucker **ein Geräteeintrag** mit erkennbarem Hersteller/Modell, zugeordneter IP-Adresse und Button **„Hinzufügen“**. Der Identitätsnachweis ist zwingende interne Voraussetzung und wird nicht als Status „Identität bestätigt“ in der normalen Oberfläche angezeigt.
@@ -24,3 +24,7 @@ Stand: 2026-10-18. **Anforderung/Entwurf, noch nicht implementiert.** Ziel: `dev
 - mDNS-Name wechselt oder DHCP-Adresse ändert sich: Zuordnung wird aktualisiert, nicht aus einem veralteten Cache behauptet.
 - Unbekannte/fehlende Kennungen oder nicht erreichbare Ports: erkennbar als unbestätigt; keine stille automatische Zusammenführung.
 - Prüfen, dass nur bewusst hinzugefügte Drucker installiert und Druckprofile unverändert bleiben.
+
+## Stand Block 4 (18.10.2026)
+
+Die IPv4-mDNS/IPP-basierte Umsetzung inklusive eindeutiger über IPP ermittelter UUID, Speicherung dieser Kennung, Duplikatschutz, vereinfachter Webansicht und sicherer CUPS-Installation ist programmiert. Automatisierte Regressionstests hinzugefügt. Noch offen: Prüfung am echten Fujitsu N1800, tatsächliche Treiberlosigkeit des Brother HL-3152CDW, IPPS-Zertifikat/SNI, Geräte ohne IPP-UUID sowie IPv6/AAAA. Unbestätigte Kandidaten werden nicht automatisch installiert. `main`/Stable unverändert.
