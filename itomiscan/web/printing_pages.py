@@ -12,7 +12,8 @@ def _ip(address):
 
 
 def printers_page(saved_targets, installed, csrf, *, notice="", issue="",
-                  discovered=None, searched=False, unknown=0):
+                  discovered=None, searched=False, unknown=0, identities=None):
+    identities = identities or {}
     installed = set(installed)
     content = ('<h1>Drucker</h1><p>Netzwerkdrucker suchen und mit einem Klick '
                'einrichten.</p>')
@@ -24,7 +25,7 @@ def printers_page(saved_targets, installed, csrf, *, notice="", issue="",
         content += '<p class="muted">Noch keine Drucker eingerichtet.</p>'
     for i, item in enumerate(active):
         name = item["name"]
-        title = name.replace("_", " ")
+        title = identities.get(item["id"], {}).get("name") or name.replace("_", " ")
         detail = ('<article class="card"><h2>' + e(title) + '</h2>'
                   '<p>Druckaufträge gelten nach Übergabe an CUPS als angenommen. '
                   'Den tatsächlichen Ausdruck bitte am Gerät prüfen.</p>')
@@ -72,8 +73,9 @@ def printers_page(saved_targets, installed, csrf, *, notice="", issue="",
         if discovered:
             content += '<section class="entry-list">'
             saved_uris = {x["address"] for x in saved_targets}
+            saved_ids = {item["identity"] for item in identities.values()}
             for device in discovered:
-                if device["uri"] in saved_uris:
+                if device["uri"] in saved_uris or device["identity"] in saved_ids:
                     continue
                 content += (
                     '<div class="entry-row"><div><strong>' +
