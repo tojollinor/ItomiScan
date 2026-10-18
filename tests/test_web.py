@@ -185,12 +185,13 @@ class WebAdminTests(unittest.TestCase):
         self.assertNotIn("object-fit:contain", CSS)
 
     def test_lan_discovery_only_after_explicit_authenticated_search(self):
+        device={"name":"Brother HL-3152CDW", "ip":"192.168.44.41",
+                "uri":"ipps://192.168.44.41:631/ipp/print",
+                "identity":"11111111-2222-3333-4444-555555555555"}
         with patch("itomiscan.web.server.discover_paperless",
                    return_value=["https://192.168.44.30:8443"]) as paperless, \
-                patch("itomiscan.web.server.discover_printers",
-                      return_value=["ipp://192.168.44.40/ipp/print"]) as cups, \
-                patch("itomiscan.integrations.discovery.discover_ipp_printers",
-                      return_value=["ipps://192.168.44.41:631/ipp/print"]) as dns:
+                patch("itomiscan.integrations.printer_identity.discover_verified_printers",
+                      return_value=([device],0)) as dns:
             self.assertEqual(self.req("GET", "/targets?search=1")[0], 303)
             self.assertEqual(self.req("GET", "/printers?search=1")[0], 303)
             self.login()
@@ -204,13 +205,12 @@ class WebAdminTests(unittest.TestCase):
             self.assertIn('data-select-paperless="https://192.168.44.30:8443"', page)
             paperless.assert_called_once()
             self.assertEqual(self.req("GET", "/printers")[0], 200)
-            cups.assert_not_called()
             dns.assert_not_called()
             code, _, page = self.req("GET", "/printers?search=1")
             self.assertEqual(code, 200)
-            self.assertIn("data-select-printer", page)
-            self.assertIn("ipps://192.168.44.41:631/ipp/print", page)
-            cups.assert_called_once()
+            self.assertIn('action="/printers/add"', page)
+            self.assertIn("Brother HL-3152CDW", page)
+            self.assertIn("192.168.44.41", page)
             dns.assert_called_once()
 
     def test_profile_and_targets_saved_in_shared_database(self):
