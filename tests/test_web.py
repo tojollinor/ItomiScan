@@ -157,6 +157,33 @@ class WebAdminTests(unittest.TestCase):
         self.assertEqual(self.req("GET", "/api/metrics")[0], 200)
         self.assertIn("script-src 'self'", headers["Content-Security-Policy"])
 
+    def test_web_loading_and_remote_geometry_controls(self):
+        # Loading assets may only be accessed from an authenticated session.
+        self.assertEqual(self.req("GET", "/assets/loading.js")[0], 303)
+        self.login()
+        code, headers, script = self.req("GET", "/assets/loading.js")
+        self.assertEqual(code, 200)
+        self.assertIn("javascript", headers["Content-Type"])
+        self.assertIn("Netzwerk wird nach Druckern durchsucht", script)
+        self.assertIn("Netzwerk wird nach Zielsystemen durchsucht", script)
+        self.assertIn("itomiscan-working", script)
+        self.assertIn("event.submitter", script)
+        self.assertIn("itomiLoadingLocked", script)
+        for path in ("/", "/printers", "/targets", "/remote", "/system"):
+            code, _, page = self.req("GET", path)
+            self.assertEqual(code, 200)
+            self.assertIn("/assets/loading.js", page)
+            self.assertIn('id="itomiscan-working"', page)
+            self.assertIn("itomi-scan", page)
+        status, _, remote = self.req("GET", "/assets/remote.js")
+        self.assertEqual(status, 200)
+        self.assertIn("setInterval(refreshFrame, 900)", remote)
+        self.assertIn("frame.getBoundingClientRect()", remote)
+        self.assertIn("'/remote/live/reconnect'", remote)
+        from itomiscan.web.pages import CSS
+        self.assertIn(".remote-screen img{width:100%;height:auto;", CSS)
+        self.assertNotIn("object-fit:contain", CSS)
+
     def test_lan_discovery_only_after_explicit_authenticated_search(self):
         with patch("itomiscan.web.server.discover_paperless",
                    return_value=["https://192.168.44.30:8443"]) as paperless, \
