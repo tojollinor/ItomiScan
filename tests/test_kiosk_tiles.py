@@ -60,6 +60,34 @@ class TileStoreTests(unittest.TestCase):
             self.db.restore(broken)
         self.assertEqual(self.db.list_kiosk_tiles(),tiles)
 
+    def test_restore_refuses_rebinding_existing_credentials(self):
+        from itomiscan.storage.secrets import SecretStore
+        secrets=SecretStore(self.db.path)
+        secrets.update(self.ids[0],token="private-test-token")
+        saved=self.db.backup()
+        bad=dict(saved)
+        bad["targets"]=[dict(t) for t in saved["targets"]]
+        bad["targets"][0]["address"]="https://different.example"
+        with self.assertRaisesRegex(ConfigError,"Zieländerung"):
+            self.db.restore(bad)
+        self.assertEqual(secrets.get(self.ids[0])["token"],"private-test-token")
+        self.db.restore(saved)
+        self.assertEqual([t["id"] for t in self.db.list_targets()],self.ids)
+
+    def test_restore_refuses_rebinding_pending_jobs(self):
+        from itomiscan.storage.queue import DeliveryQueue
+        from pathlib import Path
+        queue=DeliveryQueue(self.db.path)
+        src=Path(self.db.path).parent/"test.pdf"
+        src.write_bytes(b"%PDF-1.4\\n" + b"X"*200 + b"\\n%%EOF")
+        queue.enqueue_batch(src,[self.ids[0]])
+        bad=self.db.backup()
+        bad["targets"]=[dict(t) for t in bad["targets"]]
+        bad["targets"][0]["address"]="https://changed.example"
+        with self.assertRaisesRegex(ConfigError,"offenen Zustellaufträgen"):
+            self.db.restore(bad)
+        self.assertEqual(queue.all()[0]["status"],"queued")
+
     def test_restore_old_backup_without_tiles_keeps_compatibility(self):
         old=self.db.backup()
         old.pop("kiosk_tiles",None)
