@@ -386,49 +386,73 @@ class ItomiScan:
                  font=("DejaVu Sans", 13, "bold")).pack(side="left")
         tk.Label(top, textvariable=self.page_var, bg=PANEL, fg=MUTED,
                  font=("DejaVu Sans", 11)).pack(side="right")
-        # Fixed-width left filmstrip, flexible right-hand document canvas.
+        # Full-height review layout: thumbnails, a narrow touch icon rail,
+        # and the preview share one expanding row. No toolbar below the image.
         self.thumbnail_strip = tk.Frame(right, bg=PANEL, width=116)
-        self.thumbnail_strip.pack(side="left", fill="y", padx=(9, 0), pady=(10, 6))
         self.thumbnail_strip.pack_propagate(False)
+        self.thumbnail_canvas = tk.Canvas(
+            self.thumbnail_strip, bg=PANEL, bd=0, highlightthickness=0,
+            width=94)
+        self.thumbnail_canvas.pack(side="left", fill="both", expand=True)
+        self.thumbnail_scrollbar = tk.Scrollbar(
+            self.thumbnail_strip, orient="vertical",
+            command=self.thumbnail_canvas.yview, width=18)
+        self.thumbnail_scrollbar.pack(side="right", fill="y")
+        self.thumbnail_canvas.configure(
+            yscrollcommand=self.thumbnail_scrollbar.set)
+        self.thumbnail_content = tk.Frame(self.thumbnail_canvas, bg=PANEL)
+        self.thumbnail_window = self.thumbnail_canvas.create_window(
+            (0, 0), window=self.thumbnail_content, anchor="nw")
+        self.thumbnail_content.bind(
+            "<Configure>", lambda e: self.thumbnail_canvas.configure(
+                scrollregion=self.thumbnail_canvas.bbox("all")))
+        self.thumbnail_canvas.bind(
+            "<Configure>", lambda e: self.thumbnail_canvas.itemconfigure(
+                self.thumbnail_window, width=e.width))
+        self.thumbnail_canvas.bind(
+            "<MouseWheel>", lambda e: self.thumbnail_canvas.yview_scroll(
+                -1 if e.delta > 0 else 1, "units"))
+        self.review_editing = tk.Frame(right, bg=PANEL, width=62)
+        self.review_editing.pack_propagate(False)
+        self.review_navigation = self.review_editing
+        tools = (
+            ("↻", "Ausgewählte Seite erneut scannen", self.rescan_page),
+            ("⟳", "Seite drehen", self.rotate_page),
+            ("✕", "Seite löschen", self.delete_page),
+            ("◫", "Leere Seiten prüfen", self.remove_blank_pages),
+            ("↑", "Vorherige Seite", lambda: self.change_page(-1)),
+            ("↓", "Nächste Seite", lambda: self.change_page(1)),
+            ("⇧", "Seite nach vorne verschieben", lambda: self.move_page(-1)),
+            ("⇩", "Seite nach hinten verschieben", lambda: self.move_page(1)),
+        )
+        self.review_tool_buttons = []
+        for symbol, description, action in tools:
+            button = tk.Button(
+                self.review_editing, text=symbol, command=action,
+                font=("DejaVu Sans", 19, "bold"), bg=PANEL, fg=FG,
+                activebackground=BLUE, activeforeground=FG,
+                relief="flat", bd=0, width=2, height=1, pady=10,
+                cursor="none", takefocus=True)
+            button.pack(fill="x", padx=3, pady=3)
+            button._itomiscan_action = description
+            self.review_tool_buttons.append(button)
         self.preview_area = tk.Frame(right, bg=PANEL)
         self.preview_area.pack(side="left", fill="both", expand=True)
-        self.preview = tk.Label(self.preview_area,
-                                text="Dokument einlegen\\nund „Scannen“ drücken",
-                                bg="#eef2f7", fg="#45566c",
-                                font=("DejaVu Sans", 16), justify="center")
+        self.preview = tk.Label(
+            self.preview_area, text="Dokument einlegen\\nund „Scannen“ drücken",
+            bg="#eef2f7", fg="#45566c", font=("DejaVu Sans", 16),
+            justify="center")
         self.preview.pack(fill="both", expand=True, padx=9, pady=(2, 5))
-        nav = tk.Frame(self.preview_area, bg=PANEL)
-        self.review_navigation = nav
-        nav.pack(pady=4)
-        self._btn(nav, "◀  Zurück", lambda: self.change_page(-1)).pack(side="left", padx=9)
-        self._btn(nav, "Weiter  ▶", lambda: self.change_page(1)).pack(side="left", padx=9)
-        edit = tk.Frame(self.preview_area, bg=PANEL)
-        self.review_editing = edit
-        edit.pack(fill="x", padx=14, pady=(0, 3))
-        actions = (
-            ("Erneut scannen", self.rescan_page),
-            ("Drehen", self.rotate_page),
-            ("Löschen", self.delete_page),
-            ("Leere Seiten prüfen", self.remove_blank_pages),
-            ("← Seite", lambda: self.move_page(-1)),
-            ("Seite →", lambda: self.move_page(1)),
-        )
-        for index, (label, callback) in enumerate(actions):
-            self._btn(edit, label, callback).grid(
-                row=index // 3, column=index % 3, sticky="ew", padx=3, pady=3)
-        for column in range(3):
-            edit.grid_columnconfigure(column, weight=1)
-        # Review actions live in the fixed footer, never below the preview.
+        # The only review actions outside the filmstrip live in the fixed footer.
         self.review_actions = tk.Frame(footer, bg=BASE)
         self.review_actions.pack(side="right")
-        self.append_button = self._btn(self.review_actions, "Weitere Seiten scannen", self.append_pages, BLUE)
-        self.review_button = self._btn(self.review_actions, "Fertig · Dokument übernehmen", self.finalize_scan, BLUE)
-        self.path_label = tk.Label(self.preview_area, text="Noch keine Datei", bg=PANEL, fg=MUTED,
-                                   font=("DejaVu Sans", 9), wraplength=590)
-        self.path_label.pack(pady=(3, 4))
-        self.review_navigation.pack_forget()
-        self.review_editing.pack_forget()
-
+        self.append_button = self._btn(
+            self.review_actions, "Weitere Seiten scannen", self.append_pages, BLUE)
+        self.review_button = self._btn(
+            self.review_actions, "Fertig · Dokument übernehmen", self.finalize_scan, BLUE)
+        self.path_label = tk.Label(
+            self.preview_area, text="Noch keine Datei", bg=PANEL, fg=MUTED,
+            font=("DejaVu Sans", 9), wraplength=590)
         self.profile_save_button = self._btn(
             left, "Profil speichern", self.save_profile, width=16)
         self.profile_save_button.pack(fill="x", padx=13, pady=(0, 8))
@@ -830,16 +854,16 @@ class ItomiScan:
             # Two document actions need the width of the footer. Keep status
             # in the document pane rather than letting buttons leave the screen.
             self.footer_status.pack_forget()
-            self.review_navigation.pack(pady=4)
-            self.review_editing.pack(fill="x", padx=14, pady=(0, 3))
+            self.thumbnail_strip.pack(side="left", fill="y", padx=(9, 0), pady=(4, 4), before=self.preview_area)
+            self.review_editing.pack(side="left", fill="y", padx=(4, 0), pady=4, before=self.preview_area)
             self.scan_options_panel.pack_forget()
             self.document_panel.pack_configure(side="left", fill="both", expand=True)
             self.scan_button.pack_forget()
         else:
             self.footer_status.pack_forget()
             self.footer_status.pack(side="right", padx=8)
-            self.review_navigation.pack_forget()
             self.review_editing.pack_forget()
+            self.thumbnail_strip.pack_forget()
             self.document_panel.pack_forget()
             self.scan_options_panel.pack_forget()
             self.scan_options_panel.pack(side="left", fill="y", padx=(0, 12))
@@ -1902,34 +1926,54 @@ class ItomiScan:
             self.status_var.set("Vorschaufehler: " + str(exc))
 
     def render_thumbnails(self):
-        """Only decode nearby thumbnails to keep memory use low."""
-        for widget in self.thumbnail_strip.winfo_children():
+        """Scroll the entire page index; decode a bounded neighbourhood only."""
+        for widget in self.thumbnail_content.winfo_children():
             widget.destroy()
         self.thumbnail_photos = []
         if not self.review_pending or not self.pages:
-            self.thumbnail_strip.pack_forget()
             return
-        self.thumbnail_strip.pack(side="left", fill="y", padx=(9, 0), pady=(10, 6), before=self.preview_area)
-        # Only three nearby pages are decoded: readable touch targets and no
-        # vertical overflow, even with two rows of editing actions visible.
-        count = 3
-        start = max(0, min(self.page_index - 1, len(self.pages) - count))
-        for index in range(start, min(len(self.pages), start + count)):
-            try:
-                with Image.open(self.pages[index]) as source:
-                    if source.format == "JPEG":
-                        source.draft("RGB", (80, 100))
-                    source.thumbnail((70, 90), Image.Resampling.BILINEAR)
-                    photo = ImageTk.PhotoImage(source.convert("RGB"))
-                self.thumbnail_photos.append(photo)
-                button = tk.Button(self.thumbnail_strip, image=photo,
-                                   text=str(index + 1), compound="top",
-                                   bg=BLUE if index == self.page_index else PANEL,
-                                   fg=FG, command=lambda i=index: self.select_page(i))
-            except (OSError, ValueError):
-                button = self._btn(self.thumbnail_strip, str(index + 1),
-                                   lambda i=index: self.select_page(i))
+        # All pages remain selectable; keep RAM bounded on the Atom N270.
+        visible_count = 9
+        nearby = set(range(
+            max(0, self.page_index - visible_count // 2),
+            min(len(self.pages), self.page_index + visible_count // 2 + 1)))
+        selected_widget = None
+        for index, filename in enumerate(self.pages):
+            if index in nearby:
+                try:
+                    with Image.open(filename) as source:
+                        if source.format == "JPEG":
+                            source.draft("RGB", (80, 100))
+                        source.thumbnail((70, 90), Image.Resampling.BILINEAR)
+                        photo = ImageTk.PhotoImage(source.convert("RGB"))
+                    self.thumbnail_photos.append(photo)
+                    button = tk.Button(
+                        self.thumbnail_content, image=photo,
+                        text=str(index + 1), compound="top",
+                        bg=BLUE if index == self.page_index else PANEL,
+                        fg=FG, command=lambda i=index: self.select_page(i),
+                        cursor="none", relief="flat", bd=0, height=110)
+                except (OSError, ValueError):
+                    button = self._btn(
+                        self.thumbnail_content, str(index + 1),
+                        lambda i=index: self.select_page(i))
+            else:
+                button = tk.Button(
+                    self.thumbnail_content, text="Seite " + str(index + 1),
+                    command=lambda i=index: self.select_page(i),
+                    bg=BLUE if index == self.page_index else PANEL,
+                    fg=FG, relief="flat", bd=0, cursor="none",
+                    height=5, font=("DejaVu Sans", 9))
             button.pack(side="top", fill="x", pady=3, padx=3)
+            if index == self.page_index:
+                selected_widget = button
+        self.thumbnail_canvas.update_idletasks()
+        if selected_widget:
+            full = max(1, self.thumbnail_content.winfo_height())
+            upper = selected_widget.winfo_y()
+            viewport = self.thumbnail_canvas.winfo_height()
+            target = max(0, upper - viewport // 2)
+            self.thumbnail_canvas.yview_moveto(target / full)
 
     def select_page(self, index):
         if not self.busy and 0 <= index < len(self.pages):
