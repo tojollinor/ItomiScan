@@ -138,15 +138,16 @@ LOADING_JS = """(() => {
     // for native form serialization (e.g. restart vs. shutdown).
     window.setTimeout(() => {
       form.querySelectorAll('button[type="submit"],button:not([type])')
-        .forEach(button => { button.disabled = true; });
+        .forEach(button => { if (!button.disabled) { button.disabled = true; button.dataset.itomiLoadingLocked = '1'; } });
     }, 0);
   }, false);
   window.addEventListener('pageshow', () => {
     pending = false;
     layer.hidden = true;
     layer.removeAttribute('aria-busy');
-    document.querySelectorAll('button:disabled').forEach(button => {
-      if (button.closest('form') && !button.dataset.remoteKey) button.disabled = false;
+    document.querySelectorAll('button[data-itomi-loading-locked]').forEach(button => {
+      button.disabled = false;
+      delete button.dataset.itomiLoadingLocked;
     });
   });
 })();"""
@@ -473,9 +474,9 @@ table{width:100%;border-collapse:collapse}td,th{padding:10px;text-align:left;bor
 [hidden]{display:none!important}
 .working-overlay{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(5,12,22,.7);z-index:1000;padding:18px}
 .working-panel{width:min(430px,95vw);background:var(--pane);border:1px solid var(--line);border-radius:14px;padding:24px;text-align:center;box-shadow:0 14px 40px #0007}
-.working-spinner{display:block;width:36px;height:36px;margin:0 auto 12px;border:4px solid #3c5c77;border-top-color:var(--accent);border-radius:50%;animation:itomi-spin 1s linear infinite;animation-delay:.18s}
-@keyframes itomi-spin{to{transform:rotate(360deg)}}
-@media(prefers-reduced-motion:reduce){.working-spinner{animation:none;border-top-color:var(--ok)}}
+.working-panel .brand-icon{display:block;margin:0 auto 13px;width:52px;height:52px}.working-panel .brand-icon rect:nth-of-type(2){animation:itomi-scan 1.3s ease-in-out infinite alternate}
+@keyframes itomi-scan{to{transform:translateY(35px)}}
+@media(prefers-reduced-motion:reduce){.working-panel .brand-icon rect:nth-of-type(2){animation:none}}
 button:disabled{opacity:.67;cursor:wait}
 .remote-keys{max-width:770px}.remote-keys button{margin-right:9px}
 """
@@ -507,7 +508,7 @@ def layout(title, body, *, active="", csrf="", notice="", error="", logged=True,
             + ('<script defer src="/assets/admin-dialogs.js"></script>' if logged else '')
             + ('<script defer src="/assets/loading.js"></script>' if logged else '')
             + ('<div id="itomiscan-working" class="working-overlay" role="status" aria-live="polite" hidden>'
-               '<div class="working-panel"><span class="working-spinner" aria-hidden="true"></span>'
+               '<div class="working-panel">' + logo_svg(52) +
                '<strong id="itomiscan-working-message">Bitte warten …</strong></div></div>' if logged else '')
             + '</body></html>')
 
