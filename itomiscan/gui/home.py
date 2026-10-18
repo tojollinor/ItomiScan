@@ -82,6 +82,7 @@ class HomeScreen:
         self.root = root
         self.run_tile = run_tile or (lambda tile: None)
         self.configured_tiles = []
+        self.tile_target_kinds = {}
         self.group_page = None
         self.profiles = profiles
         self.select_profile = select_profile
@@ -186,9 +187,10 @@ class HomeScreen:
         self.controls["logout"].pack(side="right", padx=4)
         self.controls["logout"].pack_forget()
 
-    def set_tiles(self, tiles):
+    def set_tiles(self, tiles, targets=None):
         """Web-defined tiles replace the default action cards when configured."""
         self.configured_tiles = list(tiles)
+        self.tile_target_kinds = {x['id']:x['kind'] for x in (targets or [])}
         if not hasattr(self, "tile_grid"):
             self.tile_grid = tk.Frame(self.frame, bg=BASE)
             self.tile_grid.pack(fill="both", expand=True, padx=30, pady=10,
@@ -239,9 +241,13 @@ class HomeScreen:
             grid.grid_columnconfigure(col, weight=1, uniform="tiles")
         visible_index = 0
         for tile in selected:
-            if self.allowed is not None and tile["action"] == "scan":
-                if not ({"scan", "copy", "paperless", "email", "usb", "network"}
-                        & self.allowed):
+            if self.allowed is not None and tile['action'] == 'scan':
+                required = {('copy' if self.tile_target_kinds.get(i) == 'printer'
+                             else self.tile_target_kinds.get(i))
+                            for i in tile['targets']}
+                if not required:
+                    required = {'scan'}
+                if None in required or not required <= self.allowed:
                     continue
             color = tile["color"]
             value = [int(color[n:n+2], 16)/255 for n in (1, 3, 5)]
