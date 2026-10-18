@@ -29,6 +29,7 @@ Stand: 2026-10-16. Status: BEAUFTRAGT, UMSETZUNG AUSSTEHEND. Nicht als veröffen
 | SCAN-2 | Geräte-/Optionscache mit Hintergrundvalidierung; kein Cache als Nachweis echter Geräteverfügbarkeit | Offen |
 | SCAN-3 | Früher Scanstart wartet mit Ladeanzeige, beginnt erst nach Scannerbereitschaft | Offen |
 | DOC-1 | Übersicht vor Versenden, Seiten drehen/löschen/sortieren, leere Seiten entfernen, erneut scannen und hinzufügen | Offen |
+| DOC-2 | Scanvorschau auf 1024×768 vollständig in der verfügbaren Inhaltshöhe nutzen: links durchgehende scrollbare Miniaturleiste, rechts maximal große Seitenvorschau, kompakte feste Aktionsleiste; Details in `docs/SCAN-PREVIEW-HEIGHT-DESIGN.md` | Geplant, nicht implementiert |
 | BOOT-1 | Einheitlicher Plymouth-/GUI-Splash mit Logo sowie Schriftzug „Itomi“ weiß / „Scan“ blau; sichtbare Übergänge soweit hardwarebedingt möglich reduzieren | Code teilweise vorhanden; Hardwareabnahme offen |
 | BOOT-2 | Optimierte 16-MB-Initramfs (`MODULES=dep`) mit gesonderter Opt-in-Aktivierung und Original als Rückfall erhalten | Einmaliger Boot-Test erfolgreich; dauerhafte Einrichtung offen |
 | BOOT-3 | Boot-Messungen, SANE-Optimierung und Nachweis 38,300 s bis GUI dokumentieren, erneute Messung nach Integration | Einmalige Messung vorhanden; Abschluss offen |
