@@ -30,6 +30,7 @@ class DeliveryStatusPage:
         self.focus_id=None
         self.refresh_id=None
         self.items=None
+        self._fingerprint=None
 
     def _button(self,parent,text,callback):
         return tk.Button(parent,text=text,command=callback,bg=PANEL,fg=FG,
@@ -41,6 +42,7 @@ class DeliveryStatusPage:
         self.hide()
         self.owner=owner
         self.focus_id=focus_batch
+        self._fingerprint=None
         self.frame=tk.Frame(self.root,bg=BG)
         self.frame.place(x=0,y=0,relwidth=1,relheight=1)
         self.frame.lift()
@@ -69,13 +71,21 @@ class DeliveryStatusPage:
     def _refresh(self):
         if self.frame is None or not self.frame.winfo_exists():
             return
-        for widget in self.items.winfo_children():
-            widget.destroy()
         groups=self.queue.recent_batches(35)
         groups=[g for g in groups if self.owner is None or
                 g["batch"]["owner_id"] == self.owner]
         if self.focus_id:
             groups.sort(key=lambda x:x["batch"]["id"]!=self.focus_id)
+        fingerprint=tuple(
+            (g["batch"]["id"],g["batch"]["read_at"],
+             tuple((j["id"],j["status"],j["last_error"]) for j in g["jobs"]))
+            for g in groups)
+        if fingerprint == self._fingerprint:
+            self.refresh_id=self.root.after(2500,self._refresh)
+            return
+        self._fingerprint=fingerprint
+        for widget in self.items.winfo_children():
+            widget.destroy()
         if not groups:
             tk.Label(self.items,text="Noch keine Meldungen",bg=BG,fg=MUTED,
                      font=("DejaVu Sans",16)).pack(pady=30)
