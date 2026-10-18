@@ -1,6 +1,6 @@
 # DOC-2: Scanvorschau über volle Inhaltshöhe (überarbeiteter Entwurf)
 
-Status: 2026-10-18. **Geplant; noch nicht implementiert oder am N1800 getestet.** Bezug: Screenshot vom 18.10.2026; Änderungsregister `docs/BETA-NEXT-CHANGEPLAN.md`.
+Status: 2026-10-18. **In Tkinter implementiert, automatisierte GUI-Tests ergänzt; Hardwareabnahme am N1800 ausstehend.** Bezug: Screenshot vom 18.10.2026; Änderungsregister `docs/BETA-NEXT-CHANGEPLAN.md`.
 
 ## Ziel
 
@@ -56,4 +56,4 @@ Auf dem 1024×768-Touchdisplay muss die Dokumentenvorschau die maximal nutzbare 
 
 ## Umsetzung
 
-Vor der Implementierung die vorhandene Tkinter-Widgethierarchie und tatsächlichen Innenmaße messen. Dieser Entwurf ist der verbindliche geplante DOC-2-Layoutstand, **kein bereits realisierter GUI-Code**.
+Vor der Implementierung die vorhandene Tkinter-Widgethierarchie und tatsächlichen Innenmaße messen. Der Umbau auf scrollbare Miniaturen, vertikale Symbolleiste und vergrößerten Previewbereich ist auf `develop/1.0.0` umgesetzt; reale Touch-/Layoutabnahme am N1800 steht aus.
