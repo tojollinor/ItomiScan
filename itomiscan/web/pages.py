@@ -141,9 +141,7 @@ REMOTE_JS = """(() => {
       const button = event.target.closest('button[name="action"]');
       if (!button) return;
       const action = button.value === 'restart' ? 'neu starten' : 'herunterfahren';
-      if (!window.confirm('ItomiScan wirklich ' + action + '?')) {
-        event.preventDefault();
-      }
+      if (!window.confirm('ItomiScan wirklich ' + action + '?')) event.preventDefault();
     });
   });
   async function refreshStatus() {
@@ -151,7 +149,7 @@ REMOTE_JS = """(() => {
     try {
       const response = await fetch('/api/remote-status',
           {cache:'no-store', credentials:'same-origin'});
-      if (!response.ok) return;
+      if (!response.ok || response.redirected) return;
       const item = await response.json();
       status.textContent = item ? 'Letzter Auftrag #' + item.id + ': ' +
           item.action + ' · ' + item.status + ' · ' + item.detail :
@@ -166,21 +164,82 @@ REMOTE_JS = """(() => {
     return;
   }
   const feedback = document.getElementById('remote-live-status');
+  const placeholder = document.getElementById('remote-live-placeholder');
+  const heading = document.getElementById('remote-live-heading');
+  const detail = document.getElementById('remote-live-detail');
+  const retry = document.getElementById('remote-reconnect');
+  const login = document.getElementById('remote-login-link');
   const csrf = document.querySelector('form[action="/remote/live/stop"] input[name="csrf"]').value;
+  const send = document.getElementById('remote-send-text');
+  const input = document.getElementById('remote-text');
+  const keyButtons = document.querySelectorAll('[data-remote-key]');
+  let mode = 'loading';
   let halted = false;
+  let fetching = false;
+  let badFrames = 0;
+  let lastImage = null;
+  function setMode(next, title='', message='') {
+    mode = next;
+    const ready = next === 'active';
+    frame.hidden = !ready;
+    placeholder.hidden = ready;
+    retry.hidden = next === 'loading' || ready || next === 'login';
+    login.hidden = next !== 'login';
+    input.disabled = !ready;
+    send.disabled = !ready;
+    keyButtons.forEach(button => { button.disabled = !ready; });
+    if (!ready) {
+      heading.textContent = title;
+      detail.textContent = message;
+      feedback.textContent = message;
+    } else {
+      feedback.textContent = 'Livebild aktiv · Berühren oder klicken zum Bedienen';
+    }
+  }
+  function authLost(response) {
+    return response.redirected || response.status === 401 ||
+        (response.url && new URL(response.url, location.href).pathname === '/login');
+  }
+  function lostLogin() {
+    setMode('login', 'Webanmeldung abgelaufen',
+      'Bitte erneut anmelden. Die Fernsteuerung wird erst danach wieder freigegeben.');
+  }
+  function disconnected(message) {
+    setMode('stopped', 'Fernsteuerung unterbrochen', message);
+  }
   async function post(path, values={}) {
     const body = new URLSearchParams({csrf, ...values});
     const response = await fetch(path, {method:'POST', credentials:'same-origin',
       cache:'no-store', headers:{'Content-Type':'application/x-www-form-urlencoded'},
       body});
-    if (!response.ok) throw new Error('Sitzung abgelaufen oder Eingabe abgelehnt');
+    if (authLost(response)) {
+      lostLogin();
+      throw new Error('Webanmeldung abgelaufen');
+    }
+    if (!response.ok) {
+      if (response.status === 409) throw new Error('Der Scanner wird bereits in einem anderen Browser gesteuert.');
+      if (response.status === 403) throw new Error('Fernsteuerungssitzung abgelaufen oder Eingabe abgelehnt.');
+      throw new Error('Scanner momentan nicht erreichbar. Bitte erneut versuchen.');
+    }
+    return response;
   }
-  frame.addEventListener('load', () => { feedback.textContent =
-      'Livebild aktiv · Berühren oder klicken zum Bedienen'; });
-  frame.addEventListener('error', () => { feedback.textContent =
-      'Warte auf Scannerbildschirm und X11-Bildschirmaufnahme …'; });
+  async function reconnect() {
+    if (halted || mode === 'restoring') return;
+    setMode('loading', 'Verbindung wird hergestellt …', 'Fernsteuerung wird neu aktiviert.');
+    retry.disabled = true;
+    try {
+      await post('/remote/live/reconnect');
+      badFrames = 0;
+      // Remain in loading state until a real JPEG arrives.
+      feedback.textContent = 'Livebild wird geladen …';
+      await refreshFrame();
+    } catch (error) {
+      if (mode !== 'login') disconnected(error.message);
+    } finally { retry.disabled = false; }
+  }
+  retry.addEventListener('click', reconnect);
   frame.addEventListener('click', async event => {
-    if (halted) return;
+    if (halted || mode !== 'active') return;
     const box = frame.getBoundingClientRect();
     if (!box.width || !box.height) return;
     const x = Math.max(0, Math.min(1000,
@@ -188,17 +247,17 @@ REMOTE_JS = """(() => {
     const y = Math.max(0, Math.min(1000,
         Math.round((event.clientY - box.top) / box.height * 1000)));
     try { await post('/remote/live/input', {kind:'click', x:String(x), y:String(y)}); }
-    catch (err) { feedback.textContent = err.message; }
+    catch (err) { if (mode !== 'login') disconnected(err.message); }
   });
-  document.querySelectorAll('[data-remote-key]').forEach(button => {
+  keyButtons.forEach(button => {
     button.addEventListener('click', async () => {
+      if (mode !== 'active') return;
       try { await post('/remote/live/input', {kind:'key', key_name:button.dataset.remoteKey}); }
-      catch (err) { feedback.textContent = err.message; }
+      catch (err) { if (mode !== 'login') disconnected(err.message); }
     });
   });
-  const send = document.getElementById('remote-send-text');
-  const input = document.getElementById('remote-text');
   send.addEventListener('click', async () => {
+    if (mode !== 'active') return;
     const value = input.value;
     if (!/^[A-Za-z0-9 .@-]*$/.test(value)) {
       feedback.textContent = 'Nur Buchstaben, Zahlen, Leerzeichen, Punkt, @ und - unterstützt.';
@@ -212,26 +271,54 @@ REMOTE_JS = """(() => {
         await new Promise(resolve => setTimeout(resolve, 230));
       }
       input.value = '';
-    } catch (err) { feedback.textContent = err.message; }
-    finally { send.disabled = false; }
+    } catch (err) {
+      if (mode !== 'login') disconnected(err.message);
+    } finally { send.disabled = mode !== 'active'; }
   });
-  function refreshFrame() {
-    if (halted || document.hidden) return;
-    frame.src = '/api/remote-frame?frame=' + Date.now();
+  async function refreshFrame() {
+    if (halted || fetching || document.hidden || mode === 'stopped' || mode === 'login') return;
+    fetching = true;
+    try {
+      const response = await fetch('/api/remote-frame?frame=' + Date.now(),
+        {cache:'no-store', credentials:'same-origin'});
+      if (authLost(response)) { lostLogin(); return; }
+      if (response.status === 403) {
+        disconnected('Die Live-Sitzung ist abgelaufen. Mit Wiederherstellen erneut verbinden.');
+        return;
+      }
+      if (!response.ok || !(response.headers.get('Content-Type') || '').includes('image/jpeg')) {
+        if (++badFrames >= 4) disconnected('Kein aktuelles Scannerbild verfügbar. Verbindung erneut versuchen.');
+        return;
+      }
+      const blob = await response.blob();
+      if (!blob.size || blob.size > 512 * 1024) throw new Error('Ungültiges Bildschirmbild');
+      const url = URL.createObjectURL(blob);
+      frame.onload = () => {
+        if (lastImage) URL.revokeObjectURL(lastImage);
+        lastImage = url;
+        badFrames = 0;
+        if (mode !== 'login' && mode !== 'stopped') setMode('active');
+      };
+      frame.onerror = () => {
+        URL.revokeObjectURL(url);
+        if (++badFrames >= 4) disconnected('Scannerbild kann nicht dargestellt werden.');
+      };
+      frame.src = url;
+    } catch (_error) {
+      if (++badFrames >= 4) disconnected('Verbindung zum Scanner unterbrochen. Bitte erneut versuchen.');
+    } finally { fetching = false; }
   }
   refreshFrame();
   const frameTimer = window.setInterval(refreshFrame, 1700);
   const keepAlive = window.setInterval(async () => {
-    if (halted || document.hidden) return;
+    if (halted || document.hidden || mode !== 'active') return;
     try { await post('/remote/live/ping'); }
-    catch (_error) {
-      halted = true;
-      feedback.textContent = 'Fernsteuerung beendet. Bitte Seite neu laden.';
-    }
+    catch (error) { if (mode !== 'login') disconnected(error.message); }
   }, 8000);
   window.addEventListener('pagehide', () => {
     halted = true;
     clearInterval(statusTimer); clearInterval(frameTimer); clearInterval(keepAlive);
+    if (lastImage) URL.revokeObjectURL(lastImage);
   }, {once:true});
 })();"""
 
@@ -327,6 +414,10 @@ table{width:100%;border-collapse:collapse}td,th{padding:10px;text-align:left;bor
 .memory-fill{height:100%;width:0;background:#42bfea;transition:width .5s linear}
 .remote-screen{max-width:768px;background:#101d2e;border:1px solid var(--line);border-radius:10px;overflow:hidden;margin:12px 0}
 .remote-screen img{width:100%;aspect-ratio:4/3;display:block;object-fit:contain;cursor:crosshair}
+.remote-placeholder{aspect-ratio:4/3;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:24px;text-align:center}
+.remote-placeholder p{margin:0;max-width:450px}
+.remote-placeholder button{margin:0}
+[hidden]{display:none!important}
 .remote-keys{max-width:770px}.remote-keys button{margin-right:9px}
 """
 
