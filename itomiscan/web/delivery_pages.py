@@ -14,16 +14,18 @@ LABELS = {"paperless": "Paperless", "network": "SMB-Netzwerkordner",
 
 
 def targets_page(targets, csrf, configured, notice="", *, discovered=None, searched=False):
-    body = ('<h1>Dokumentenziele</h1><p>Paperless, SMB-Netzwerkordner, '
+    body = ('<h1>Zielverbindungen</h1><p>Paperless, SMB-Netzwerkordner, '
             'E-Mail und USB sind als Zustellziele vorbereitet. '
             'Für den tatsächlichen Versand muss der separate '
             'ItomiScan-Zustelldienst gestartet sein. '
             'Drucker werden im separaten Menü eingerichtet.</p>'
-            '<section class="entry-list">')
+            '<h2>Gespeicherte Ziele</h2><section class="entry-list">')
+    if not targets:
+        body += '<p class="muted">Noch keine Ziele eingerichtet.</p>'
     for index, entry in enumerate(targets):
         kind, tid = entry["kind"], entry["id"]
-        description = ("Nicht eingerichtet" if not configured.get(tid)
-                       else "Zugangsdaten gespeichert (werden nicht angezeigt)")
+        description = ("Zugangsdaten fehlen" if not configured.get(tid)
+                       else "Zugangsdaten gespeichert")
         detail = ('<article class="card"><h2>' + e(entry["name"]) + '</h2>'
                  '<p>' + e(LABELS.get(kind, kind)) + '<br>' +
                  e(entry["address"]) + '</p>')
@@ -50,7 +52,7 @@ def targets_page(targets, csrf, configured, notice="", *, discovered=None, searc
                      '<button class="danger">Zugangsdaten entfernen</button></form>')
         if kind == "paperless":
             detail += (
-                '<section class="card"><h3>Paperless-Anmeldung</h3>'
+                '<section class="card"><h3>Paperless verbinden</h3>'
                 '<p>Einmal mit Paperless-Benutzername und Passwort anmelden. '
                 'ItomiScan tauscht die Zugangsdaten über HTTPS gegen einen API-Token '
                 'aus und speichert nur diesen Token.</p>'
@@ -62,12 +64,12 @@ def targets_page(targets, csrf, configured, notice="", *, discovered=None, searc
                 '<input type="password" name="password" autocomplete="new-password" '
                 'required maxlength="400">'
                 '<button>Mit Paperless anmelden</button></form>'
-                '<details><summary>Hilfe zur Token-Einrichtung</summary>'
+                '<details><summary>Token-Hilfe und HTTP 403</summary>'
                 '<p>In Paperless unter „Mein Profil“ einen API-Token erstellen '
                 'oder erneuern. Nur den Tokenwert ohne vorangestelltes „Token “ '
                 'eingeben. Der Benutzer benötigt für Uploads die Berechtigung '
                 '„Dokumente hinzufügen“. Als Zieladresse die HTTPS-Basisadresse '
-                'ohne /api/documents/post_document/ verwenden.</p></details>'
+                'ohne /api/documents/post_document/ verwenden. Bei HTTP 403 die Dokumentberechtigung, Proxy-Zugriffsregeln und gegebenenfalls die Paperless-Trusted-Proxy-Einstellungen prüfen. Ein Lesetest beweist keine Uploadberechtigung.</p></details>'
                 '<form method="post" action="/targets/paperless/test">' + token(csrf)
                 + '<input type="hidden" name="target_id" value="' + e(tid) + '">'
                 '<button class="secondary">Erweiterte Diagnose / Verbindung testen</button>'
@@ -78,13 +80,13 @@ def targets_page(targets, csrf, configured, notice="", *, discovered=None, searc
         body += detail_dialog(f'target-{index}', entry["name"],
                               LABELS.get(kind, kind) + ' · ' + entry["address"], detail)
     body += ('</section><section class="card" style="margin-top:16px">'
-             '<h2>Ziel hinzufügen</h2><p>Bitte Zieltyp auswählen und passende Felder ausfüllen. '
+             '<h2>Neue Verbindung hinzufügen</h2><p>Bitte Zieltyp auswählen und passende Felder ausfüllen. '
              'Das Ziel wird zunächst ohne Zugangsdaten gespeichert.</p>'
              '<form method="post" action="/targets/save" id="new-target-form">'
              + token(csrf)
              + '<label for="target-kind">Art des Ziels</label>'
              '<select id="target-kind" name="kind">'
-             + options(("paperless", "network", "email", "usb", "printer"), "paperless")
+             + options(("paperless", "network", "email", "usb"), "paperless")
              + '</select>'
              '<label for="target-name">Anzeigename</label>'
              '<input id="target-name" name="name" maxlength="60" required>'
@@ -154,12 +156,12 @@ def targets_page(targets, csrf, configured, notice="", *, discovered=None, searc
         body += '<datalist id="paperless-candidates">' + "".join(
             '<option value="' + e(uri) + '"></option>' for uri in discovered
         ) + '</datalist>'
-    body += '<section class="card" style="margin-top:16px"><h2>Adressbeispiele</h2>'
+    body += '<details class="card" style="margin-top:16px"><summary>Technische Adressbeispiele</summary>'
     for kind, example in HELP.items():
         body += '<p><strong>' + e(LABELS[kind]) + ':</strong> ' + e(example) + '</p>'
     body += ('<p>API-Tokens nur mit gültigem HTTPS-Zertifikat übertragen. '
              'Netzwerkverbindungen können beim Test scheitern; die PDF verbleibt '
-             'dann in der lokalen Auftragswarteschlange.</p></section>')
+             'dann in der lokalen Auftragswarteschlange.</p></details>')
     body += '<script defer src="/assets/target-select.js"></script>'
     return layout("Dokumentenziele", body, active="/targets", csrf=csrf, notice=notice)
 
