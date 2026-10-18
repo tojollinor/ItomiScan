@@ -848,6 +848,7 @@ class ItomiScan:
         if len(linked) > 1:
             self.pending_batch = {
                 "ids": [x["id"] for x in linked],
+                "addresses": {x["id"]:x["address"] for x in linked},
                 "label": tile["label"],
                 "background": bool(tile.get("background")),
                 "owner_id": self.current_user["id"] if self.current_user else None}
@@ -1266,7 +1267,8 @@ class ItomiScan:
                 raise RuntimeError("Abgeschlossenes PDF fehlt.")
             batch_id = self.delivery_queue.enqueue_batch(
                 output, info["ids"], label=info["label"],
-                background=info["background"], owner_id=info["owner_id"])
+                background=info["background"], owner_id=info["owner_id"],
+                expected_targets=info["addresses"])
             self.dispatch(lambda:self._batch_enqueued(batch_id, info["background"]))
         except (OSError, ValueError, RuntimeError) as exc:
             message = str(exc)
