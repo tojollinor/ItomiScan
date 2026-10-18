@@ -51,11 +51,18 @@ class TouchFeedback:
         self.x11 = None
         self.fixes = None
         root.configure(cursor="none")
+        # Release happens after the widget command: avoid leaving hover focus
+        # over the last tapped button. Never synthesize an extra click.
+        root.bind_all("<ButtonRelease-1>", self._park_after_release, add="+")
         try:
             self._hide_x11_cursor()
         except (OSError, ValueError, AttributeError, tk.TclError):
             self.close()
         root.bind("<Destroy>", self._on_destroy, add="+")
+
+    def _park_after_release(self, event):
+        if event.widget.winfo_toplevel() is self.root:
+            self.root.after_idle(park_pointer)
 
     def _hide_x11_cursor(self):
         self.x11 = ctypes.CDLL(ctypes.util.find_library("X11") or "libX11.so.6")
