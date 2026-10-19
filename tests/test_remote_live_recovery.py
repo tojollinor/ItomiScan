@@ -24,6 +24,9 @@ class RecoveryTests(unittest.TestCase):
         self.addCleanup(self.thread.join, 3)
         self.addCleanup(self.server.server_close)
         self.addCleanup(self.server.shutdown)
+        self.server.vnc.start = lambda owner: "test-vnc-password"
+        self.server.vnc.password = lambda owner: (
+            "test-vnc-password" if self.server.remote_live.authorized(owner) else None)
         self.cookie = ""
         self.csrf = ""
 
@@ -83,11 +86,11 @@ class RecoveryTests(unittest.TestCase):
 
     def test_recovery_script_includes_states(self):
         self.login()
-        status, _, script = self.request("GET", "/assets/remote.js")
+        status, _, script = self.request("GET", "/assets/vnc.js")
         self.assertEqual(status, 200)
-        for snippet in ("'/remote/live/reconnect'", "'/api/remote-frame?frame='",
-                        "Webanmeldung abgelaufen", "Wiederherstellen",
-                        "response.redirected", "URL.revokeObjectURL"):
+        for snippet in ("'/remote/live/reconnect'", "'/remote/vnc/ws'",
+                        "Wiederherstellen", "response.redirected",
+                        "rfb.disconnect()", "keepAlive"):
             self.assertIn(snippet, script)
 
 

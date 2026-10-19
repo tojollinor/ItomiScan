@@ -556,6 +556,9 @@ class WebAdminTests(unittest.TestCase):
                             for x in self.server.store.list_targets()))
 
     def test_live_desktop_requires_login_csrf_and_exclusive_browser(self):
+        self.server.vnc.start = lambda owner: "test-vnc-password"
+        self.server.vnc.password = lambda owner: (
+            "test-vnc-password" if self.server.remote_live.authorized(owner) else None)
         self.assertEqual(self.req("GET", "/api/remote-frame")[0], 303)
         self.assertEqual(self.req("POST", "/remote/live/start", {"csrf": "bad"})[0], 303)
         self.login()
@@ -567,7 +570,7 @@ class WebAdminTests(unittest.TestCase):
         self.assertEqual(self.req("POST", "/remote/live/start",
                           {"csrf": self.csrf})[0], 303)
         self.assertEqual(self.req("GET", "/remote")[0], 200)
-        self.assertIn("remote-live-frame", self.req("GET", "/remote")[2])
+        self.assertIn("remote-vnc-screen", self.req("GET", "/remote")[2])
         # Image response is refused until the physical kiosk has written a fresh frame.
         self.assertEqual(self.req("GET", "/api/remote-frame")[0], 503)
         self.assertEqual(self.req("POST", "/remote/live/input",
@@ -599,10 +602,10 @@ class WebAdminTests(unittest.TestCase):
         self.assertEqual(self.req("POST", "/remote/profile",
                          {"csrf": self.csrf, "name": "Dokument"})[0], 303)
         self.assertIn("csrf", html)
-        self.assertIn("/assets/remote.js", html)
-        code, _, script = self.req("GET", "/assets/remote.js")
+        self.assertIn("/assets/vnc.js", html)
+        code, _, script = self.req("GET", "/assets/vnc.js")
         self.assertEqual(code, 200)
-        self.assertIn("confirm(", script)
+        self.assertIn("/remote/vnc/ws", script)
         self.assertEqual(self.req("POST", "/remote/command",
                          {"csrf": "wrong", "action": "scan"})[0], 403)
         self.assertEqual(self.req("POST", "/remote/command",

@@ -95,14 +95,9 @@ class VNCBridge:
                 self._process = subprocess.Popen(
                     command, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL, close_fds=True)
-                deadline = time.monotonic() + 4
-                while time.monotonic() < deadline:
-                    if self._process.poll() is not None:
-                        raise VNCUnavailable("x11vnc konnte den Kiosk-Bildschirm nicht öffnen.")
-                    # Do not connect to the RFB port here: -once counts connections.
-                    time.sleep(0.1)
-                    if time.monotonic() + 0.1 >= deadline:
-                        break
+                time.sleep(0.2)
+                if self._process.poll() is not None:
+                    raise VNCUnavailable("x11vnc konnte den Kiosk-Bildschirm nicht öffnen.")
                 self._owner, self._password, self._port = owner, password, port
                 return password
             except Exception:
@@ -178,14 +173,14 @@ def serve_websocket(handler, bridge, owner):
         return handler._error(403, "Ungültiger WebSocket-Ursprung.")
     if handler.headers.get("Upgrade", "").lower() != "websocket":
         return handler._error(400, "WebSocket-Upgrade erforderlich.")
-    if "upgrade" not in handler.headers.get("Connection", "").lower().split(","):
+    if "upgrade" not in [part.strip().lower() for part in handler.headers.get("Connection", "").split(",")]:
         return handler._error(400, "WebSocket-Verbindung erforderlich.")
     key = handler.headers.get("Sec-WebSocket-Key", "")
     try:
         raw = base64.b64decode(key, validate=True)
         if len(raw) != 16:
             raise ValueError()
-    except (ValueError, Exception):
+    except Exception:
         return handler._error(400, "Ungültiger WebSocket-Schlüssel.")
     if handler.headers.get("Sec-WebSocket-Version") != "13":
         return handler._error(400, "WebSocket-Version nicht unterstützt.")

@@ -507,18 +507,22 @@ class AdminHandler(BaseHTTPRequestHandler):
                 return self._redirect("/login", cookie=self._cookie("", expired=True))
             if path == "/remote/live/start":
                 viewer = viewer_id(self._session_token())
-                self.server.vnc.start(viewer)
+                self.server.remote_live.start(viewer)
                 try:
-                    self.server.remote_live.start(viewer)
+                    self.server.vnc.start(viewer)
                 except Exception:
-                    self.server.vnc.stop(viewer)
+                    self.server.remote_live.stop(viewer)
                     raise
                 return self._redirect("/remote?ok=Liveansicht%20gestartet")
             if path == "/remote/live/reconnect":
                 viewer = viewer_id(self._session_token())
                 try:
-                    self.server.vnc.start(viewer)
                     self.server.remote_live.start(viewer)
+                    try:
+                        self.server.vnc.start(viewer)
+                    except Exception:
+                        self.server.remote_live.stop(viewer)
+                        raise
                 except ValueError as exc:
                     return self._response(
                         409, json.dumps({"active": False, "error": str(exc)},

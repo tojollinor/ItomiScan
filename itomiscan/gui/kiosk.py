@@ -90,15 +90,8 @@ class KioskStartup:
         self.splash.destroy()
         self.root.update_idletasks()
         _boot_marker("oberflaeche_bereit")
-        # The live capture engine sleeps unless a browser explicitly opens
-        # a short-lived authenticated remote viewing lease.
-        try:
-            from itomiscan.storage.remote_live import RemoteLive
-            from itomiscan.gui.remote_desktop import RemoteDesktop
-            self.remote_desktop = RemoteDesktop(
-                self.root, RemoteLive(self.app.profile_store.path))
-        except (OSError, ValueError) as exc:
-            LOG.warning("Browser-Liveansicht nicht verfügbar: %s", exc)
+        # x11vnc handles the existing X11 display on demand.
+        # Do not run the legacy JPEG capture loop in parallel.
         self.root.after(100, self.poll)
         self.root.after(150, self.retry)
 
