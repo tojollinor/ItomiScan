@@ -80,12 +80,17 @@ class BetaUpdateDialog:
         self.dialog.title("Updates")
         self.dialog.configure(bg=BASE)
         self.dialog.transient(app.root)
-        app._center_dialog(self.dialog, 620, 480)
+        app._center_dialog(self.dialog, 620, 600)
         self.dialog.grab_set()
         self.working = False
         self.candidate = None
-        tk.Label(self.dialog, text="ItomiScan Updates", bg=BASE, fg=FG,
-                 font=("DejaVu Sans", 22, "bold")).pack(pady=(17, 7))
+        header = tk.Frame(self.dialog, bg=BASE)
+        header.pack(fill="x", padx=22, pady=(12, 5))
+        tk.Label(header, text="ItomiScan Updates", bg=BASE, fg=FG,
+                 font=("DejaVu Sans", 22, "bold")).pack(side="left")
+        self.header_close_button = app._btn(
+            header, "Schließen", self.close)
+        self.header_close_button.pack(side="right")
         sha, tag = installed_version(self.project)
         tk.Label(self.dialog,
                  text="Installiert: " + (tag or sha[:10] or "unbekannt"),
@@ -124,10 +129,9 @@ class BetaUpdateDialog:
         self.dialog.protocol("WM_DELETE_WINDOW", self.close)
 
     def close(self):
-        if self.working:
-            self.notice.set("Bitte die laufende Installation abschließen lassen.")
-        else:
-            self.dialog.destroy()
+        # Closing the view never cancels the privileged updater. The worker
+        # continues, keeps the kiosk busy, and reports status on completion.
+        self.dialog.destroy()
 
     def change_channel(self):
         self.candidate = None
@@ -138,10 +142,10 @@ class BetaUpdateDialog:
 
     def publish(self, message, percent=None):
         def update():
+            self.app.status_var.set(str(message)[:180])
             if not self.dialog.winfo_exists():
                 return
             self.notice.set(str(message)[:340])
-            self.app.status_var.set(str(message)[:180])
             if percent is not None:
                 self.percentage.set(max(0, min(100, int(percent))))
         self.app.dispatch(update)
@@ -227,7 +231,7 @@ class BetaUpdateDialog:
         self.percentage.set(0)
         self.notice.set("Update wird vorbereitet …")
         for button in (self.check_button, self.install_button,
-                       self.rollback_button, self.restart_button, self.close_button):
+                       self.rollback_button, self.restart_button):
             button.configure(state=tk.DISABLED)
         self.channel.configure(state=tk.DISABLED)
 
@@ -263,6 +267,9 @@ class BetaUpdateDialog:
                 self.working = False
                 self.app.busy = False
                 if not self.dialog.winfo_exists():
+                    self.app.status_var.set(last[:180] if last else
+                                            "Update abgeschlossen." if success else
+                                            "Update fehlgeschlagen.")
                     return
                 self.channel.configure(state=tk.NORMAL)
                 self.check_button.configure(state=tk.NORMAL)
