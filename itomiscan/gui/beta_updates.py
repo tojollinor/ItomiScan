@@ -47,6 +47,23 @@ def latest_published_beta(opener=urlopen):
     return tag, sha
 
 
+def is_forward_beta_update(local_sha, local_tag, remote_tag, remote_sha,
+                           *, reader=api_json):
+    """Offer one-click updates only for newer, provable published releases."""
+    if local_sha == remote_sha:
+        return False
+    if TAG.fullmatch(local_tag):
+        return beta_number(local_tag) < beta_number(remote_tag)
+    if not SHA.fullmatch(local_sha):
+        raise ValueError("Installierter Stand unbekannt. "
+                         "Eine freigegebene Beta muss zuerst per SSH eingerichtet werden.")
+    relation = reader("compare/" + local_sha + "..." + remote_sha)
+    if relation.get("status") != "ahead":
+        raise ValueError("Neueste Beta ist gegenüber dem installierten "
+                         "Entwicklungsstand kein nachgewiesenes Vorwärtsupdate.")
+    return True
+
+
 def installed_version(project):
     project = Path(project)
     commit = project / ".itomiscan-beta-commit"
@@ -145,9 +162,8 @@ class BetaUpdateDialog:
                 if beta:
                     tag, sha = latest_published_beta()
                     local_sha, local_tag = installed_version(self.project)
-                    newer = (local_sha != sha and not (
-                        TAG.fullmatch(local_tag) and
-                        beta_number(local_tag) >= beta_number(tag)))
+                    newer = is_forward_beta_update(
+                        local_sha, local_tag, tag, sha)
                     if not newer:
                         message = "Beta ist aktuell (" + tag + ")."
                     elif not Path(HELPER).is_file():

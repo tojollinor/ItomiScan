@@ -300,6 +300,32 @@ def write_backup_reference(path, tag, sha):
     os.replace(temp, STATE / "last.json")
 
 
+def ensure_forward_upgrade(local_sha, local_tag, target_sha, target_tag):
+    """Reject downgrades, especially from a manually installed dev commit."""
+    if local_sha == target_sha:
+        raise UpdateError("Die neueste Beta ist bereits installiert.")
+    current = TAG_RE.fullmatch(local_tag)
+    target = TAG_RE.fullmatch(target_tag)
+    if target is None:
+        raise UpdateError("Update-Ziel ist keine freigegebene Beta.")
+    if current is not None:
+        current_number = tuple(int(x) for x in current.groups())
+        target_number = tuple(int(x) for x in target.groups())
+        if current_number >= target_number:
+            raise UpdateError("Kein neueres veröffentlichtes Beta-Release verfügbar.")
+        return
+    # Old versions or manual developer builds can have a commit marker but no
+    # release tag. GitHub must prove the target is a descendant of the
+    # installed commit before we permit a one-click version switch.
+    if not SHA_RE.fullmatch(local_sha):
+        raise UpdateError("Installierter Stand nicht nachvollziehbar. "
+                          "Erstinstallation einer freigegebenen Beta per SSH nötig.")
+    relation = fetch_json("compare/" + local_sha + "..." + target_sha)
+    if relation.get("status") != "ahead":
+        raise UpdateError("Ziel-Beta ist kein nachgewiesenes Vorwärtsupdate "
+                          "gegenüber der vorhandenen Installation.")
+
+
 def install():
     settings = read_settings()
     user, uid, gid, home, project = preflight(settings)
@@ -311,11 +337,7 @@ def install():
     local_sha = local_marker.read_text(encoding="ascii").strip() if local_marker.exists() else ""
     local_tag_file = project / ".itomiscan-beta-tag"
     local_tag = local_tag_file.read_text(encoding="ascii").strip() if local_tag_file.exists() else ""
-    if local_sha == sha:
-        raise UpdateError("Die neueste Beta ist bereits installiert.")
-    if TAG_RE.fullmatch(local_tag) and (tuple(map(int, TAG_RE.fullmatch(local_tag).groups()))
-                                         >= tuple(map(int, TAG_RE.fullmatch(tag).groups()))):
-        raise UpdateError("Kein neueres veröffentlichtes Beta-Release verfügbar.")
+    ensure_forward_upgrade(local_sha, local_tag, sha, tag)
     progress(15, "Freigegebene Version " + tag + " gefunden.")
     tree = expected_tree(tree_sha)
     progress(28, "GitHub-Commit und Dateiliste geprüft.")

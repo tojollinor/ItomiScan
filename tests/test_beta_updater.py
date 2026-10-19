@@ -28,6 +28,25 @@ def tarball(entries):
 
 
 class BetaUpdaterTests(unittest.TestCase):
+    def test_untagged_development_build_may_not_downgrade(self):
+        from unittest.mock import patch
+        local = "a" * 40
+        remote = "b" * 40
+        tag = "v1.0.0-beta.4"
+        with patch.object(helper, "fetch_json", return_value={"status": "behind"}) as fetch:
+            with self.assertRaises(helper.UpdateError):
+                helper.ensure_forward_upgrade(local, "", remote, tag)
+            fetch.assert_called_once_with("compare/" + local + "..." + remote)
+        with patch.object(helper, "fetch_json", return_value={"status": "ahead"}):
+            helper.ensure_forward_upgrade(local, "", remote, tag)
+        with self.assertRaises(helper.UpdateError):
+            helper.ensure_forward_upgrade("", "", remote, tag)
+        with self.assertRaises(helper.UpdateError):
+            helper.ensure_forward_upgrade(remote, tag, remote, tag)
+        with self.assertRaises(helper.UpdateError):
+            helper.ensure_forward_upgrade(local, "v1.0.0-beta.5",
+                                          remote, "v1.0.0-beta.4")
+
     def test_beta_selection_rejects_drafts_stable_and_unpublished(self):
         entries = [
             {"tag_name": "v1.0.0-beta.3", "prerelease": True, "draft": False},
@@ -162,6 +181,8 @@ class BetaUpdaterTests(unittest.TestCase):
             project = home / "ItomiScan"
             project.mkdir()
             (project / "app.py").write_text("old-version\n")
+            (project / ".itomiscan-beta-commit").write_text("c" * 40)
+            (project / ".itomiscan-beta-tag").write_text("v1.0.0-beta.3")
             stage_files = {
                 "app.py": b"print('new')\n",
                 "start-kiosk.sh": b"#!/bin/sh\nexit 0\n",
@@ -206,6 +227,8 @@ class BetaUpdaterTests(unittest.TestCase):
             project = home / "ItomiScan"
             project.mkdir()
             (project / "app.py").write_text("old-version\n")
+            (project / ".itomiscan-beta-commit").write_text("c" * 40)
+            (project / ".itomiscan-beta-tag").write_text("v1.0.0-beta.3")
             stage_files = {
                 "app.py": b"print('new')\n",
                 "start-kiosk.sh": b"#!/bin/sh\n",

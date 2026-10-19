@@ -5,7 +5,8 @@ from pathlib import Path
 import tempfile
 import unittest
 
-from itomiscan.gui.beta_updates import latest_published_beta, installed_version, HELPER
+from itomiscan.gui.beta_updates import (latest_published_beta, installed_version,
+                                        is_forward_beta_update, HELPER)
 
 
 class Reply:
@@ -33,6 +34,25 @@ class TestBetaChecker(unittest.TestCase):
             return Reply({"sha": "a" * 40})
         self.assertEqual(latest_published_beta(opener),
                          ("v1.0.0-beta.3", "a" * 40))
+
+    def test_untagged_build_requires_proven_ancestry_before_update(self):
+        local = "a" * 40
+        remote = "b" * 40
+        def ahead(path):
+            self.assertEqual(path, "compare/" + local + "..." + remote)
+            return {"status": "ahead"}
+        self.assertTrue(is_forward_beta_update(
+            local, "", "v1.0.0-beta.4", remote, reader=ahead))
+        for relation in ("behind", "diverged"):
+            with self.subTest(relation=relation):
+                with self.assertRaises(ValueError):
+                    is_forward_beta_update(
+                        local, "", "v1.0.0-beta.4", remote,
+                        reader=lambda path: {"status": relation})
+        with self.assertRaises(ValueError):
+            is_forward_beta_update("", "", "v1.0.0-beta.4", remote)
+        self.assertFalse(is_forward_beta_update(
+            remote, "v1.0.0-beta.4", "v1.0.0-beta.4", remote))
 
     def test_local_marker(self):
         with tempfile.TemporaryDirectory() as temp:

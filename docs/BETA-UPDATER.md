@@ -34,3 +34,7 @@ Der echte N1800 wurde nicht mit diesem Updater getestet. Zu prüfen sind: instal
 ## Integrations-Nachprüfung (Block 5)
 
 Die Softwaretests prüfen zusätzlich WebSocket-Anmeldung, Herkunftsprüfung, VNC-Bytestrom und den lokal gebundenen VNC-Prozess. Der Rollback-Helfer verwendet bei gescheiterter Installation einen zufällig benannten Quarantänepfad. Dadurch kann ein bereits vorhandener Pfad `ItomiScan.updater-failed` die Wiederherstellung nicht verhindern oder fremde Daten löschen. Nach erfolgreicher Installation führt ein nichtkritischer Fehler bei der Bereinigung des alten Austauschverzeichnisses nicht mehr zu einem Rollback; eine manuelle SSH-Bereinigung kann dann nötig bleiben. Hardware- und Stromausfalltests stehen weiterhin aus.
+
+## Vorwärtsvergleich bei unbekanntem lokalen Release-Tag
+
+Ist nur die installierte Commit-ID bekannt, erlaubt der Helfer ein automatisches Update ausschließlich, wenn die GitHub-Compare-API den Ziel-Commit als Nachfolger des installierten Commits bestätigt (Status `ahead`). Ältere, abweichende oder unklare Commits werden nicht überschrieben. Dasselbe Schutzkriterium verwendet die Benutzeroberfläche beim Anzeigen des Installationsbuttons. Damit kann eine manuell installierte Entwicklungsversion nicht unbeabsichtigt durch die ältere Beta 3 ersetzt werden.
