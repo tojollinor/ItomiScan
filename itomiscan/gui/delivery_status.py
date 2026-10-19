@@ -1,7 +1,7 @@
 """Compact, persistent N1800 delivery notification and multi-target status page."""
 import time
 import tkinter as tk
-from tkinter import messagebox
+from itomiscan.gui import dialogs as messagebox
 
 BG="#101927"
 PANEL="#192738"

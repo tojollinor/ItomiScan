@@ -75,6 +75,21 @@ class OfflineBackupTests(unittest.TestCase):
             self.assertEqual((recovered/"spool"/(job["id"]+".pdf")).read_bytes(),
                              self.pdf.read_bytes())
 
+    def test_full_backup_restores_draft_assets_and_owner_state(self):
+        from itomiscan.storage.drafts import DraftStore
+        draft = DraftStore(self.store.path)
+        page = self.scan / "page.png"
+        page.write_bytes(b"original page bytes")
+        draft.save(1, [page], {"page_index": 0, "pending_delivery": 1})
+        create_backup(self.archive, home=self.home, config_dir=self.conf)
+        staging = self.base / "draft-recovery"
+        restore_to_staging(self.archive, staging)
+        recovered = DraftStore(staging / "config" / "itomiscan.db")
+        pages, _, state = recovered.restore(1)
+        self.assertEqual(pages[0].read_bytes(), page.read_bytes())
+        self.assertEqual(state["pending_delivery"], 1)
+        self.assertIsNone(recovered.load(2))
+
     def test_rejects_spool_hardlink_escaping_backup_tree(self):
         outside=self.base/"outside.pdf"
         outside.write_bytes(self.pdf.read_bytes())

@@ -13,7 +13,7 @@ def _edit_form(csrf, tile, targets, groups):
         '<label>Art</label><select name="action">',
         '<option value="scan"'+(' selected' if tile.get("action","scan")=="scan" else '')+'>Scanaktion</option>'+
         '<option value="group"'+(' selected' if tile.get("action")=="group" else '')+'>Gruppe öffnen</option>',
-        '</select><p class="status-note">scan = Scanaktion; group = Unterseite öffnen.</p>',
+        '</select>',
         '<label>Symbol</label><select name="icon">',
         options(ICONS,tile.get("icon","scan")),'</select>',
         '<label>Buttonfarbe</label><input type="color" name="color" value="'+e(tile.get("color",COLORS[0]))+'">',
@@ -39,7 +39,7 @@ def _edit_form(csrf, tile, targets, groups):
         '</textarea></details></fieldset>',
         '<fieldset><legend>Zielverbindungen (Mehrfachauswahl)</legend>',
         '<p class="status-note">Ein Dokument, mehrere gespeicherte Ziele. '
-        'Die tatsächliche parallele Zustellung folgt in Block 7.</p>'
+        'Zustellung erfolgt nach Abschluss der Dokumentprüfung.</p>'
     ])
     if not targets:
         bits.append('<p>Keine Ziele gespeichert. Zuerst <a href="/targets">Ziel hinzufügen</a>.</p>')
@@ -51,7 +51,7 @@ def _edit_form(csrf, tile, targets, groups):
     bits.extend(['</fieldset><label class="tile-check"><input type="checkbox" '
                  'name="background" value="yes"'+
                  (' checked' if tile.get("background") else '')+
-                 '>Im Hintergrund zustellen (Block 7)</label>',
+                 '>Im Hintergrund zustellen</label>',
                  '<label class="tile-check"><input type="checkbox" name="enabled" value="yes"'+
                  (' checked' if tile.get("enabled", True) else '')+
                  '>Button aktiv</label><button type="submit">Button speichern</button></form>'])
@@ -63,7 +63,7 @@ def home_buttons_page(tiles, targets, csrf, notice=""):
           'Änderungen erscheinen beim nächsten Aufruf der Scanner-Startseite.</p>'
           '<section class="entry-list">')
     if not tiles:
-        body+='<p class="muted">Noch keine individuellen Buttons. Die bisherige Startseite bleibt erhalten.</p>'
+        body+='<p class="muted">Keine Buttons eingerichtet. Der Funktionsbereich am Scanner bleibt leer.</p>'
     for tile in tiles:
         title=tile["label"]
         kind="Gruppe" if tile["action"]=="group" else "Scanaktion"

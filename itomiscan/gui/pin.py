@@ -15,7 +15,7 @@ class PinScreen:
         # Grow the information row, keeping the actual keypad in the
         # lower half of the 1024x768 touchscreen.
         self.frame.rowconfigure(2, weight=1)
-        self.frame.rowconfigure(3, minsize=420)
+        self.frame.rowconfigure(3, minsize=384)
         top = tk.Frame(self.frame, bg=BASE)
         top.grid(row=0, column=0, pady=(28, 5))
         draw_logo(top, 56).pack(side="left", padx=13)

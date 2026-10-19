@@ -39,6 +39,10 @@ def safe_name(name):
         return True
     if re.fullmatch(r"spool/[a-f0-9]{32}\.pdf", name):
         return True
+    if re.fullmatch(r"config/drafts/assets/[a-f0-9]{64}\.(png|jpg|jpeg|tif|tiff|pnm)", name):
+        return True
+    if re.match(r"config/drafts/work-[a-f0-9]{32}/", name):
+        return True
     return name.startswith("scans/") and len(parts) >= 2
 
 
@@ -59,6 +63,7 @@ def source_files(home, conf, snapshot):
         if path.exists() or path.is_symlink():
             result.append(("config/" + name, path))
     for root, prefix in ((conf / "spool", "spool"),
+                         (conf / "drafts", "config/drafts"),
                          (home / "Scans", "scans")):
         if root.is_symlink():
             raise BackupError("Unsicherer Datenordner.")

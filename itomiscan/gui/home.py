@@ -179,7 +179,7 @@ class HomeScreen:
             (lambda: self.show_menu(shutdown, update, exit_app)),
             font=13, pad_y=9)
         self.controls["notifications"] = self._button(
-            bottom, "Meldungen", self.show_status, font=12, pad_y=9)
+            bottom, "Status", self.show_status, font=13, pad_y=14)
         self.controls["notifications"].pack(side="left", padx=4)
         self.controls["menu"].pack(side="left", padx=4)
         self.controls["shutdown"] = self._button(bottom, "Ausschalten", shutdown,
@@ -192,7 +192,7 @@ class HomeScreen:
         self.controls["logout"].pack_forget()
 
     def set_tiles(self, tiles, targets=None):
-        """Web-defined tiles replace the default action cards when configured."""
+        """Only explicitly configured actions may be displayed, including none."""
         self.configured_tiles = list(tiles)
         self.tile_target_kinds = {x['id']:x['kind'] for x in (targets or [])}
         if not hasattr(self, "tile_grid"):
@@ -201,29 +201,12 @@ class HomeScreen:
                                 )
         for widget in self.tile_grid.winfo_children():
             widget.destroy()
-        active = bool(tiles)
-        if active:
-            self.default_tiles.pack_forget()
-            self.tile_grid.pack(fill="both", expand=True, padx=30, pady=10)
-        else:
-            self.tile_grid.pack_forget()
-            self.default_tiles.pack(fill="x", padx=30, pady=(22,16),
-                                    before=self.controls["footer"])
-        for permission, card in self.tiles.items():
-            visible = (self.allowed is None or permission in self.allowed or
-                       (permission == 'scan' and bool(
-                           {'scan','paperless','network','email','usb'} & self.allowed)))
-            if active or not visible:
-                card.grid_remove()
-            else:
-                card.grid()
-        if active:
-            self.controls["profile_bar"].pack_forget()
-            self._render_tiles(self.tile_grid, None)
-        else:
-            if self.allowed is None or {"scan", "paperless", "network", "email", "usb"} & self.allowed:
-                self.controls["profile_bar"].pack(fill="x", padx=37, pady=(2, 12),
-                    before=self.controls["footer"])
+        self.default_tiles.pack_forget()
+        self.controls["profile_bar"].pack_forget()
+        self.tile_grid.pack(fill="both", expand=True, padx=30, pady=10)
+        for card in self.tiles.values():
+            card.grid_remove()
+        self._render_tiles(self.tile_grid, None)
 
     def _render_tiles(self, container, parent):
         for widget in container.winfo_children():
@@ -379,15 +362,9 @@ class HomeScreen:
                 widget.grid_remove()
         self.controls["menu"].pack(side="left", padx=4)
         self.controls["shutdown"].pack_forget()
-        if user:
-            self.controls["logout"].pack(side="right", padx=4)
-        else:
-            self.controls["logout"].pack_forget()
-        if self.allowed is not None and not ({"scan", "paperless", "network", "email", "usb"} & self.allowed):
-            self.controls["profile_bar"].pack_forget()
-        else:
-            self.controls["profile_bar"].pack(fill="x", padx=37, pady=(2, 12),
-                                              before=self.controls["footer"])
+        self.controls["logout"].pack_forget()
+        self.default_tiles.pack_forget()
+        self.controls["profile_bar"].pack_forget()
         self.refresh(names=profile_names, selected=selected)
 
     def refresh(self, *, names=None, selected=None):

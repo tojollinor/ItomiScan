@@ -5,7 +5,8 @@ import re
 import subprocess
 import threading
 import tkinter as tk
-from tkinter import messagebox, ttk
+from tkinter import ttk
+from itomiscan.gui import dialogs as messagebox
 from urllib.request import Request, urlopen
 
 from itomiscan.gui.home import BASE, CARD as PANEL, FG, MUTED, BLUE

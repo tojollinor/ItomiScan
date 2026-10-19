@@ -12,12 +12,13 @@ CYAN = branding.CYAN
 
 
 class IdleScreen:
-    def __init__(self, root, busy, seconds=300, on_timeout=None, logout_delay=30):
+    def __init__(self, root, busy, seconds=300, on_timeout=None, logout_delay=30, on_show=None):
         self.root = root
         self.busy = busy
         self.seconds = seconds
         self.on_timeout = on_timeout
         self.logout_delay = logout_delay
+        self.on_show = on_show
         self.started_at = None
         self.logout_done = False
         self.last = time.monotonic()
@@ -64,6 +65,8 @@ class IdleScreen:
     def _show(self):
         if self.active:
             return
+        if self.on_show is not None:
+            self.on_show()
         self.started_at = time.monotonic()
         self.logout_done = False
         self.active = True

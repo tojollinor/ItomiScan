@@ -48,9 +48,9 @@ class DeviceMenu:
         grid.pack(fill="both", expand=True, padx=30, pady=12)
         for col in range(2):
             grid.grid_columnconfigure(col, weight=1, uniform="menu")
-        for row in range(3):
-            grid.grid_rowconfigure(row, weight=1, minsize=182)
-        for index, (label, fn) in enumerate(actions[:6]):
+        for row in range(max(1, (len(actions) + 1) // 2)):
+            grid.grid_rowconfigure(row, weight=1, minsize=90)
+        for index, (label, fn) in enumerate(actions):
             def activate(callback=fn):
                 self.hide()
                 callback()

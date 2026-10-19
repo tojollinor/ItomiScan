@@ -12,7 +12,8 @@ import time
 from datetime import datetime
 from pathlib import Path
 import tkinter as tk
-from tkinter import messagebox, simpledialog, ttk
+from tkinter import simpledialog, ttk
+from itomiscan.gui import dialogs as messagebox
 
 from itomiscan.core.profiles import ProfileError, ProfileStore, experiment_settings
 from itomiscan.gui.keyboard import ask_touch
@@ -26,6 +27,7 @@ from itomiscan.gui.screensaver import IdleScreen
 from itomiscan.gui.menu import DeviceMenu
 from itomiscan.gui.touch import install_touch_feedback
 from itomiscan.storage.users import UserStore
+from itomiscan.storage.drafts import DraftStore
 from itomiscan.storage.queue import DeliveryQueue
 from itomiscan.storage.remote_commands import RemoteCommands
 
@@ -165,6 +167,7 @@ class ItomiScan:
         self.format_var = tk.StringVar(value="PDF")
         self.profile_store = ProfileStore()
         self.users = UserStore(self.profile_store.path)
+        self.drafts = DraftStore(self.profile_store.path)
         self.delivery_queue = DeliveryQueue(self.profile_store.path)
         self.delivery_status_page = None
         self._batch_seen = {}
@@ -232,12 +235,13 @@ class ItomiScan:
         self.idle_screen = IdleScreen(
             self.root, lambda: self.busy,
             seconds=idle_minutes * 60,
-            on_timeout=self._screensaver_logout)
+            on_timeout=self._screensaver_logout, on_show=self._prepare_idle)
         self.touch_feedback = install_touch_feedback(self.root)
         if self.login_enabled:
             self.show_login()
-        elif defer_scanner or (self.device and self.options):
+        else:
             self.show_home()
+            self._restore_draft()
         self.root.after(250, self.refresh_ip)
         self.root.after(2000, self.auth_tick)
         self.root.after(6000, self.delivery_tick)
@@ -485,6 +489,8 @@ class ItomiScan:
         self.footer_status.pack(side="right", padx=8)
 
     def on_front_scan_key(self, event):
+        if not isinstance(event.widget, tk.Misc):
+            return "break"
         if self.pin_screen and self.pin_screen.active:
             return "break"
         if getattr(self, "device_menu", None) and self.device_menu.visible:
@@ -499,6 +505,8 @@ class ItomiScan:
             return
         if self.busy or not self.device:
             return
+        if self.home and self.home.visible:
+            return "break"
         if self.copy_screen and self.copy_screen.visible:
             self.copy_screen.start()
         else:
@@ -537,6 +545,20 @@ class ItomiScan:
     def show_login(self, message="Persönliche PIN mit 4 bis 6 Ziffern", *, keep_saver=False):
         if self.busy:
             return
+        messagebox.close_transients(self.root)
+        if self.current_user is not None or self.review_pending:
+            try:
+                self._persist_draft()
+            except (OSError, ValueError):
+                # Revocation must still conceal the document if storage fails.
+                # Keep the current owner and in-memory state for a later retry.
+                self.device_menu.hide()
+                self.home.hide()
+                self.copy_screen.hide()
+                self.scan_view.place_forget()
+                self.pin_screen.show("Entwurf nicht gesichert. Anmeldung vorübergehend gesperrt.")
+                return
+            self._clear_previous_scan()
         self.device_menu.hide()
         self.current_user = None
         self.session_profile = None
@@ -559,6 +581,14 @@ class ItomiScan:
     def verify_pin(self, pin):
         if self.busy:
             return
+        if self.current_user is not None and self.pin_screen.active:
+            try:
+                self._persist_draft()
+            except (OSError, ValueError):
+                self.pin_screen.error("Entwurf noch nicht gesichert. Bitte später erneut versuchen.")
+                return
+            self._clear_previous_scan()
+            self.current_user = None
         try:
             if not self.users.settings()["enabled"]:
                 self.pin_screen.hide()
@@ -579,6 +609,7 @@ class ItomiScan:
             self.record_activity()
             self.pin_screen.hide()
             self.show_home()
+            self._restore_draft()
         except (OSError, ValueError) as exc:
             self.pin_screen.error("Anmeldung derzeit nicht möglich: " + str(exc))
 
@@ -600,6 +631,11 @@ class ItomiScan:
     def logout(self, *, keep_saver=False):
         if self.busy:
             return False
+        try:
+            self._persist_draft()
+        except (OSError, ValueError) as exc:
+            self.status_var.set("Entwurf konnte nicht gesichert werden: " + str(exc))
+            return False
         self._clear_previous_scan()
         if self.users.settings()["enabled"]:
             self.show_login("Abgemeldet. Bitte persönliche PIN eingeben.", keep_saver=keep_saver)
@@ -610,11 +646,65 @@ class ItomiScan:
 
         return True
 
+    def _draft_owner(self):
+        return self.current_user["id"] if self.current_user else None
+
+    def _persist_draft(self):
+        if not hasattr(self, "drafts") or not self.review_pending:
+            return
+        self.drafts.save(self._draft_owner(), self.pages, {
+            "page_index": self.page_index,
+            "format": self.format_var.get(),
+            "profile": self.session_profile,
+            "batch_settings": self.batch_settings,
+            "last_scan_settings": self.last_scan_settings,
+            "pending_delivery": self.pending_delivery,
+            "pending_print": self.pending_print,
+            "pending_batch": self.pending_batch,
+            "tile_scan_active": self.tile_scan_active,
+            "view": "review",
+        })
+
+    def _restore_draft(self):
+        try:
+            restored = self.drafts.restore(self._draft_owner())
+            if restored is None:
+                return
+            pages, folder, state = restored
+            self.pages = pages
+            self.review_pending = True
+            self.page_index = min(max(0, state.get("page_index", 0)), max(0, len(pages) - 1))
+            self.format_var.set(state.get("format", "PDF"))
+            self.output_path = folder / "Dokument.pdf" if self.format_var.get() == "PDF" else folder
+            self.session_profile = state.get("profile")
+            for name in ("batch_settings", "last_scan_settings", "pending_delivery",
+                         "pending_print", "pending_batch", "tile_scan_active"):
+                setattr(self, name, state.get(name))
+            if self.pending_batch:
+                self.pending_batch["addresses"] = {
+                    int(key): value for key, value in self.pending_batch["addresses"].items()}
+            self.show_scan()
+            self.review_button.pack(side="left", padx=5)
+            self.append_button.pack(side="left", padx=5)
+            if pages:
+                self.show_page()
+            self.status_var.set("Nicht abgeschlossenes Dokument wiederhergestellt")
+        except (OSError, ValueError) as exc:
+            self.status_var.set("Entwurf konnte nicht wiederhergestellt werden: " + str(exc))
+
     def _screensaver_logout(self):
         """Expire local session while retaining the saver above login/home."""
         if self.busy:
             return False
         return self.logout(keep_saver=True)
+
+    def _prepare_idle(self):
+        self.device_menu.hide()
+        messagebox.close_transients(self.root)
+        try:
+            self._persist_draft()
+        except (OSError, ValueError) as exc:
+            self.status_var.set("Entwurf konnte nicht gesichert werden: " + str(exc))
 
     def auth_tick(self):
         """Pick up web changes, expiration and account revocation without restart."""
@@ -625,10 +715,13 @@ class ItomiScan:
             if not self.busy:
                 if not enabled:
                     if self.current_user or self.pin_screen.active:
+                        self._persist_draft()
+                        self._clear_previous_scan()
                         self.current_user = None
                         self.session_profile = None
                         self.pin_screen.hide()
                         self.show_home()
+                        self._restore_draft()
                 elif not self.current_user:
                     if not self.pin_screen.active:
                         self.show_login()
@@ -644,6 +737,10 @@ class ItomiScan:
                         self.current_user = fresh
                         if changed and self.home.visible:
                             self.show_home()
+                if self.home.visible:
+                    tiles = self.delivery_queue.db.list_kiosk_tiles()
+                    if tiles != self.home.configured_tiles:
+                        self.home.set_tiles(tiles, self.delivery_queue.db.list_targets())
         except (OSError, ValueError) as exc:
             # Access controls must fail closed if the database becomes unreadable.
             self.status_var.set("Benutzerverwaltung nicht erreichbar: " + str(exc))
@@ -785,11 +882,14 @@ class ItomiScan:
         # Any authenticated local user may preview the existing saver;
         # activating it neither logs out nor bypasses the PIN gate.
         entries.append(("Bildschirmschoner anzeigen", self.preview_screensaver))
+        if self.current_user is not None:
+            entries.append(("Benutzer abmelden", self.logout))
         self.device_menu.show(entries)
 
     def preview_screensaver(self):
         """Enter the actual idle screen immediately for visual/touch debugging."""
         if not self.busy:
+            self.device_menu.hide()
             self.idle_screen.show_now()
 
     def _detail_buttons(self):
@@ -884,6 +984,7 @@ class ItomiScan:
         if self.review_pending and not self.confirm_discard_document():
             return
         if self.review_pending:
+            self.drafts.finish(self._draft_owner())
             self.pending_batch = None
             self.tile_scan_active = False
             self.review_pending = False
@@ -1416,7 +1517,7 @@ class ItomiScan:
             profile = self._profile_record(self.session_profile)
         else:
             profile = self.profile_store.current()
-        if profile:
+        if profile and not self.review_pending:
             self.apply_profile(profile)
         self.status_var.set("Scanner bereit")
         early = self.pending_early_scan
@@ -1434,9 +1535,10 @@ class ItomiScan:
                 raise RuntimeError("Kein Fujitsu-Scanner gefunden. USB-Verbindung prüfen.")
             self.options = read_options(self.device)
             self.render_options()
-            self.apply_profile(self.profile_store.current())
+            if not self.review_pending:
+                self.apply_profile(self.profile_store.current())
             self.status_var.set("Bereit")
-            if self.home:
+            if self.home and not self.review_pending:
                 if self.users.settings()["enabled"]:
                     self.show_login()
                 else:
@@ -1521,6 +1623,10 @@ class ItomiScan:
 
     def start_scan(self):
         if self.busy:
+            return
+        if not any(tile.get("enabled", True) and tile["action"] == "scan"
+                   for tile in self.delivery_queue.db.list_kiosk_tiles()):
+            self.status_var.set("Keine Scanaktion auf der Startseite eingerichtet.")
             return
         if not self.device:
             if self.scanner_retry is not None and self._allowed(self._delivery_permission()):
@@ -1905,6 +2011,7 @@ class ItomiScan:
             str(len(candidates)) + " Leerseite(n) entfernt"
             + (f" · {cleanup_errors} Datei(en) konnten nicht gelöscht werden"
                if cleanup_errors else ""))
+        ItomiScan._persist_draft(self)
 
     def rotate_page(self):
         if self.busy or not self.pages:
@@ -1954,6 +2061,7 @@ class ItomiScan:
             # The document remains in review so the user can scan more pages;
             # finalizing an empty document is explicitly blocked.
         self.status_var.set(str(len(self.pages)) + " Bildseite(n) verbleiben")
+        ItomiScan._persist_draft(self)
 
     def move_page(self, direction):
         if self.busy or not self.pages:
@@ -1969,6 +2077,22 @@ class ItomiScan:
     def finalize_scan(self):
         if self.busy or not self.review_pending:
             return
+        if hasattr(self, "drafts"):
+            ids = set(self.pending_batch["ids"] if self.pending_batch else [])
+            if self.pending_delivery is not None:
+                ids.add(self.pending_delivery)
+            if self.pending_print is not None:
+                ids.add(self.pending_print["target_id"])
+            targets = {target["id"]: target for target in self.delivery_queue.db.list_targets()}
+            for ident in ids:
+                if ident not in targets:
+                    self.status_var.set("Ziel nicht mehr verfügbar. Entwurf bleibt erhalten.")
+                    return
+                kind = targets[ident]["kind"]
+                if not self._allowed("copy" if kind == "printer" else kind):
+                    return
+            if not ids and not self._allowed("scan"):
+                return
         if not self.pages:
             messagebox.showwarning("Keine Seiten", "Bitte zunächst Dokumentseiten scannen.",
                                    parent=self.root)
@@ -2024,6 +2148,8 @@ class ItomiScan:
         show_scanner_error(self.root, error)
 
     def _finalize_complete(self):
+        if hasattr(self, "drafts"):
+            self.drafts.finish(self._draft_owner())
         self.busy = False
         self.progress.stop()
         self.review_pending = False
@@ -2063,6 +2189,7 @@ class ItomiScan:
             self.show_page()
 
     def show_page(self):
+        ItomiScan._persist_draft(self)
         if not self.pages:
             return
         try:

@@ -25,6 +25,10 @@ OPTIONS = [
 
 
 class TouchLayoutTests(unittest.TestCase):
+    def tearDown(self):
+        for callback in self.root.tk.call("after", "info"):
+            self.root.tk.call("after", "cancel", callback)
+
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
@@ -39,12 +43,14 @@ class TouchLayoutTests(unittest.TestCase):
                 initial_options=OPTIONS)
         self.root.update_idletasks()
 
-    def test_primary_buttons_match_destination_grid_and_home_symbol_is_large(self):
+    def test_empty_home_has_no_fallback_scan_actions(self):
         home = self.app.home
         self.assertEqual(str(self.root["cursor"]), "none")
         self.assertEqual(len(home.tiles), 2)
-        self.assertGreaterEqual(home.tiles["scan"].winfo_height(), 160)
-        self.assertGreaterEqual(home.tiles["copy"].winfo_height(), 160)
+        self.assertFalse(home.default_tiles.winfo_manager())
+        self.assertFalse(home.controls["profile_bar"].winfo_manager())
+        self.assertFalse(home.controls["logout"].winfo_manager())
+        self.assertEqual(home.controls["notifications"]["text"], "Status")
         self.assertGreaterEqual(int(self.app.home_button["font"].split()[-2]), 24)
 
     def test_persistent_delivery_status_and_back(self):
@@ -92,7 +98,7 @@ class TouchLayoutTests(unittest.TestCase):
         self.assertIsNone(home.group_page)
         home.set_tiles([])
         self.root.update_idletasks()
-        self.assertTrue(home.default_tiles.winfo_manager())
+        self.assertFalse(home.default_tiles.winfo_manager())
 
     def test_menu_is_a_page_from_both_views_and_saver_can_be_previewed(self):
         self.app.home.controls["menu"].invoke()
@@ -149,6 +155,34 @@ class TouchLayoutTests(unittest.TestCase):
             keypad.winfo_rooty(),
             self.root.winfo_rooty() + self.root.winfo_height() // 2)
         pin.hide()
+
+    def test_pin_transition_closes_dpi_keyboard(self):
+        self.root.after(40, self.app.show_login)
+        result = ask_touch(self.root, "Auflösung (DPI)", "200", numeric=True)
+        self.assertIsNone(result)
+        self.assertTrue(self.app.pin_screen.active)
+        self.assertFalse(any(isinstance(child, tk.Toplevel)
+                             for child in self.root.winfo_children()))
+
+    def test_shared_confirmation_defaults_to_cancel_and_fits_screen(self):
+        from itomiscan.gui import dialogs
+        measurements = []
+
+        def cancel():
+            win = self.root._itomiscan_dialog
+            win.update_idletasks()
+            measurements.append((win.winfo_rootx(), win.winfo_rooty(),
+                                 win.winfo_width(), win.winfo_height()))
+            win.event_generate("<Return>")
+
+        self.root.after(40, cancel)
+        self.assertFalse(dialogs.askyesno("Dokument verwerfen?", "Der Entwurf wird beendet.",
+                                         parent=self.root))
+        x, y, width, height = measurements[0]
+        self.assertGreaterEqual(x, 0)
+        self.assertGreaterEqual(y, 0)
+        self.assertLessEqual(x + width, 1024)
+        self.assertLessEqual(y + height, 768)
 
     def test_document_review_uses_vertical_left_filmstrip(self):
         pages = []

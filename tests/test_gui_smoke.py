@@ -25,6 +25,10 @@ OPTIONS = [
 
 
 class TouchGuiTests(unittest.TestCase):
+    def tearDown(self):
+        for callback in self.root.tk.call("after", "info"):
+            self.root.tk.call("after", "cancel", callback)
+
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
@@ -66,14 +70,14 @@ class TouchGuiTests(unittest.TestCase):
         self.assertFalse(self.app.pin_screen.active)
         self.assertTrue(self.app.home.visible)
         self.app.on_front_scan_key(SimpleNamespace(widget=self.root))
-        self.assertEqual(calls, ["scan"])
+        self.assertEqual(calls, [])
         self.assertEqual(self.app.home.selected_var.get(), "Foto")
 
     def test_restricted_features_hidden_and_denied_by_backend(self):
         self.enable_pin(permissions=("copy",))
         self.unlock()
         self.assertEqual(self.app.home.tiles["scan"].winfo_manager(), "")
-        self.assertNotEqual(self.app.home.tiles["copy"].winfo_manager(), "")
+        self.assertFalse(self.app.home.default_tiles.winfo_manager())
         self.assertEqual(self.app.home.controls["shutdown"].winfo_manager(), "")
         self.app.show_device_menu()
         self.assertNotIn("Updates", self.app.device_menu.buttons)
@@ -121,6 +125,63 @@ class TouchGuiTests(unittest.TestCase):
         self.assertFalse(self.app.pin_screen.active)
         self.assertTrue(self.app.home.visible)
 
+    def test_logout_login_restores_only_own_document(self):
+        from PIL import Image
+        first_user = self.enable_pin(permissions=("scan",), profiles=("Dokument",))
+        self.unlock()
+        document = Path(self.temp.name) / "document"
+        document.mkdir()
+        page = document / "page.png"
+        Image.new("RGB", (20, 30), "red").save(page)
+        self.app.pages = [page]
+        self.app.output_path = document / "Dokument.pdf"
+        self.app.review_pending = True
+        self.app.show_scan()
+        self.app.show_page()
+        self.assertTrue(self.app.logout())
+        self.assertEqual(self.app.pages, [])
+        self.assertIsNotNone(self.app.drafts.load(first_user))
+        second_user = self.app.users.save_user(
+            name="Zweites Konto", pin="7410", permissions=["scan"],
+            assigned_profiles=["Dokument"], default_profile="Dokument", active=True)
+        self.app.verify_pin("7410")
+        self.assertEqual(self.app.current_user["id"], second_user)
+        self.assertEqual(self.app.pages, [])
+        self.assertFalse(self.app.review_pending)
+        self.app.logout()
+        self.unlock()
+        self.assertEqual(self.app.current_user["id"], first_user)
+        self.assertTrue(self.app.review_pending)
+        self.assertEqual(len(self.app.pages), 1)
+        with Image.open(self.app.pages[0]) as restored:
+            self.assertEqual(restored.getpixel((0, 0)), (255, 0, 0))
+        self.assertTrue(self.app.scan_view.winfo_manager())
+
+    def test_logout_refuses_to_lose_unsaved_document(self):
+        self.enable_pin(permissions=("scan",), profiles=("Dokument",))
+        self.unlock()
+        self.app.review_pending = True
+        self.app.pages = [Path(self.temp.name) / "missing.png"]
+        with patch.object(self.app.drafts, "save", side_effect=OSError("disk full")):
+            self.assertFalse(self.app.logout())
+        self.assertIsNotNone(self.app.current_user)
+        self.assertTrue(self.app.review_pending)
+        self.assertEqual(len(self.app.pages), 1)
+
+    def test_storage_failure_during_revocation_conceals_document(self):
+        self.enable_pin(permissions=("scan",), profiles=("Dokument",))
+        self.unlock()
+        self.app.review_pending = True
+        self.app.pages = [Path(self.temp.name) / "missing.png"]
+        self.app.show_scan()
+        with patch.object(self.app.drafts, "save", side_effect=OSError("disk full")):
+            self.app.show_login("Konto gesperrt")
+            self.app.verify_pin("2580")
+        self.assertTrue(self.app.pin_screen.active)
+        self.assertFalse(self.app.scan_view.winfo_manager())
+        self.assertFalse(self.app.home.visible)
+        self.assertTrue(self.app.review_pending)
+
     def test_network_target_enqueues_selected_delivery_intent(self):
         self.app.delivery_queue.db.save_target({
             "kind":"usb", "name":"ScanStick", "address":"usb://SCANUSB/Scans"})
@@ -143,7 +204,7 @@ class TouchGuiTests(unittest.TestCase):
         self.assertTrue(self.app._allowed("usb", silent=True))
         # The single scan entry opens the destination chooser, where USB
         # appears even without the permission for direct local scanning.
-        self.assertTrue(self.app.home.tiles["scan"].winfo_manager())
+        self.assertFalse(self.app.home.default_tiles.winfo_manager())
         self.app.home.show_destinations()
         self.assertTrue(self.app.home.destination_page.winfo_manager())
         self.app.home.close_destinations()
@@ -204,6 +265,7 @@ class TouchGuiTests(unittest.TestCase):
 
     def test_copy_only_pin_user_has_access_without_scan_privilege(self):
         target = self.add_printer()
+        self.app.delivery_queue.db.save_kiosk_tile({"label": "Kopieren", "targets": [target["id"]]})
         self.enable_pin(permissions=("copy",), profiles=("Foto",))
         self.unlock()
         self.assertFalse(self.app._allowed("scan", silent=True))
@@ -229,12 +291,21 @@ class TouchGuiTests(unittest.TestCase):
 
     def test_low_disk_blocks_scan(self):
         from types import SimpleNamespace
+        self.app.delivery_queue.db.save_kiosk_tile({"label": "Scannen"})
         with patch("app.shutil.disk_usage",
                    return_value=SimpleNamespace(free=1000000)):
             with patch("app.messagebox.showwarning") as warning:
                 self.app.start_scan()
         self.assertFalse(self.app.busy)
         warning.assert_called_once()
+
+    def test_no_configured_actions_block_scan_even_from_detail_view(self):
+        self.app.show_scan()
+        with patch("app.shell") as scanner:
+            self.app.start_scan()
+        self.assertFalse(self.app.busy)
+        scanner.assert_not_called()
+        self.assertIn("Keine Scanaktion", self.app.status_var.get())
 
     def test_home_and_detail_toggle(self):
         self.assertTrue(self.app.home.visible)
@@ -252,6 +323,7 @@ class TouchGuiTests(unittest.TestCase):
         self.assertEqual(self.app.format_var.get(), "Bild (PNG)")
 
     def test_hardware_enter_uses_existing_scan(self):
+        self.app.show_scan()
         calls = []
         self.app.start_scan = lambda: calls.append("scan")
         self.assertEqual(
