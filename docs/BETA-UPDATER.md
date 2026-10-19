@@ -4,7 +4,7 @@ Status: Auf dem Entwicklungsbranch implementiert. Praktische Hardwareabnahme am 
 
 ## Einmalige Einrichtung
 
-Die bereits veröffentlichte Beta 3 kann Updates nur erkennen. Sie enthält noch keinen privilegierten Installationshelfer. Deshalb muss ein zukünftiges Beta-Release mit Updater **einmalig manuell** über das bestehende install-beta.sh und SSH eingespielt werden. Dabei installiert setup-updater.sh den root-eigenen Helfer unter /usr/local/libexec/itomiscan-beta-updater, legt die geschützte Konfiguration unter /etc/itomiscan/updater.json an und gewährt dem Scannerbenutzer ausschließlich die sudo-Aufrufe für install und rollback. Keine allgemeine Root-Shell.
+Die bereits veröffentlichte Beta 3 kann Updates nur erkennen. Sie enthält noch keinen privilegierten Installationshelfer. Deshalb muss **Beta 4 (v1.0.0-beta.4) einmalig manuell** über das bestehende install-beta.sh und SSH eingespielt werden. Der feste Tag, die Vorprüfungen und der Rückfallweg stehen in [BETA4-INSTALL.md](BETA4-INSTALL.md). Dabei installiert setup-updater.sh den root-eigenen Helfer unter /usr/local/libexec/itomiscan-beta-updater, legt die geschützte Konfiguration unter /etc/itomiscan/updater.json an und gewährt dem Scannerbenutzer ausschließlich die sudo-Aufrufe für install und rollback. Keine allgemeine Root-Shell.
 
 ## Bedienung
 

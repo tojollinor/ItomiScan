@@ -175,3 +175,14 @@ Getrennter kleiner Python-Webserver für Profile, vorbereitete Papier-/Druck-/Ne
 - Codewechsel/Rollback nur explizit, nach verifizierter Sicherung, angehaltenen Diensten und neuer Freigabe. `install.sh` verlangt einen sauberen stabilen `main`-Checkout.
 - **Praxistests auf dem N1800 (Touch/ADF/Fronttaste/LAN/Paperless/CUPS/RAM/Shutdown) stehen aus. Keine Stable-Promotion ohne dokumentierte Geräteabnahme.**
 - [Abnahme- und Sicherheitscheckliste](docs/RELEASE-READINESS-1.0.0.md).
+
+
+## Beta 4 (v1.0.0-beta.4): VNC, Beta-Updater und Monitoring
+
+Beta 4 ist ein GitHub-Prerelease für das vorhandene Debian-12-i386-System auf dem ScanSnap N1800. **Hardwareabnahme ausstehend.** Keine Stable-Promotion und keine Änderungen an main.
+
+- Fernsteuerung direkt in der Webadministration über x11vnc und noVNC mit geschützter WebSocket-Verbindung.
+- Beta-Update-Dialog mit neuem Root-Helfer, Fortschrittsanzeige, GitHub-Dateiprüfung, Sicherung und Rückfall für zukünftige Beta-Updates.
+- CPU/RAM-Werte einmal pro Sekunde seit Webdienststart ausschließlich in einem fünf Minuten langen RAM-Ringpuffer; Datenträgerbelegung statt doppelter RAM-Balken.
+
+**Erster Umstieg von Beta 3:** Einmalig per SSH installieren, da Beta 3 den neuen Update-Helfer noch nicht enthält. Vollständige Datensicherung und Wartungsfenster sind erforderlich. Anleitung: [Beta-4-Bootstrap und Rollback](docs/BETA4-INSTALL.md). Softwareprüfung: [Block-5-Abnahme](docs/BLOCK5-VERIFICATION.md).
