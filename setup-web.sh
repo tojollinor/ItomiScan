@@ -82,7 +82,9 @@ ExecStart=/usr/bin/python3 -m itomiscan.web.server --bind $BIND_IP --port 8443 -
 Restart=on-failure
 RestartSec=5
 NoNewPrivileges=yes
-PrivateTmp=yes
+PrivateTmp=no
+# Xorg exposes the kiosk X11 Unix socket under /tmp/.X11-unix.
+# Keep the remaining systemd hardening and the loopback-only VNC policy.
 ProtectSystem=full
 ProtectKernelTunables=yes
 ProtectControlGroups=yes
