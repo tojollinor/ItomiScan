@@ -85,6 +85,7 @@ ok "Beta aus Archiv installiert, alte Dateien und Konfiguration gesichert."
 
 step "Kiosk und Scannerrechte"
 bash "$PROJECT/setup-shutdown.sh" "$USER_NAME"
+bash "$PROJECT/setup-updater.sh" "$USER_NAME"
 chmod +x "$PROJECT/start-kiosk.sh"
 if [[ -d "$PROJECT/.git" ]]; then runuser -u "$USER_NAME" -- git -C "$PROJECT" config core.filemode false; fi
 if getent group scanner >/dev/null; then usermod -aG scanner "$USER_NAME"; fi

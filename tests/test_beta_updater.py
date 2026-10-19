@@ -62,6 +62,31 @@ class BetaUpdaterTests(unittest.TestCase):
             with self.assertRaises(helper.UpdateError):
                 helper.extract_verified_archive(archive, Path(temp) / "stage", expected)
 
+    def test_atomic_installation_restores_previous_on_swap_failure(self):
+        from unittest.mock import patch
+        import os
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            project = root / "ItomiScan"
+            project.mkdir()
+            (project / "app.py").write_text("old")
+            stage = root / "stage"
+            stage.mkdir()
+            (stage / "app.py").write_text("new")
+            snapshot = root / "snapshot"
+            real_replace = os.replace
+
+            def fail_stage(source, target):
+                if Path(source) == stage:
+                    raise OSError("simulated swap failure")
+                return real_replace(source, target)
+
+            with patch.object(helper.os, "replace", side_effect=fail_stage):
+                with self.assertRaises(OSError):
+                    helper.atomic_deploy(project, stage, snapshot)
+            self.assertEqual((project / "app.py").read_text(), "old")
+            self.assertEqual((snapshot / "app.py").read_text(), "old")
+
     def test_rejects_path_traversal(self):
         contents = {"../escape": b"bad"}
         expected = {"../escape": (helper.git_blob_sha(b"bad"), 0o644)}

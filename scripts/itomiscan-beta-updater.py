@@ -311,6 +311,19 @@ def install():
         extract_verified_archive(archive, stage, tree)
         progress(62, "Alle Dateien anhand ihrer Git-Blob-Hashes geprüft.")
         compile_python(stage)
+        # The verified VNC release needs these fixed Debian packages, not
+        # arbitrary names supplied by the archive or web interface.
+        if "itomiscan/web/vnc_bridge.py" in tree and (
+                not shutil.which("x11vnc") or
+                not Path("/usr/share/novnc/core/rfb.js").is_file()):
+            progress(65, "Fehlende VNC-Pakete werden eingerichtet.")
+            subprocess.run(["/usr/bin/apt-get", "update"], check=True,
+                           stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,
+                           timeout=150)
+            subprocess.run(["/usr/bin/apt-get", "install", "-y",
+                            "--no-install-recommends", "x11vnc", "novnc"],
+                           check=True, stdout=subprocess.DEVNULL,
+                           stderr=subprocess.PIPE, timeout=240)
         marker(stage, tag, sha)
         chown_tree(stage, uid, gid)
         smoke_as_user(user, stage)

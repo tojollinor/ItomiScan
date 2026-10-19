@@ -2139,89 +2139,16 @@ class ItomiScan:
             self.show_page()
 
     def check_update(self):
-        """Display update preferences; installation stays SSH-only for now."""
+        """Open the protected beta installer. The GUI never runs privileged code."""
         if self.busy or not self._allowed("update"):
             return
-        dialog = tk.Toplevel(self.root)
-        dialog.title("Updates")
-        dialog.configure(bg=BASE)
-        dialog.transient(self.root)
-        self._center_dialog(dialog, 620, 410)
-        dialog.grab_set()
-        tk.Label(dialog, text="ItomiScan Updates", bg=BASE, fg=FG,
-                 font=("DejaVu Sans", 22, "bold")).pack(pady=(22, 10))
-        installed = Path(__file__).resolve().parent / ".itomiscan-beta-commit"
-        revision = installed.read_text().strip()[:10] if installed.exists() else "unbekannt"
-        tk.Label(dialog, text="Installierter Stand: " + revision, bg=BASE, fg=MUTED,
-                 font=("DejaVu Sans", 12)).pack(pady=4)
-        include_beta = tk.BooleanVar(value=True)
-        tk.Checkbutton(dialog, text="Beta-Releases einschließen",
-                       variable=include_beta, bg=BASE, fg=FG,
-                       selectcolor=PANEL, activebackground=BASE,
-                       activeforeground=FG, font=("DejaVu Sans", 13),
-                       padx=12, pady=12).pack(pady=8)
-        result = tk.StringVar(value="Noch nicht geprüft.")
-        tk.Label(dialog, textvariable=result, bg=BASE, fg=MUTED,
-                 wraplength=530, justify="center",
-                 font=("DejaVu Sans", 11)).pack(pady=8)
-        def start_check():
-            result.set("Suche nach Updates …")
-            self.update_worker(include_beta.get(), result)
-        self._btn(dialog, "Auf Updates prüfen", start_check, BLUE).pack(
-            fill="x", padx=35, pady=7)
-        self._btn(dialog, "Schließen", dialog.destroy).pack(
-            side="bottom", fill="x", padx=35, pady=12)
-
-    def update_worker(self, include_beta, result_var=None):
-        """Read GitHub revision only; do not execute privileged installers in Tk."""
-        def publish(message):
-            def apply():
-                if result_var is not None:
-                    try:
-                        result_var.set(message)
-                    except tk.TclError:
-                        pass
-                self.status_var.set(message)
-            self.dispatch(apply)
-
-        def worker():
-            import json
-            import urllib.request
-            try:
-                if include_beta:
-                    endpoint = ("https://api.github.com/repos/tojollinor/ItomiScan/"
-                                "commits/develop/1.0.0")
-                    request = urllib.request.Request(
-                        endpoint, headers={"User-Agent": "ItomiScan-Beta-Updater",
-                                           "Accept": "application/vnd.github+json"})
-                    with urllib.request.urlopen(request, timeout=20) as response:
-                        remote = json.load(response)["sha"]
-                    if not isinstance(remote, str) or len(remote) != 40 or any(
-                            char not in "0123456789abcdef" for char in remote):
-                        raise ValueError("Ungültige GitHub-Commit-ID")
-                    installed = Path(__file__).resolve().parent / ".itomiscan-beta-commit"
-                    local = installed.read_text().strip() if installed.exists() else ""
-                    if not local:
-                        publish("Installierter Beta-Stand unbekannt. "
-                                "Update nicht automatisch freigeben.")
-                    elif local == remote:
-                        publish("Beta ist aktuell.")
-                    else:
-                        publish("Neue Beta verfügbar (" + remote[:10] +
-                                "). Installation vorerst über SSH/curl.")
-                else:
-                    endpoint = ("https://api.github.com/repos/tojollinor/ItomiScan/"
-                                "releases/latest")
-                    request = urllib.request.Request(
-                        endpoint, headers={"User-Agent": "ItomiScan-Updater",
-                                           "Accept": "application/vnd.github+json"})
-                    with urllib.request.urlopen(request, timeout=20) as response:
-                        release = json.load(response)
-                    publish("Stabile Version verfügbar: " + release.get("tag_name", "?") +
-                            ". Installation vorerst über SSH/curl.")
-            except Exception as exc:
-                publish("Updateprüfung fehlgeschlagen: " + str(exc))
-        threading.Thread(target=worker, daemon=True).start()
+        existing = getattr(self, "_beta_update_dialog", None)
+        if existing is not None and existing.dialog.winfo_exists():
+            existing.dialog.lift()
+            existing.dialog.focus_force()
+            return
+        from itomiscan.gui.beta_updates import BetaUpdateDialog
+        self._beta_update_dialog = BetaUpdateDialog(self)
 
     def shutdown(self):
         if not self._allowed("shutdown"):
