@@ -81,7 +81,7 @@ def inspect_system(store, bind, sampler=None, queue=None, diagnostic=""):
     try:
         tag = (root / ".itomiscan-beta-tag").read_text(
             encoding="ascii").strip()
-        if re.fullmatch(r"v[0-9]+\\.[0-9]+\\.[0-9]+-beta\\.[0-9]+", tag):
+        if re.fullmatch(r"v[0-9]+\.[0-9]+\.[0-9]+-beta\.[0-9]+", tag):
             result["release_tag"] = tag
             result["branch"] = tag
             installed_sha = (root / ".itomiscan-beta-commit").read_text(
