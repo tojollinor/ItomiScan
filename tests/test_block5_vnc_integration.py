@@ -81,7 +81,7 @@ class WebSocketIntegrationTests(unittest.TestCase):
         conn.close()
         return viewer_id(self.cookie.split("=", 1)[1])
 
-    def upgrade(self, origin=None, *, protocol="binary", cookie=None):
+    def upgrade(self, origin=None, *, protocol="binary", extensions=None, cookie=None):
         request = [
             "GET /remote/vnc/ws HTTP/1.1",
             "Host: 127.0.0.1:%s" % self.port,
@@ -89,10 +89,13 @@ class WebSocketIntegrationTests(unittest.TestCase):
             "Connection: keep-alive, Upgrade",
             "Sec-WebSocket-Key: " + base64.b64encode(b"0123456789abcdef").decode(),
             "Sec-WebSocket-Version: 13",
-            "Sec-WebSocket-Protocol: " + protocol,
             "Origin: " + (origin if origin is not None
                           else "https://127.0.0.1:%s" % self.port),
         ]
+        if protocol is not None:
+            request.append("Sec-WebSocket-Protocol: " + protocol)
+        if extensions is not None:
+            request.append("Sec-WebSocket-Extensions: " + extensions)
         if cookie:
             request.append("Cookie: " + cookie)
         sock = socket.create_connection(("127.0.0.1", self.port), timeout=4)
@@ -163,6 +166,30 @@ class WebSocketIntegrationTests(unittest.TestCase):
             sock.sendall(masked_frame(b"\x03\x04", opcode=0))
             self.assertEqual(recv_exact(right, 4), b"\x01\x02\x03\x04")
             self.server.vnc.connect.assert_called_once_with(owner)
+        finally:
+            sock.close()
+
+    def test_edge_websocket_without_subprotocol_accepts_extension_offer(self):
+        """Edge may offer compression but no binary subprotocol."""
+        owner = self.authenticate()
+        self.server.remote_live.start(owner)
+        left, right = socket.socketpair()
+        self.addCleanup(left.close)
+        self.addCleanup(right.close)
+        right.settimeout(4)
+        self.server.vnc.connect = Mock(return_value=left)
+        sock, response = self.upgrade(
+            protocol=None, extensions="permessage-deflate; client_max_window_bits",
+            cookie=self.cookie)
+        try:
+            self.assertIn("101", response.split("\r\n", 1)[0])
+            self.assertNotIn("Sec-WebSocket-Extensions:", response)
+            self.assertNotIn("Sec-WebSocket-Protocol:", response)
+            sock.sendall(masked_frame(b"Edge-RFB"))
+            self.assertEqual(recv_exact(right, 8), b"Edge-RFB")
+            right.sendall(b"RFB-ok")
+            self.assertEqual(recv_exact(sock, 2), b"\x82\x06")
+            self.assertEqual(recv_exact(sock, 6), b"RFB-ok")
         finally:
             sock.close()
 
