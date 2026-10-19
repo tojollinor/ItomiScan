@@ -13,6 +13,7 @@ import os
 from pathlib import Path, PurePosixPath
 import pwd
 import re
+import secrets
 import shutil
 import stat
 import subprocess
@@ -258,16 +259,33 @@ def atomic_deploy(project, stage, snapshot):
 
 
 def restore_after_failure(project, previous):
+    """Restore the previous program tree without touching unrelated files.
+
+    Never delete a fixed-name directory in the user-writable home. Use an
+    unpredictable quarantine name to prevent a symlink or directory planted
+    there from interfering with rollback.
+    """
     if not previous.exists():
         return
-    failed = project.with_name(project.name + ".updater-failed")
-    if failed.exists():
-        shutil.rmtree(failed)
+    failed = project.with_name(
+        project.name + ".updater-failed-" + secrets.token_hex(10))
     if project.exists():
         os.replace(project, failed)
-    os.replace(previous, project)
+    try:
+        os.replace(previous, project)
+    except BaseException:
+        # If moving the previous installation fails, preserve the currently
+        # installed files rather than leaving the main path missing.
+        if failed.exists() and not project.exists():
+            os.replace(failed, project)
+        raise
     if failed.exists():
-        shutil.rmtree(failed)
+        try:
+            shutil.rmtree(failed)
+        except OSError:
+            # The previous installation has already been safely restored.
+            # A cleanup issue must not mask that outcome.
+            pass
 
 
 def write_backup_reference(path, tag, sha):
@@ -344,10 +362,17 @@ def install():
             if (project / ".itomiscan-beta-commit").read_text().strip() != sha:
                 raise UpdateError("Installationsversion nicht konsistent.")
             write_backup_reference(snapshot, local_tag, local_sha)
-            shutil.rmtree(previous)
         except BaseException:
             restore_after_failure(project, previous)
             raise
+        # At this point the new program and its rollback reference are valid.
+        # A failure to remove an obsolete swap directory must NOT trigger an
+        # unrequested rollback or make the success marker disagree with reality.
+        try:
+            shutil.rmtree(previous)
+        except OSError:
+            progress(95, "Neue Beta aktiv; alte Austauschdateien müssen "
+                     "bei Gelegenheit über SSH bereinigt werden.")
     progress(100, tag + " installiert. Neustart zur Aktivierung erforderlich.", state="success")
 
 

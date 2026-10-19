@@ -30,3 +30,7 @@ Eine Stromunterbrechung im kurzen Zeitraum zwischen Umbenennungen kann eine manu
 ## Hardwareabnahme
 
 Der echte N1800 wurde nicht mit diesem Updater getestet. Zu prüfen sind: installierte Version, freier Speicher, GitHub-Zugriff, Downgrade-Schutz, vorhandene Datensicherung, Installationsfortschritt, vollständiger Neustart, Webservice und Kiosk, VNC-Fernsteuerung, CPU-/RAM-Verbrauch sowie gezielte manuelle Wiederherstellung. GitHub-CI und simulierte Rollback-Tests ersetzen diese Prüfungen nicht.
+
+## Integrations-Nachprüfung (Block 5)
+
+Die Softwaretests prüfen zusätzlich WebSocket-Anmeldung, Herkunftsprüfung, VNC-Bytestrom und den lokal gebundenen VNC-Prozess. Der Rollback-Helfer verwendet bei gescheiterter Installation einen zufällig benannten Quarantänepfad. Dadurch kann ein bereits vorhandener Pfad `ItomiScan.updater-failed` die Wiederherstellung nicht verhindern oder fremde Daten löschen. Nach erfolgreicher Installation führt ein nichtkritischer Fehler bei der Bereinigung des alten Austauschverzeichnisses nicht mehr zu einem Rollback; eine manuelle SSH-Bereinigung kann dann nötig bleiben. Hardware- und Stromausfalltests stehen weiterhin aus.

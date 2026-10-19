@@ -115,6 +115,42 @@ class BetaUpdaterTests(unittest.TestCase):
                     source, Path(temp) / "stage",
                     {"app.py": (helper.git_blob_sha(b"a"), 0o644)})
 
+    def test_rollback_ignores_preexisting_symlink_at_fixed_failure_path(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            project = root / "ItomiScan"
+            previous = root / "ItomiScan.updater-previous"
+            stale = root / "ItomiScan.updater-failed"
+            unrelated = root / "unrelated"
+            project.mkdir()
+            previous.mkdir()
+            unrelated.mkdir()
+            (project / "app.py").write_text("new")
+            (previous / "app.py").write_text("old")
+            (unrelated / "important.txt").write_text("untouched")
+            stale.symlink_to(unrelated, target_is_directory=True)
+            helper.restore_after_failure(project, previous)
+            self.assertEqual((project / "app.py").read_text(), "old")
+            self.assertTrue(stale.is_symlink())
+            self.assertEqual((unrelated / "important.txt").read_text(), "untouched")
+            self.assertFalse(previous.exists())
+
+    def test_invalid_or_truncated_git_tree_is_never_accepted(self):
+        from unittest.mock import patch
+        with patch.object(helper, "fetch_json", return_value={
+            "truncated": True, "tree": []
+        }):
+            with self.assertRaises(helper.UpdateError):
+                helper.expected_tree("a" * 40)
+        with patch.object(helper, "fetch_json", return_value={
+            "truncated": False, "tree": [
+                {"type": "blob", "mode": "120000", "path": "app.py",
+                 "sha": "a" * 40}
+            ]
+        }):
+            with self.assertRaises(helper.UpdateError):
+                helper.expected_tree("a" * 40)
+
     def test_requires_published_beta_tag_for_commit_resolution(self):
         with self.assertRaises(helper.UpdateError):
             helper.release_commit("develop/1.0.0")
