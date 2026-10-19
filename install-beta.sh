@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ItomiScan 1.0.0 beta deployment for Debian 12.
-# Usage: sudo bash install-beta.sh --user USERNAME
+# Usage: sudo bash install-beta.sh --user USERNAME --ref v1.0.0-beta.4
 set -Eeuo pipefail
 umask 022
 [[ $EUID -eq 0 ]] || { echo "Bitte mit sudo ausführen." >&2; exit 2; }
@@ -13,12 +13,12 @@ fail(){ echo "[FEHLER] $*" >&2; exit 2; }
 step(){ echo; echo "===== $* ====="; }
 
 USER_NAME=""
-SOURCE_REF="develop/1.0.0"
+SOURCE_REF=""
 while [[ $# -gt 0 ]]; do
  case "$1" in
   --user) [[ $# -ge 2 ]] || fail "--user benoetigt einen Benutzernamen."; USER_NAME="$2"; shift 2 ;;
   --ref) [[ $# -ge 2 ]] || fail "--ref benoetigt einen Tag oder Commit."; SOURCE_REF="$2"; shift 2 ;;
-  -h|--help) echo "Verwendung: sudo bash install-beta.sh --user BENUTZERNAME [--ref v1.0.0-beta.2]"; exit 0 ;;
+  -h|--help) echo "Verwendung: sudo bash install-beta.sh --user BENUTZERNAME --ref v1.0.0-beta.4"; exit 0 ;;
   *) fail "Unbekannter Parameter: $1" ;;
  esac
 done
@@ -26,7 +26,7 @@ done
 step "Vorpruefung"
 [[ $EUID -eq 0 ]] || fail "Installer muss mit sudo/root ausgefuehrt werden."
 [[ -n "$USER_NAME" ]] || fail "Linux-Benutzer fehlt. --user BENUTZERNAME angeben."
-[[ "$SOURCE_REF" =~ ^[A-Za-z0-9][A-Za-z0-9._/-]{0,79}$ && "$SOURCE_REF" != *..* ]] || fail "Ungueltiger Quellzweig/Tag."
+[[ "$SOURCE_REF" =~ ^v[0-9]+\.[0-9]+\.[0-9]+-beta\.[0-9]+$ ]] || fail "Nur feste Beta-Tags mit --ref erlaubt (z.B. v1.0.0-beta.4)."
 [[ "$USER_NAME" =~ ^[a-z_][a-z0-9_-]*$ ]] || fail "Ungueltiger Benutzername: $USER_NAME"
 id "$USER_NAME" >/dev/null 2>&1 || fail "Benutzer '$USER_NAME' existiert nicht."
 [[ "$(id -u "$USER_NAME")" -ne 0 ]] || fail "root darf nicht als ItomiScan-Benutzer verwendet werden."

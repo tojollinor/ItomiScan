@@ -1,0 +1,132 @@
+name: Publish ItomiScan Beta 4
+on:
+  push:
+    branches:
+      - develop/1.0.0
+    paths:
+      - docs/releases/v1.0.0-beta.4.md
+
+permissions:
+  contents: write
+  actions: read
+
+concurrency:
+  group: itomiscan-publish-v1.0.0-beta.4
+  cancel-in-progress: false
+
+jobs:
+  prerelease:
+    name: Verify and publish Beta 4 on exact commit
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    if: github.repository == 'tojollinor/ItomiScan' && github.ref == 'refs/heads/develop/1.0.0'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Verify release source and tag uniqueness
+        shell: bash
+        env:
+          GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF" = "refs/heads/develop/1.0.0"
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test -s docs/releases/v1.0.0-beta.4.md
+          test -s docs/BETA4-INSTALL.md
+          grep -Fq 'Hardwareabnahme ausstehend' docs/releases/v1.0.0-beta.4.md
+          git diff --exit-code
+          if gh release view v1.0.0-beta.4 --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Refusing to overwrite existing Beta 4 release."
+            exit 1
+          fi
+          if git ls-remote --exit-code --tags \
+             "https://github.com/$GITHUB_REPOSITORY.git" refs/tags/v1.0.0-beta.4 >/dev/null 2>&1; then
+            echo "Refusing to overwrite existing Beta 4 tag."
+            exit 1
+          fi
+      - name: Install isolated test prerequisites
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            python3-tk python3-pil python3-pil.imagetk fonts-dejavu-core xvfb xauth
+      - name: Check all Python, shell and JS syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m compileall -q app.py itomiscan tests
+          find . -maxdepth 2 -type f -name '*.sh' -print0 | xargs -0 -r -n1 bash -n
+          python3 -m unittest discover -s tests -p test_block5_frontend.py -v
+      - name: Run every headless test suite
+        shell: bash
+        run: |
+          set -euo pipefail
+          for test in tests/test_*.py; do
+            case "$test" in *test_gui_smoke.py|*test_touch_ui.py) continue ;; esac
+            timeout --signal=TERM --kill-after=10s 180s env PYTHONPATH=. python3 -u \
+              -m unittest discover -s tests -p "$(basename "$test")" -v
+          done
+      - name: Run isolated GUI and touchscreen tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          timeout --signal=TERM --kill-after=10s 180s xvfb-run -a env PYTHONPATH=. \
+            python3 -u -m unittest discover -s tests -p test_gui_smoke.py -v
+          timeout --signal=TERM --kill-after=10s 180s xvfb-run -a env PYTHONPATH=. \
+            python3 -u -m unittest discover -s tests -p test_touch_ui.py -v
+      - name: Require three green independent CI checks on release SHA
+        shell: bash
+        env:
+          GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 100); do
+            gh api "repos/$GITHUB_REPOSITORY/actions/runs?head_sha=$GITHUB_SHA&per_page=100" \
+              --jq '.workflow_runs | [.[] | select(.event == "push") |
+                 {name: .name, status: .status, conclusion: .conclusion}]' \
+              > /tmp/itomiscan-beta4-ci.json
+            passed=0
+            for name in "ItomiScan development checks" "ItomiScan Beta Checks" "ItomiScan scan quality"; do
+              if jq -e --arg n "$name" \
+                 'any(.[]; .name == $n and .status == "completed" and .conclusion == "success")' \
+                  /tmp/itomiscan-beta4-ci.json >/dev/null; then
+                passed=$((passed+1))
+              elif jq -e --arg n "$name" \
+                 'any(.[]; .name == $n and .status == "completed" and .conclusion != "success")' \
+                  /tmp/itomiscan-beta4-ci.json >/dev/null; then
+                echo "CI failed or cancelled: $name"
+                exit 1
+              fi
+            done
+            if [[ "$passed" -eq 3 ]]; then
+              echo "All three CI workflows successful on commit $GITHUB_SHA."
+              break
+            fi
+            if [[ "$attempt" -eq 100 ]]; then
+              echo "Timed out waiting for all three green CI workflows."
+              exit 1
+            fi
+            sleep 10
+          done
+      - name: Publish only GitHub prerelease v1.0.0-beta.4
+        shell: bash
+        env:
+          GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+        run: |
+          set -euo pipefail
+          gh release create v1.0.0-beta.4 \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" \
+            --title "ItomiScan v1.0.0 Beta 4" \
+            --notes-file docs/releases/v1.0.0-beta.4.md \
+            --prerelease
+          actual="$(gh release view v1.0.0-beta.4 \
+            --repo "$GITHUB_REPOSITORY" \
+            --json tagName,isPrerelease,isDraft,targetCommitish \
+            --jq '[.tagName, .isPrerelease, .isDraft, .targetCommitish] | @tsv')"
+          test "$actual" = "$(printf 'v1.0.0-beta.4\ttrue\tfalse\t%s' "$GITHUB_SHA")"
+          tag_sha="$(git ls-remote "https://github.com/$GITHUB_REPOSITORY.git" \
+            refs/tags/v1.0.0-beta.4 | awk '{print $1}')"
+          test "$tag_sha" = "$GITHUB_SHA"
+          echo "Beta 4 published on exact CI-verified commit, not Stable."
