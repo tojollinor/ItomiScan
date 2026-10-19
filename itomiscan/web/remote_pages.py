@@ -2,18 +2,18 @@
 from itomiscan.web.pages import e, layout, options, token
 
 
-def remote_page(profiles, selected, latest, csrf, notice="", *, live=False):
+def remote_page(profiles, selected, latest, csrf, notice="", *, live=False, vnc_password=None):
     state = ("Noch kein Fernauftrag" if not latest else
              f"Letzter Auftrag #{latest['id']}: {latest['action']} · "
              f"{latest['status']} · {latest['detail']}")
     view = ('<article class="card"><h2>Liveansicht des Touchscreens</h2>'
-            '<p>Ressourcenschonende Livebilder mit verkürztem Aktualisierungsintervall. '
-            'Das Bild behält das echte Seitenverhältnis. Klicks und ausgewählte Tastaturbefehle werden an den lokalen Kiosk '
+            '<p>Ressourcenschonende VNC-Liveansicht des vorhandenen Touchscreens. '
+            'Das Bild behält das echte Seitenverhältnis. Maus- und Tastatureingaben werden an den lokalen Kiosk '
             'gesendet. Die lokale PIN-Anmeldung bleibt erforderlich.</p>')
     if live:
         view += ('<div class="remote-screen" id="remote-screen">'
-                 '<img id="remote-live-frame" alt="Aktueller Scannerbildschirm" '
-                 'draggable="false" hidden>'
+                 f'<div id="remote-vnc-screen" data-password="{e(vnc_password or "")}" '
+                 'style="width:100%;height:576px" hidden></div>'
                  '<div id="remote-live-placeholder" class="remote-placeholder" role="status">'
                  '<strong id="remote-live-heading">Livebild wird geladen …</strong>'
                  '<p id="remote-live-detail">Verbindung zum Scanner wird hergestellt.</p>'
@@ -25,16 +25,10 @@ def remote_page(profiles, selected, latest, csrf, notice="", *, live=False):
                  'Verbindung wird hergestellt …</p>'
                  '<form method="post" action="/remote/live/stop">' + token(csrf)
                  + '<button class="secondary">Liveansicht beenden</button></form>'
-                 '<div class="remote-keys"><label for="remote-text">Tastatureingabe</label>'
-                 '<input id="remote-text" maxlength="80" '
-                 'placeholder="Text eingeben und senden">'
-                 '<button type="button" id="remote-send-text">Text senden</button>'
-                 '<button type="button" data-remote-key="BackSpace">Rücktaste</button>'
-                 '<button type="button" data-remote-key="Return">Enter</button>'
-                 '<button type="button" data-remote-key="Tab">Tab</button></div>')
+                 '')
     else:
         view += ('<p class="status-note">Die Liveansicht ist ausgeschaltet und '
-                 'verbraucht keine Bildschirmaufnahmen.</p>'
+                 'verbraucht keine VNC-Bildschirmübertragung.</p>'
                  '<form method="post" action="/remote/live/start">' + token(csrf)
                  + '<button>Liveansicht starten</button></form>')
     view += '</article>'
@@ -68,5 +62,5 @@ def remote_page(profiles, selected, latest, csrf, notice="", *, live=False):
             '<p id="remote-command-status" role="status">' + e(state) + '</p>'
             '<p class="muted">Angenommen bedeutet nur, dass der Auftrag an den Kiosk '
             'übergeben wurde, nicht dass ein Scan oder Neustart abgeschlossen ist.</p>'
-            '</article><script defer src="/assets/remote.js"></script>')
+            '</article><script type="module" src="/assets/vnc.js"></script>')
     return layout("Fernsteuerung", body, active="/remote", csrf=csrf, notice=notice)

@@ -188,6 +188,85 @@ TARGET_SELECT_JS = """(() => {
   update();
 })();"""
 
+VNC_JS = """import RFB from '/novnc/core/rfb.js';
+(() => {
+  const screen = document.getElementById('remote-vnc-screen');
+  if (!screen) return;
+  const holder = document.getElementById('remote-live-placeholder');
+  const label = document.getElementById('remote-live-status');
+  const retry = document.getElementById('remote-reconnect');
+  const login = document.getElementById('remote-login-link');
+  const csrf = document.querySelector('form[action="/remote/live/stop"] input[name="csrf"]').value;
+  let rfb = null, connected = false, closed = false;
+  function state(message, ready=false) {
+    connected = ready;
+    label.textContent = message;
+    holder.hidden = ready;
+    screen.hidden = !ready;
+    retry.hidden = ready;
+  }
+  async function post(path) {
+    const response = await fetch(path, {
+      method: 'POST', credentials: 'same-origin',
+      headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+      body: new URLSearchParams({csrf})
+    });
+    if (response.redirected || response.status === 401) {
+      login.hidden = false;
+      throw new Error('Bitte erneut anmelden.');
+    }
+    if (!response.ok) throw new Error('Verbindung nicht verfügbar.');
+  }
+  function connect() {
+    if (rfb) { rfb.disconnect(); rfb = null; }
+    state('Verbindung wird hergestellt …');
+    retry.hidden = true;
+    const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const url = protocol + '//' + location.host + '/remote/vnc/ws';
+    try {
+      rfb = new RFB(screen, url, {credentials: {password: screen.dataset.password}});
+      rfb.scaleViewport = true;
+      rfb.resizeSession = false;
+      rfb.viewOnly = false;
+      rfb.qualityLevel = 5;
+      rfb.compressionLevel = 7;
+      rfb.addEventListener('connect', () => state('Livebild aktiv · Klicken oder tippen zum Bedienen', true));
+      rfb.addEventListener('disconnect', () => {
+        if (!closed) state('Fernsteuerung unterbrochen. Wiederherstellen wählen.');
+      });
+      rfb.addEventListener('securityfailure', () => state('VNC-Anmeldung fehlgeschlagen.'));
+    } catch (_error) {
+      state('Fernsteuerung konnte nicht gestartet werden.');
+    }
+  }
+  retry.addEventListener('click', async () => {
+    retry.disabled = true;
+    try {
+      await post('/remote/live/reconnect');
+      const response = await fetch('/remote', {credentials:'same-origin', cache:'no-store'});
+      if (!response.ok || response.redirected) throw new Error('Anmeldung abgelaufen.');
+      const html = new DOMParser().parseFromString(await response.text(), 'text/html');
+      const newScreen = html.getElementById('remote-vnc-screen');
+      if (!newScreen) throw new Error('Keine aktive VNC-Sitzung.');
+      screen.dataset.password = newScreen.dataset.password;
+      connect();
+    } catch (error) {
+      state(error.message);
+    } finally {retry.disabled = false;}
+  });
+  const keepAlive = setInterval(async () => {
+    if (closed || document.hidden) return;
+    try { await post('/remote/live/ping'); }
+    catch (_error) { if (!closed) state('Sitzung abgelaufen. Wiederherstellen wählen.'); }
+  }, 8000);
+  window.addEventListener('pagehide', () => {
+    closed = true;
+    clearInterval(keepAlive);
+    if (rfb) rfb.disconnect();
+  }, {once:true});
+  connect();
+})();"""
+
 REMOTE_JS = """(() => {
   const status = document.getElementById('remote-command-status');
   document.querySelectorAll('[data-power-confirm]').forEach(form => {

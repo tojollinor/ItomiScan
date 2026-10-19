@@ -37,6 +37,7 @@ from itomiscan.integrations.printing import (
 from itomiscan.storage.queue import DeliveryQueue, QueueError
 from itomiscan.storage.remote_commands import RemoteCommands
 from itomiscan.storage.remote_live import RemoteLive, viewer_id, FRAME_SECONDS
+from itomiscan.web.vnc_bridge import VNCBridge, NOVNC_ROOT, serve_websocket
 from itomiscan.storage.secrets import SecretStore, SecretError
 from itomiscan.integrations.paperless_diagnostics import (diagnose_paperless, exchange_credentials, PaperlessDiagnosticError)
 
@@ -161,6 +162,7 @@ class AdminServer(ThreadingHTTPServer):
         self.status_sampler = StatusSampler()
         self.remote_commands = RemoteCommands(store.path)
         self.remote_live = RemoteLive(store.path)
+        self.vnc = VNCBridge(self.remote_live)
 
 
 class AdminHandler(BaseHTTPRequestHandler):
@@ -270,6 +272,12 @@ class AdminHandler(BaseHTTPRequestHandler):
         if not self._host_ok():
             return self._error(421, "Unbekannter Hostname. Bitte die konfigurierte IP benutzen.")
         path = urlsplit(self.path).path
+        if path == "/remote/vnc/ws":
+            token = self._session_token()
+            owner = viewer_id(token) if token else ""
+            if not self._authenticated() or not self.server.remote_live.authorized(owner):
+                return self._error(403, "Fernsteuerung nicht freigegeben.")
+            return serve_websocket(self, self.server.vnc, owner)
         if path == "/login":
             if self._authenticated():
                 return self._redirect("/")
@@ -279,6 +287,19 @@ class AdminHandler(BaseHTTPRequestHandler):
             return self._redirect("/login")
         notice = parse_qs(urlsplit(self.path).query).get("ok", [""])[0][:180]
         try:
+            if path == "/assets/vnc.js":
+                return self._response(200, pages.VNC_JS,
+                                      mime="text/javascript; charset=utf-8")
+            if path.startswith("/novnc/"):
+                relative = path[len("/novnc/"):]
+                target = (NOVNC_ROOT / relative).resolve()
+                if not target.is_relative_to(NOVNC_ROOT.resolve()) or not target.is_file():
+                    return self._error(404, "Asset nicht gefunden.")
+                if target.suffix not in (".js", ".css"):
+                    return self._error(403, "Assettyp nicht erlaubt.")
+                return self._response(200, target.read_bytes(), mime=(
+                    "text/javascript; charset=utf-8" if target.suffix == ".js"
+                    else "text/css; charset=utf-8"))
             if path == "/assets/target-select.js":
                 return self._response(200, pages.TARGET_SELECT_JS,
                                       mime="text/javascript; charset=utf-8")
@@ -326,7 +347,8 @@ class AdminHandler(BaseHTTPRequestHandler):
                 viewer = viewer_id(self._session_token())
                 html = remote_pages.remote_page(
                     profiles, selected, self.server.remote_commands.latest(), csrf, notice,
-                    live=self.server.remote_live.authorized(viewer))
+                    live=self.server.remote_live.authorized(viewer),
+                    vnc_password=self.server.vnc.password(viewer))
             elif path == "/users":
                 profiles, _ = self.server.store.list_profiles()
                 html = user_pages.users_page(
@@ -479,15 +501,23 @@ class AdminHandler(BaseHTTPRequestHandler):
             return self._error(403, "Sicherheitsprüfung fehlgeschlagen. Bitte Seite neu laden.")
         try:
             if path == "/logout":
+                self.server.vnc.stop(viewer_id(self._session_token()))
                 self.server.remote_live.stop(viewer_id(self._session_token()))
                 self.server.sessions.remove(self._session_token())
                 return self._redirect("/login", cookie=self._cookie("", expired=True))
             if path == "/remote/live/start":
-                self.server.remote_live.start(viewer_id(self._session_token()))
+                viewer = viewer_id(self._session_token())
+                self.server.vnc.start(viewer)
+                try:
+                    self.server.remote_live.start(viewer)
+                except Exception:
+                    self.server.vnc.stop(viewer)
+                    raise
                 return self._redirect("/remote?ok=Liveansicht%20gestartet")
             if path == "/remote/live/reconnect":
                 viewer = viewer_id(self._session_token())
                 try:
+                    self.server.vnc.start(viewer)
                     self.server.remote_live.start(viewer)
                 except ValueError as exc:
                     return self._response(
