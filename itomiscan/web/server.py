@@ -160,9 +160,16 @@ class AdminServer(ThreadingHTTPServer):
         self.secrets = SecretStore(store.path)
         self.diagnostic = ""
         self.status_sampler = StatusSampler()
+        # Start the 1 Hz RAM-only history when the web service starts.
+        self.status_sampler.start()
         self.remote_commands = RemoteCommands(store.path)
         self.remote_live = RemoteLive(store.path)
         self.vnc = VNCBridge(self.remote_live)
+
+
+    def server_close(self):
+        self.status_sampler.stop()
+        super().server_close()
 
 
 class AdminHandler(BaseHTTPRequestHandler):
@@ -415,6 +422,11 @@ class AdminHandler(BaseHTTPRequestHandler):
                 return self._response(200, json.dumps(
                     self.server.remote_commands.latest()),
                     mime="application/json; charset=utf-8")
+            elif path == "/api/metrics/history":
+                data = json.dumps(self.server.status_sampler.history(),
+                                  ensure_ascii=False)
+                return self._response(200, data,
+                                      mime="application/json; charset=utf-8")
             elif path == "/api/metrics":
                 data = json.dumps(self.server.status_sampler.collect(
                     self.server.store.path.parent), ensure_ascii=False)
