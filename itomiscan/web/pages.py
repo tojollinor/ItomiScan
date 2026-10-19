@@ -190,8 +190,28 @@ TARGET_SELECT_JS = """(() => {
 
 VNC_JS = """import RFB from '/novnc/core/rfb.js';
 (() => {
+  const commandStatus = document.getElementById('remote-command-status');
+  async function refreshCommandStatus() {
+    if (!commandStatus || document.hidden) return;
+    try {
+      const response = await fetch('/api/remote-status', {
+        credentials: 'same-origin', cache: 'no-store'
+      });
+      if (!response.ok || response.redirected) return;
+      const data = await response.json();
+      commandStatus.textContent = data.id
+        ? 'Letzter Auftrag #' + data.id + ': ' + data.action + ' · ' +
+          data.status + ' · ' + (data.detail || '')
+        : 'Noch kein Fernauftrag';
+    } catch (_error) { /* Keep the last displayed status. */ }
+  }
+  refreshCommandStatus();
+  const commandTimer = setInterval(refreshCommandStatus, 2500);
   const screen = document.getElementById('remote-vnc-screen');
-  if (!screen) return;
+  if (!screen) {
+    window.addEventListener('pagehide', () => clearInterval(commandTimer), {once: true});
+    return;
+  }
   const holder = document.getElementById('remote-live-placeholder');
   const label = document.getElementById('remote-live-status');
   const retry = document.getElementById('remote-reconnect');
@@ -262,6 +282,7 @@ VNC_JS = """import RFB from '/novnc/core/rfb.js';
   window.addEventListener('pagehide', () => {
     closed = true;
     clearInterval(keepAlive);
+    clearInterval(commandTimer);
     if (rfb) rfb.disconnect();
   }, {once:true});
   connect();
