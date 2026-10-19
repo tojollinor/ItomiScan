@@ -66,12 +66,14 @@ STATUS_JS = """(() => {
     charts.forEach(chart => {
       const key = chart.dataset.metricChart;
       const points = [];
-      samples.forEach((sample, i) => {
+      const endTime = samples.length ? samples[samples.length - 1].ts : 0;
+      const startTime = endTime - 299;
+      samples.forEach(sample => {
         const value = sample[key];
-        if (value == null) return;
-        // Pin shorter histories to the RIGHT: the x-axis is always 5 min.
-        // This preserves the shape when the page is reloaded.
-        const x = 10 + (300 - samples.length + i) * 300 / 299;
+        if (value == null || sample.ts < startTime) return;
+        // Real one-second positions; show gaps after a pause/resume.
+        // The chart is independent of the browser clock.
+        const x = 10 + (sample.ts - startTime) * 300 / 299;
         const y = 110 - value;
         points.push(x.toFixed(2) + ',' + y.toFixed(2));
       });

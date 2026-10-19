@@ -141,6 +141,10 @@ class StatusSampler:
         with self.lock:
             self._latest = {"cpu": cpu, **memory}
             self._history.append(sample)
+            # Keep a real five-minute window even after suspend or load.
+            while (self._history and
+                   self._history[0]["ts"] < sample["ts"] - 300):
+                self._history.popleft()
         return sample
 
     def start(self):
@@ -188,8 +192,10 @@ class StatusSampler:
 
     def history(self):
         """A copy, so concurrent HTTP requests never mutate the ring buffer."""
+        cutoff = self.wall_clock() - 300
         with self.lock:
-            samples = [dict(item) for item in self._history]
+            samples = [dict(item) for item in self._history
+                       if item["ts"] >= cutoff]
         return {
             "window_seconds": 300,
             "interval_seconds": 1,
