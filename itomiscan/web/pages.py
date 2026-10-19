@@ -806,9 +806,9 @@ def overview(status, counts, csrf, notice=""):
              'aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" data-disk-progress>'
              '<div class="memory-fill" data-disk-fill></div></div>'
              '<p data-disk-detail>Messung läuft …</p></article>')
-    body += ('<article class="card"><h2>Datenträger</h2><p class="status-metric">'
-             + metric('disk', status.get('disk', 'Nicht verfügbar'))
-             + '</p></article>')
+    body += ('<article class="card"><h2>Freier Speicherplatz</h2><p class="status-metric">'
+             + metric('disk_free', status.get('disk_free', 'Nicht verfügbar'))
+             + '</p><p class="status-note">Auf dem Datenlaufwerk verfügbar</p></article>')
     body += '</section><h2>Gerätezustand</h2><section class="grid">'
     for heading, key in (
         ("Web-Admin-Dienst", "web_service"),
