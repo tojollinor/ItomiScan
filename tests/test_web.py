@@ -139,7 +139,10 @@ class WebAdminTests(unittest.TestCase):
                 self.assertIn('<svg class="brand-icon"', page)
                 self.assertIn("Itomi<b>Scan</b>", page)
                 if route in ("/", "/system"):
-                    self.assertIn("data-status-key=\"disk", page)
+                    if route == "/system":
+                        self.assertIn('data-status-key="disk', page)
+                    else:
+                        self.assertEqual(page.count("data-disk-progress"), 1)
                     self.assertIn("/assets/status.js", page)
                     self.assertIn('data-metric-chart="cpu"', page)
                     self.assertIn('data-metric-chart="ram"', page)
