@@ -37,64 +37,124 @@ STATUS_JS = """(() => {
   const elements = document.querySelectorAll('[data-status-key]');
   const charts = document.querySelectorAll('[data-metric-chart]');
   if (!elements.length && !charts.length) return;
-  const histories = new Map();
+  // The authoritative 300-sample history lives in the always-running web
+  // service. The browser only renders a temporary copy.
+  const samples = [];
+  let lastTimestamp = -Infinity;
   let busy = false;
-  function draw(chart, value) {
-    const key = chart.dataset.metricChart;
-    let list = histories.get(key);
-    if (!list) { list = []; histories.set(key, list); }
-    list.push(Number.isFinite(value) ? Math.max(0, Math.min(100, value)) : null);
-    if (list.length > 300) list.shift();
-    const points = [];
-    for (let i = 0; i < list.length; i++) {
-      if (list[i] === null) continue;
-      points.push((10 + i * 300 / 299).toFixed(2) + ',' +
-                  (110 - list[i]).toFixed(2));
-    }
-    const line = chart.querySelector('polyline');
-    if (line) line.setAttribute('points', points.join(' '));
+  let timer = null;
+  let closed = false;
+
+  function valueOrNull(value) {
+    return typeof value === 'number' && Number.isFinite(value)
+        ? Math.max(0, Math.min(100, value)) : null;
   }
+
+  function append(sample) {
+    if (!sample || typeof sample.ts !== 'number' ||
+        !Number.isFinite(sample.ts) || sample.ts <= lastTimestamp) return;
+    samples.push({
+      ts: sample.ts,
+      cpu: valueOrNull(sample.cpu),
+      ram: valueOrNull(sample.ram)
+    });
+    lastTimestamp = sample.ts;
+    if (samples.length > 300) samples.shift();
+  }
+
+  function draw() {
+    charts.forEach(chart => {
+      const key = chart.dataset.metricChart;
+      const points = [];
+      samples.forEach((sample, i) => {
+        const value = sample[key];
+        if (value == null) return;
+        // Pin shorter histories to the RIGHT: the x-axis is always 5 min.
+        // This preserves the shape when the page is reloaded.
+        const x = 10 + (300 - samples.length + i) * 300 / 299;
+        const y = 110 - value;
+        points.push(x.toFixed(2) + ',' + y.toFixed(2));
+      });
+      const line = chart.querySelector('polyline');
+      if (line) line.setAttribute('points', points.join(' '));
+    });
+  }
+
+  function updateDisk(data) {
+    const bar = document.querySelector('[data-disk-progress]');
+    const fill = document.querySelector('[data-disk-fill]');
+    const detail = document.querySelector('[data-disk-detail]');
+    const value = valueOrNull(data.disk_percent);
+    if (bar && fill && value !== null) {
+      bar.setAttribute('aria-valuenow', String(value));
+      fill.style.width = value + '%';
+    }
+    if (detail) {
+      detail.textContent = value === null ? 'Nicht verfügbar' :
+          data.disk_used + ' von ' + data.disk_total + ' belegt · ' +
+          data.disk_free + ' frei (' + value.toFixed(1) + ' %)';
+    }
+  }
+
+  function updateLabels(data) {
+    elements.forEach(element => {
+      const key = element.getAttribute('data-status-key');
+      if (Object.prototype.hasOwnProperty.call(data, key)) {
+        element.textContent = String(data[key]);
+      }
+    });
+    charts.forEach(chart => {
+      const key = chart.dataset.metricChart;
+      const value = key === 'cpu'
+          ? valueOrNull(data.sample && data.sample.cpu)
+          : valueOrNull(data.ram_percent);
+      const label = chart.parentElement.querySelector('[data-chart-value]');
+      if (!label) return;
+      label.textContent = value === null ? 'Messung läuft …' :
+          (key === 'ram' ? data.ram_used + ' / ' + data.ram_total + ' · ' : '') +
+          value.toFixed(1) + ' %';
+    });
+  }
+
   async function refresh() {
-    if (busy || document.hidden) return;
+    if (busy || closed || document.hidden) return;
     busy = true;
     try {
       const response = await fetch('/api/metrics',
           {cache:'no-store', credentials:'same-origin'});
-      if (!response.ok) return;
+      if (!response.ok || response.redirected) return;
       const data = await response.json();
-      elements.forEach(element => {
-        const key = element.getAttribute('data-status-key');
-        if (Object.prototype.hasOwnProperty.call(data, key)) {
-          element.textContent = String(data[key]);
-        }
-      });
-      const memory = document.querySelector('[data-ram-progress]');
-      const fill = document.querySelector('[data-ram-fill]');
-      const detail = document.querySelector('[data-ram-detail]');
-      const percent = Number(data.ram_percent);
-      if (memory && fill && data.ram_percent != null && Number.isFinite(percent)) {
-        const bounded = Math.max(0, Math.min(100, percent));
-        memory.setAttribute('aria-valuenow', String(bounded));
-        fill.style.width = bounded + '%';
-        if (detail) detail.textContent = data.ram_used + ' von ' + data.ram_total +
-            ' belegt · ' + data.ram_free + ' verfügbar (' + bounded.toFixed(1) + ' %)';
-      }
-      charts.forEach(chart => {
-        const key = chart.dataset.metricChart;
-        const value = key === 'cpu' ? parseFloat(data.cpu) :
-                      (data.ram_percent == null ? NaN : Number(data.ram_percent));
-        draw(chart, value);
-        const label = chart.parentElement.querySelector('[data-chart-value]');
-        if (label) label.textContent = Number.isFinite(value) ?
-            (key === 'ram' ? data.ram_used + ' / ' + data.ram_total + ' · ' : '') +
-            value.toFixed(1) + ' %' : 'Nicht verfügbar';
-      });
-    } catch (_error) { /* Retain previous samples if temporarily offline. */ }
+      updateLabels(data);
+      updateDisk(data);
+      append(data.sample);
+      draw();
+    } catch (_error) { /* Keep the last valid values while offline. */ }
     finally { busy = false; }
   }
-  refresh();
-  const timer = window.setInterval(refresh, 1000);
-  window.addEventListener('pagehide', () => clearInterval(timer), {once:true});
+
+  async function initialise() {
+    try {
+      const response = await fetch('/api/metrics/history',
+          {cache:'no-store', credentials:'same-origin'});
+      if (response.ok && !response.redirected) {
+        const payload = await response.json();
+        if (Array.isArray(payload.samples)) {
+          payload.samples.forEach(append);
+          draw();
+        }
+      }
+    } catch (_error) { /* Live values still work without a history request. */ }
+    if (!closed) {
+      refresh();
+      timer = window.setInterval(refresh, 1000);
+    }
+  }
+
+  window.addEventListener('pagehide', () => {
+    closed = true;
+    if (timer !== null) clearInterval(timer);
+  }, {once:true});
+  initialise();
 })();"""
 
 
@@ -702,11 +762,11 @@ def overview(status, counts, csrf, notice=""):
     body += '<h2>Systemauslastung</h2><section class="grid">'
     body += chart_panel('CPU-Auslastung', 'cpu') + chart_panel('Arbeitsspeicher', 'ram')
     body += '</section><section class="grid" style="margin-top:16px">'
-    body += ('<article class="card"><h2>Arbeitsspeicherbelegung</h2>'
-             '<div class="memory-track" role="progressbar" aria-label="Arbeitsspeicher belegt" '
-             'aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" data-ram-progress>'
-             '<div class="memory-fill" data-ram-fill></div></div>'
-             '<p data-ram-detail>Messung läuft …</p></article>')
+    body += ('<article class="card"><h2>Datenträgerbelegung</h2>'
+             '<div class="memory-track" role="progressbar" aria-label="Datenträger belegt" '
+             'aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" data-disk-progress>'
+             '<div class="memory-fill" data-disk-fill></div></div>'
+             '<p data-disk-detail>Messung läuft …</p></article>')
     body += ('<article class="card"><h2>Datenträger</h2><p class="status-metric">'
              + metric('disk', status.get('disk', 'Nicht verfügbar'))
              + '</p></article>')
@@ -719,8 +779,8 @@ def overview(status, counts, csrf, notice=""):
     ):
         body += (f'<article class="card"><h2>{e(heading)}</h2>'
                  f'<p class="status-metric">{metric(key, status.get(key, "Nicht verfügbar"))}</p></article>')
-    body += '</section><p class="status-note">CPU/RAM-Aktualisierung jede Sekunde, '
-    body += 'ohne Seitenwechsel oder automatischen Scannertest.</p>'
+    body += '</section><p class="status-note">CPU/RAM-Historie: letzte fünf Minuten '
+    body += 'aus dem Arbeitsspeicher, sekündlich seit Start des Webdienstes.</p>'
     return layout("Übersicht", body, active="/", csrf=csrf, notice=notice,
                   live=True)
 
@@ -832,7 +892,8 @@ def system_page(state, settings, csrf, diagnostic="", notice=""):
                  f'{metric(key, state.get(key, "Nicht verfügbar"), inline=True)}</p>')
     body += '</article></section>'
     body += '<section class="grid" style="margin-top:16px">' + chart_panel('CPU-Verlauf', 'cpu') + chart_panel('RAM-Verlauf', 'ram') + '</section>'
-    body += '<p class="status-note">CPU und RAM werden jede Sekunde aktualisiert. '
+    body += '<p class="status-note">CPU und RAM werden seit Start des Webdienstes '
+    body += 'jede Sekunde im Arbeitsspeicher erfasst. '
     body += 'Nicht gespeicherte Formulare bleiben unberührt.</p>'
     body += ('<article class="card"><h2>Geräteeinstellungen</h2>'
              '<p>Änderungen des Bildschirmschoners greifen am Display spätestens '
