@@ -215,6 +215,9 @@ VNC_JS = """import RFB from '/novnc/core/rfb.js';
   const holder = document.getElementById('remote-live-placeholder');
   const label = document.getElementById('remote-live-status');
   const retry = document.getElementById('remote-reconnect');
+  const textInput = document.getElementById('remote-text');
+  const sendText = document.getElementById('remote-send-text');
+  const remoteKeys = document.querySelectorAll('[data-remote-key]');
   const login = document.getElementById('remote-login-link');
   const csrf = document.querySelector('form[action="/remote/live/stop"] input[name="csrf"]').value;
   let rfb = null, connected = false, closed = false;
@@ -224,6 +227,9 @@ VNC_JS = """import RFB from '/novnc/core/rfb.js';
     holder.hidden = ready;
     screen.hidden = !ready;
     retry.hidden = ready;
+    if (textInput) textInput.disabled = !ready;
+    if (sendText) sendText.disabled = !ready;
+    remoteKeys.forEach(button => { button.disabled = !ready; });
   }
   async function post(path) {
     const response = await fetch(path, {
@@ -259,6 +265,27 @@ VNC_JS = """import RFB from '/novnc/core/rfb.js';
       state('Fernsteuerung konnte nicht gestartet werden.');
     }
   }
+  const symbols = {BackSpace: 0xff08, Return: 0xff0d, Tab: 0xff09};
+  remoteKeys.forEach(button => button.addEventListener('click', () => {
+    if (connected && rfb) rfb.sendKey(symbols[button.dataset.remoteKey]);
+  }));
+  if (sendText && textInput) sendText.addEventListener('click', async () => {
+    if (!connected || !rfb) return;
+    const value = textInput.value;
+    if (!/^[A-Za-z0-9 .@-]*$/.test(value)) {
+      label.textContent = 'Nur Buchstaben, Zahlen, Leerzeichen, Punkt, @ und - unterstützt.';
+      return;
+    }
+    sendText.disabled = true;
+    try {
+      for (const character of value) {
+        if (!connected || !rfb) break;
+        rfb.sendKey(character.codePointAt(0));
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+      textInput.value = '';
+    } finally { sendText.disabled = !connected; }
+  });
   retry.addEventListener('click', async () => {
     retry.disabled = true;
     try {

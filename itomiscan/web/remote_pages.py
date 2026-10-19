@@ -25,7 +25,13 @@ def remote_page(profiles, selected, latest, csrf, notice="", *, live=False, vnc_
                  'Verbindung wird hergestellt …</p>'
                  '<form method="post" action="/remote/live/stop">' + token(csrf)
                  + '<button class="secondary">Liveansicht beenden</button></form>'
-                 '')
+                 '<div class="remote-keys"><label for="remote-text">Tastatureingabe</label>'
+                 '<input id="remote-text" maxlength="80" '
+                 'placeholder="Text eingeben und senden">'
+                 '<button type="button" id="remote-send-text">Text senden</button>'
+                 '<button type="button" data-remote-key="BackSpace">Rücktaste</button>'
+                 '<button type="button" data-remote-key="Return">Enter</button>'
+                 '<button type="button" data-remote-key="Tab">Tab</button></div>')
     else:
         view += ('<p class="status-note">Die Liveansicht ist ausgeschaltet und '
                  'verbraucht keine VNC-Bildschirmübertragung.</p>'
