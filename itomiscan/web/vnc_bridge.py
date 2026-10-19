@@ -5,6 +5,7 @@ only for an authorized RemoteLive lease, never exposed on the LAN.
 """
 import base64
 import hashlib
+import logging
 import os
 from pathlib import Path
 import secrets
@@ -17,6 +18,7 @@ import tempfile
 import threading
 import time
 
+LOG = logging.getLogger("itomiscan.vnc")
 NOVNC_ROOT = Path("/usr/share/novnc")
 MAX_WS_MESSAGE = 1024 * 1024
 
@@ -88,17 +90,32 @@ class VNCBridge:
                 port = probe.getsockname()[1]
             command = [
                 shutil.which("x11vnc"), "-display", ":0",
+                "-auth", str(Path.home() / ".Xauthority"),
                 "-localhost", "-rfbport", str(port), "-passwdfile", str(path),
                 "-once", "-nevershared", "-noxdamage", "-quiet",
             ]
             try:
                 self._process = subprocess.Popen(
                     command, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL, close_fds=True)
+                    stderr=subprocess.PIPE, close_fds=True)
                 time.sleep(0.2)
                 if self._process.poll() is not None:
+                    # Diagnostics are intentionally classified rather than logged
+                    # verbatim: x11vnc stderr can contain security-sensitive data.
+                    _stderr = self._process.communicate(timeout=2)[1] or b""
+                    diagnostic = _stderr.lower()
+                    reason = ("X11-Anzeige nicht erreichbar"
+                              if b"cannot open display" in diagnostic or
+                                 b"unable to open display" in diagnostic
+                              else "X11-Authentifizierung verweigert"
+                              if b"authorization required" in diagnostic or
+                                 b"no protocol specified" in diagnostic
+                              else "VNC-Prozess beendet")
+                    LOG.warning("VNC-Start fehlgeschlagen: %s (exit=%s)",
+                                reason, self._process.returncode)
                     raise VNCUnavailable("x11vnc konnte den Kiosk-Bildschirm nicht öffnen.")
                 self._owner, self._password, self._port = owner, password, port
+                LOG.info("VNC-Bridge gestartet (nur Loopback).")
                 return password
             except Exception:
                 self._stop_locked()
