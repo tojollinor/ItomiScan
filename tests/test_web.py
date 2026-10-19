@@ -116,6 +116,7 @@ class WebAdminTests(unittest.TestCase):
 
     def test_branding_and_authenticated_live_status(self):
         self.assertEqual(self.req("GET", "/api/status")[0], 303)
+        self.assertEqual(self.req("GET", "/api/metrics/history")[0], 303)
         self.assertEqual(self.req("GET", "/assets/status.js")[0], 303)
         self.login()
         for route in ("/", "/system", "/users"):
@@ -131,7 +132,9 @@ class WebAdminTests(unittest.TestCase):
                     self.assertIn('data-metric-chart="ram"', page)
                     if route == "/":
                         self.assertNotIn('data-status-key="cpu"', page)
-                        self.assertIn('data-ram-progress', page)
+                        self.assertIn('data-disk-progress', page)
+                        self.assertNotIn('data-ram-progress', page)
+                        self.assertIn("Datenträgerbelegung", page)
                     else:
                         self.assertIn('data-status-key="cpu"', page)
         code, headers, body = self.req("GET", "/api/status")
@@ -146,9 +149,20 @@ class WebAdminTests(unittest.TestCase):
         self.assertIn("javascript", headers["Content-Type"])
         self.assertIn("setInterval(refresh, 1000)", script)
         self.assertIn("/api/metrics", script)
+        self.assertIn("/api/metrics/history", script)
+        self.assertIn("sample.ts - startTime", script)
         code, _, metrics = self.req("GET", "/api/metrics")
         self.assertEqual(code, 200)
         self.assertIn("ram_percent", json.loads(metrics))
+        self.assertIn("disk_percent", json.loads(metrics))
+        code, _, recorded = self.req("GET", "/api/metrics/history")
+        self.assertEqual(code, 200)
+        history = json.loads(recorded)
+        self.assertEqual(history["interval_seconds"], 1)
+        self.assertEqual(history["window_seconds"], 300)
+        self.assertLessEqual(len(history["samples"]), 300)
+        self.assertTrue(history["samples"])
+        self.assertTrue({"ts", "cpu", "ram"}.issubset(history["samples"][-1]))
         self.assertEqual(self.req("GET", "/assets/admin-dialogs.js")[0], 200)
         for route in ("/profiles", "/users", "/targets", "/printers"):
             code, _, html = self.req("GET", route)
