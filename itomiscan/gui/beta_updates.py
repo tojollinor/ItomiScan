@@ -8,7 +8,7 @@ import tkinter as tk
 from tkinter import messagebox, ttk
 from urllib.request import Request, urlopen
 
-from itomiscan.gui.home import BASE, PANEL, FG, MUTED, BLUE
+from itomiscan.gui.home import BASE, CARD as PANEL, FG, MUTED, BLUE
 
 HELPER = "/usr/local/libexec/itomiscan-beta-updater"
 API = "https://api.github.com/repos/tojollinor/ItomiScan/"
