@@ -184,7 +184,9 @@ class AdminServer(ThreadingHTTPServer):
 
 
     def server_close(self):
-        self.status_sampler.stop()
+        sampler = getattr(self, "status_sampler", None)
+        if sampler is not None:
+            sampler.stop()
         super().server_close()
 
 
@@ -881,10 +883,19 @@ def main():
     args = parser.parse_args()
     if hasattr(os, "geteuid") and os.geteuid() == 0:
         parser.error("Webdienst niemals als root starten.")
-    try:
-        server = build_server(args.bind, args.port, cert=args.cert, key=args.key)
-    except (ValueError, OSError) as exc:
-        parser.error(str(exc))
+    # DHCP may assign the configured private IP after network-online.target.
+    # Retry only EADDRNOTAVAIL; invalid configuration remains a hard error.
+    import errno
+    for attempt in range(30):
+        try:
+            server = build_server(args.bind, args.port, cert=args.cert, key=args.key)
+            break
+        except OSError as exc:
+            if exc.errno != errno.EADDRNOTAVAIL or attempt == 29:
+                parser.error(str(exc))
+            time.sleep(2)
+        except ValueError as exc:
+            parser.error(str(exc))
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s %(levelname)s %(name)s: %(message)s")
