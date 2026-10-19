@@ -12,6 +12,7 @@ import socket
 import struct
 import tempfile
 import threading
+import time
 import unittest
 from pathlib import Path
 from unittest.mock import Mock, patch
@@ -190,6 +191,84 @@ class WebSocketIntegrationTests(unittest.TestCase):
             right.sendall(b"RFB-ok")
             self.assertEqual(recv_exact(sock, 2), b"\x82\x06")
             self.assertEqual(recv_exact(sock, 6), b"RFB-ok")
+        finally:
+            sock.close()
+
+    def test_full_framebuffer_and_incremental_update_cross_proxy_unchanged(self):
+        owner = self.authenticate()
+        self.server.remote_live.start(owner)
+        left, right = socket.socketpair()
+        self.addCleanup(left.close)
+        self.addCleanup(right.close)
+        right.settimeout(10)
+        self.server.vnc.connect = Mock(return_value=left)
+        sock, response = self.upgrade(cookie=self.cookie)
+        sock.settimeout(10)
+        try:
+            self.assertIn("101", response.split("\r\n", 1)[0])
+            # A real 1024x768 RAW rectangle exceeds one WebSocket frame and
+            # deliberately crosses the proxy's 32768-byte recv boundaries.
+            pixels = bytes((20, 12, 6, 0)) * (1024 * 768)
+            full = struct.pack("!BBHHHHHi", 0, 0, 1, 0, 0, 1024, 768, 0) + pixels
+            update = struct.pack("!BBHHHHHi", 0, 0, 1, 12, 18, 1, 1, 0) + b"\xff\x00\x00\x00"
+            stream = full + update
+            sender = threading.Thread(target=right.sendall, args=(stream,), daemon=True)
+            sender.start()
+            received = bytearray()
+            while len(received) < len(stream):
+                header = recv_exact(sock, 2)
+                self.assertEqual(header[0], 0x82)
+                length = header[1]
+                self.assertLess(length, 128)
+                if length == 126:
+                    length = struct.unpack("!H", recv_exact(sock, 2))[0]
+                elif length == 127:
+                    length = struct.unpack("!Q", recv_exact(sock, 8))[0]
+                received.extend(recv_exact(sock, length))
+            sender.join(5)
+            self.assertFalse(sender.is_alive())
+            self.assertEqual(received, stream)
+            # Pointer, key-down and key-up bytes remain unchanged upstream.
+            inputs = struct.pack("!BBHH", 5, 1, 512, 384) + struct.pack("!BBHI", 4, 1, 0, 0xff0d) + struct.pack("!BBHI", 4, 0, 0, 0xff0d)
+            sock.sendall(masked_frame(inputs))
+            self.assertEqual(recv_exact(right, len(inputs)), inputs)
+        finally:
+            sock.close()
+
+    def test_slow_partial_client_frame_is_not_discarded(self):
+        owner = self.authenticate()
+        self.server.remote_live.start(owner)
+        left, right = socket.socketpair()
+        self.addCleanup(left.close)
+        self.addCleanup(right.close)
+        right.settimeout(5)
+        self.server.vnc.connect = Mock(return_value=left)
+        sock, response = self.upgrade(cookie=self.cookie)
+        try:
+            self.assertIn("101", response.split("\r\n", 1)[0])
+            packet = masked_frame(b"RFB 003.008\n")
+            sock.sendall(packet[:1])
+            time.sleep(2.2)  # Cross the production socket timeout mid-header.
+            sock.sendall(packet[1:])
+            self.assertEqual(recv_exact(right, 12), b"RFB 003.008\n")
+        finally:
+            sock.close()
+
+    def test_expired_lease_closes_both_streams(self):
+        owner = self.authenticate()
+        self.server.remote_live.start(owner)
+        left, right = socket.socketpair()
+        self.addCleanup(left.close)
+        self.addCleanup(right.close)
+        right.settimeout(5)
+        self.server.vnc.connect = Mock(return_value=left)
+        sock, response = self.upgrade(cookie=self.cookie)
+        try:
+            self.assertIn("101", response.split("\r\n", 1)[0])
+            with self.server.remote_live._db() as db:
+                db.execute("UPDATE remote_live SET until_time=0")
+            self.assertEqual(right.recv(1), b"")
+            self.assertEqual(sock.recv(1), b"")
         finally:
             sock.close()
 

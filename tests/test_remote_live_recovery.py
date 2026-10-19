@@ -3,6 +3,7 @@ import re
 import tempfile
 import threading
 import unittest
+from unittest.mock import Mock
 from pathlib import Path
 from urllib.parse import urlencode
 import http.client
@@ -92,6 +93,50 @@ class RecoveryTests(unittest.TestCase):
                         "Wiederherstellen", "response.redirected",
                         "rfb.disconnect()", "keepAlive"):
             self.assertIn(snippet, script)
+
+    def test_inline_vnc_images_are_limited_to_authenticated_remote_page(self):
+        policy = self.request("GET", "/login")[1]["Content-Security-Policy"]
+        self.assertIn("img-src 'self';", policy)
+        self.assertNotIn("data:", policy)
+        # A request for /remote without a session only redirects to login.
+        self.assertNotIn("data:", self.request("GET", "/remote")[1]["Content-Security-Policy"])
+        self.login()
+        for path in ("/remote", "/remote?ok=Liveansicht%20gestartet"):
+            policy = self.request("GET", path)[1]["Content-Security-Policy"]
+            self.assertIn("img-src 'self' data:;", policy)
+            self.assertIn("script-src 'self';", policy)
+            self.assertIn("default-src 'none';", policy)
+            self.assertIn("connect-src 'self';", policy)
+            self.assertIn("frame-ancestors 'none'", policy)
+        for path in ("/", "/profiles", "/assets/vnc.js", "/remote/missing"):
+            self.assertNotIn("data:", self.request("GET", path)[1]["Content-Security-Policy"])
+
+    def test_reconnect_replaces_once_backend_and_stop_releases_it(self):
+        self.login()
+        calls = Mock()
+        self.server.vnc.stop = calls.stop
+        self.server.vnc.start = calls.start
+        calls.start.return_value = "new-password"
+        owner = viewer_id(self.cookie.split("=", 1)[1])
+        self.server.remote_live.start(owner)
+        self.assertEqual(self.request("POST", "/remote/live/reconnect", {"csrf": self.csrf})[0], 200)
+        from unittest.mock import call
+        self.assertEqual(calls.mock_calls, [call.stop(owner), call.start(owner)])
+        calls.reset_mock()
+        self.assertEqual(self.request("POST", "/remote/live/stop", {"csrf": self.csrf})[0], 303)
+        calls.stop.assert_called_once_with(owner)
+        self.assertFalse(self.server.remote_live.authorized(owner))
+
+    def test_ping_400_means_expired_lease_and_reconnect_restores_it(self):
+        self.login()
+        owner = viewer_id(self.cookie.split("=", 1)[1])
+        self.server.remote_live.start(owner)
+        self.assertEqual(self.request("POST", "/remote/live/ping", {"csrf": self.csrf})[0], 200)
+        with self.server.remote_live._db() as db:
+            db.execute("UPDATE remote_live SET until_time=0")
+        self.assertEqual(self.request("POST", "/remote/live/ping", {"csrf": self.csrf})[0], 400)
+        self.assertEqual(self.request("POST", "/remote/live/reconnect", {"csrf": self.csrf})[0], 200)
+        self.assertEqual(self.request("POST", "/remote/live/ping", {"csrf": self.csrf})[0], 200)
 
 
 if __name__ == "__main__":

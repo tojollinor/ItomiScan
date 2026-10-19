@@ -241,7 +241,7 @@ class AdminHandler(BaseHTTPRequestHandler):
         return origin == expected
 
     def _response(self, code, body, *, mime="text/html; charset=utf-8",
-                  location=None, cookie=None, attachment=None):
+                  location=None, cookie=None, attachment=None, vnc_images=False):
         if isinstance(body, str):
             body = body.encode("utf-8")
         self.send_response(code)
@@ -260,9 +260,14 @@ class AdminHandler(BaseHTTPRequestHandler):
         connect_sources = "connect-src 'self'"
         if websocket_origin:
             connect_sources += " " + websocket_origin
+        # noVNC's Tight decoder loads JPEG rectangles as data: images. Blocking
+        # them stalls its ordered render queue, including all later updates.
+        # Permit inline images only on the authenticated remote-control page;
+        # scripts, network origins and every other page keep their strict CSP.
+        image_sources = "img-src 'self'" + (" data:" if vnc_images else "")
         self.send_header("Content-Security-Policy",
                          "default-src 'none'; style-src 'unsafe-inline'; "
-                         "script-src 'self'; img-src 'self'; "
+                         "script-src 'self'; " + image_sources + "; "
                          + connect_sources + "; "
                          "form-action 'self'; frame-ancestors 'none'; base-uri 'none'")
         if location:
@@ -466,7 +471,7 @@ class AdminHandler(BaseHTTPRequestHandler):
                 return self._response(200, data, mime="application/json; charset=utf-8")
             else:
                 return self._error(404, "Seite nicht gefunden.")
-            return self._response(200, html)
+            return self._response(200, html, vnc_images=(path == "/remote"))
         except (OSError, ValueError, ConfigError) as exc:
             return self._error(500, "Konfiguration nicht lesbar: " + str(exc))
 
@@ -558,6 +563,9 @@ class AdminHandler(BaseHTTPRequestHandler):
                 try:
                     self.server.remote_live.start(viewer)
                     try:
+                        # -once backends cannot be reused while their previous
+                        # browser connection is still closing.
+                        self.server.vnc.stop(viewer)
                         self.server.vnc.start(viewer)
                     except Exception:
                         self.server.remote_live.stop(viewer)
@@ -570,7 +578,9 @@ class AdminHandler(BaseHTTPRequestHandler):
                 return self._response(200, '{"active":true}',
                                       mime="application/json; charset=utf-8")
             if path == "/remote/live/stop":
-                self.server.remote_live.stop(viewer_id(self._session_token()))
+                viewer = viewer_id(self._session_token())
+                self.server.remote_live.stop(viewer)
+                self.server.vnc.stop(viewer)
                 return self._redirect("/remote?ok=Liveansicht%20beendet")
             if path == "/remote/live/ping":
                 self.server.remote_live.ping(viewer_id(self._session_token()))

@@ -4,9 +4,27 @@ from itomiscan.web import pages, remote_pages
 from itomiscan.web.vnc_bridge import _receive_frame, _send_frame, MAX_WS_MESSAGE
 import socket
 import struct
+from unittest.mock import Mock
 
 
 class VNCTests(unittest.TestCase):
+    def test_partial_frame_survives_timeouts_in_header_mask_and_payload(self):
+        connection = Mock()
+        connection.recv.side_effect = [
+            b"\x82", socket.timeout(), b"\x83",
+            b"\x10", socket.timeout(), b"\x20\x30\x40",
+            b"\x51", socket.timeout(), b"\x62\x73",
+        ]
+        active = Mock(return_value=True)
+        self.assertEqual(_receive_frame(connection, active=active), (True, 2, b"ABC"))
+        self.assertEqual(active.call_count, 3)
+
+    def test_timeout_does_not_keep_expired_session_alive(self):
+        connection = Mock()
+        connection.recv.side_effect = [b"\x82", socket.timeout()]
+        with self.assertRaises(ConnectionError):
+            _receive_frame(connection, active=lambda: False)
+
     def test_vnc_page_includes_protected_websocket_view(self):
         html = remote_pages.remote_page([], "", None, "csrf", live=True, vnc_password="abc123")
         self.assertIn('id="remote-vnc-screen"', html)

@@ -136,10 +136,20 @@ class VNCBridge:
         return socket.create_connection(("127.0.0.1", port), timeout=3)
 
 
-def _read_exact(connection, count):
+def _read_exact(connection, count, *, active=None):
     data = bytearray()
     while len(data) < count:
-        piece = connection.recv(count - len(data))
+        try:
+            piece = connection.recv(count - len(data))
+        except socket.timeout:
+            if active is None:
+                raise
+            if not active():
+                raise ConnectionError("VNC-Sitzung beendet.")
+            # Keep bytes already received. Retrying at the frame boundary
+            # instead would interpret a partial header/mask/payload as a new
+            # WebSocket frame and corrupt the RFB stream on slow connections.
+            continue
         if not piece:
             raise ConnectionError("Verbindung geschlossen.")
         data.extend(piece)
@@ -164,20 +174,24 @@ def _send_frame(connection, payload, opcode=2, lock=None):
             connection.sendall(bytes(header) + payload)
 
 
-def _receive_frame(connection):
-    start = _read_exact(connection, 2)
+def _receive_frame(connection, *, active=None):
+    def read(count):
+        return _read_exact(connection, count, active=active)
+
+    start = read(2)
     final = bool(start[0] & 0x80)
     opcode = start[0] & 0x0f
     masked = bool(start[1] & 0x80)
     length = start[1] & 0x7f
     if length == 126:
-        length = struct.unpack("!H", _read_exact(connection, 2))[0]
+        length = struct.unpack("!H", read(2))[0]
     elif length == 127:
-        length = struct.unpack("!Q", _read_exact(connection, 8))[0]
-    if not masked or length > MAX_WS_MESSAGE:
+        length = struct.unpack("!Q", read(8))[0]
+    if (start[0] & 0x70 or not masked or length > MAX_WS_MESSAGE
+            or (opcode >= 8 and (not final or length > 125))):
         raise ValueError("Ungültiger WebSocket-Frame.")
-    key = _read_exact(connection, 4)
-    data = _read_exact(connection, length)
+    key = read(4)
+    data = read(length)
     return final, opcode, bytes(value ^ key[index % 4] for index, value in enumerate(data))
 
 
@@ -250,7 +264,9 @@ def serve_websocket(handler, bridge, owner):
         fragmented = False
         while not ended.is_set() and bridge.live.authorized(owner):
             try:
-                final, opcode, payload = _receive_frame(handler.connection)
+                final, opcode, payload = _receive_frame(
+                    handler.connection,
+                    active=lambda: not ended.is_set() and bridge.live.authorized(owner))
             except socket.timeout:
                 continue
             if opcode == 8:
@@ -259,6 +275,8 @@ def serve_websocket(handler, bridge, owner):
                 if not final or len(payload) > 125:
                     raise ValueError("Ungültiges WebSocket-Ping.")
                 _send_frame(handler.connection, payload, opcode=10, lock=writing)
+                continue
+            if opcode == 10:
                 continue
             if opcode == 2:
                 if fragmented:

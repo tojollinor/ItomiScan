@@ -34,6 +34,9 @@ jobs:
           /usr/bin/python3 -m unittest discover -s tests -p test_beta_checker.py -v
           /usr/bin/python3 -m unittest discover -s tests -p test_block5_vnc_integration.py -v
           /usr/bin/python3 -m unittest discover -s tests -p test_vnc_bridge.py -v
+          /usr/bin/python3 -m unittest discover -s tests -p test_remote_live.py -v
+          /usr/bin/python3 -m unittest discover -s tests -p test_remote_live_recovery.py -v
+          /usr/bin/python3 -m unittest discover -s tests -p test_block5_frontend.py -v
           /usr/bin/python3 -m unittest discover -s tests -p test_branding.py -v
           /usr/bin/python3 -m unittest discover -s tests -p test_boot_optimization.py -v
           /usr/bin/python3 -m unittest discover -s tests -p test_system_status.py -v
