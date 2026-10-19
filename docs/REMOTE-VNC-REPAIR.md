@@ -55,3 +55,20 @@ The synthetic browser check uses Chromium via the in-app browser. Microsoft
 Edge and the actual scanner's visible updates, mouse, touch and keyboard remain
 part of user acceptance. This document does not claim those tests have passed.
 No beta release is authorized until the required hardware acceptance succeeds.
+
+## First-start HTTPS error
+
+The user confirmed a visible live image after reloading, but Edge initially
+showed `ERR_TOO_MANY_RETRIES` at `/remote/live/start`. The web service had not
+restarted or crashed. A second, independently reproduced server defect was
+found: the listening SSLSocket performed TLS handshakes synchronously inside
+`accept()`. One speculative TCP connection that had not sent ClientHello blocked
+every following HTTPS connection. Closing that idle socket immediately restored
+HTTP 200 responses. The new regression failed with a TLS handshake timeout on
+the previous implementation and passed after the correction.
+
+TLS handshakes are now deferred to the individual request threads, and accepted
+connections have a ten-second I/O timeout to bound abandoned preconnections.
+Certificate validation, TLS minimum version, origin and authentication checks
+are unchanged. Edge first-start acceptance, continued picture updates and input
+acceptance are still pending; no beta has been released.

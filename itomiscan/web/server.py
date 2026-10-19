@@ -165,6 +165,14 @@ class AdminServer(ThreadingHTTPServer):
     daemon_threads = True
     allow_reuse_address = True
 
+    def get_request(self):
+        connection, address = super().get_request()
+        # Bound speculative/abandoned browser connections. TLS handshakes are
+        # deferred to each request thread, so one idle socket cannot stall the
+        # listener and every other browser request.
+        connection.settimeout(10)
+        return connection, address
+
     def __init__(self, address, store, secure):
         super().__init__(address, AdminHandler)
         self.store = store
@@ -876,7 +884,8 @@ def build_server(bind="127.0.0.1", port=8443, *,
             context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
             context.minimum_version = ssl.TLSVersion.TLSv1_2
             context.load_cert_chain(certfile=cert, keyfile=key)
-            server.socket = context.wrap_socket(server.socket, server_side=True)
+            server.socket = context.wrap_socket(
+                server.socket, server_side=True, do_handshake_on_connect=False)
         except Exception:
             server.server_close()
             raise
