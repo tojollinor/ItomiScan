@@ -12,6 +12,9 @@ class VNCTests(unittest.TestCase):
         self.assertIn('id="remote-vnc-screen"', html)
         self.assertIn('data-password="abc123"', html)
         self.assertIn('/assets/vnc.js', html)
+        self.assertIn('id="remote-text"', html)
+        self.assertIn('data-remote-key="Return"', html)
+        self.assertIn('rfb.sendKey', pages.VNC_JS)
         self.assertNotIn('/assets/remote.js', html)
 
     def test_vnc_page_escape(self):
