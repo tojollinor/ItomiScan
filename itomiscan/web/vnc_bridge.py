@@ -201,12 +201,12 @@ def serve_websocket(handler, bridge, owner):
         return handler._error(400, "Ungültiger WebSocket-Schlüssel.")
     if handler.headers.get("Sec-WebSocket-Version") != "13":
         return handler._error(400, "WebSocket-Version nicht unterstützt.")
-    if handler.headers.get("Sec-WebSocket-Extensions"):
-        return handler._error(400, "WebSocket-Erweiterungen nicht unterstützt.")
-    protocols = {value.strip() for value in handler.headers.get(
-        "Sec-WebSocket-Protocol", "").split(",")}
-    if "binary" not in protocols:
-        return handler._error(400, "VNC benötigt das binäre WebSocket-Protokoll.")
+    # Browser extension offers are optional. Do not negotiate compression:
+    # the bridge only forwards ordinary, uncompressed binary WS frames.
+    offered = handler.headers.get("Sec-WebSocket-Protocol", "")
+    protocols = {item.strip() for item in offered.split(",") if item.strip()}
+    if offered and "binary" not in protocols:
+        return handler._error(400, "WebSocket-Unterprotokoll nicht unterstützt.")
     try:
         backend = bridge.connect(owner)
     except (OSError, VNCUnavailable):
@@ -218,7 +218,8 @@ def serve_websocket(handler, bridge, owner):
     handler.send_header("Upgrade", "websocket")
     handler.send_header("Connection", "Upgrade")
     handler.send_header("Sec-WebSocket-Accept", accept)
-    handler.send_header("Sec-WebSocket-Protocol", "binary")
+    if "binary" in protocols:
+        handler.send_header("Sec-WebSocket-Protocol", "binary")
     handler.end_headers()
     handler.close_connection = True
     writing = threading.Lock()
