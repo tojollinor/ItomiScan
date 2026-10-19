@@ -13,7 +13,7 @@ def remote_page(profiles, selected, latest, csrf, notice="", *, live=False, vnc_
     if live:
         view += ('<div class="remote-screen" id="remote-screen">'
                  f'<div id="remote-vnc-screen" data-password="{e(vnc_password or "")}" '
-                 'style="width:100%;height:576px" hidden></div>'
+                 'style="width:100%;aspect-ratio:4/3;max-height:576px" hidden></div>'
                  '<div id="remote-live-placeholder" class="remote-placeholder" role="status">'
                  '<strong id="remote-live-heading">Livebild wird geladen …</strong>'
                  '<p id="remote-live-detail">Verbindung zum Scanner wird hergestellt.</p>'
