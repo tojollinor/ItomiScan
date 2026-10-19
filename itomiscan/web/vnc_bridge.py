@@ -186,6 +186,10 @@ def serve_websocket(handler, bridge, owner):
         return handler._error(400, "WebSocket-Version nicht unterstützt.")
     if handler.headers.get("Sec-WebSocket-Extensions"):
         return handler._error(400, "WebSocket-Erweiterungen nicht unterstützt.")
+    protocols = {value.strip() for value in handler.headers.get(
+        "Sec-WebSocket-Protocol", "").split(",")}
+    if "binary" not in protocols:
+        return handler._error(400, "VNC benötigt das binäre WebSocket-Protokoll.")
     try:
         backend = bridge.connect(owner)
     except (OSError, VNCUnavailable):
@@ -225,6 +229,7 @@ def serve_websocket(handler, bridge, owner):
     try:
         handler.connection.settimeout(2)
         fragment = bytearray()
+        fragmented = False
         while not ended.is_set() and bridge.live.authorized(owner):
             try:
                 final, opcode, payload = _receive_frame(handler.connection)
@@ -233,9 +238,19 @@ def serve_websocket(handler, bridge, owner):
             if opcode == 8:
                 break
             if opcode == 9:
+                if not final or len(payload) > 125:
+                    raise ValueError("Ungültiges WebSocket-Ping.")
                 _send_frame(handler.connection, payload, opcode=10, lock=writing)
                 continue
-            if opcode not in (0, 2):
+            if opcode == 2:
+                if fragmented:
+                    raise ValueError("Neue Nachricht vor Ende des Fragments.")
+                fragmented = not final
+            elif opcode == 0:
+                if not fragmented:
+                    raise ValueError("Fortsetzung ohne Nachrichtenbeginn.")
+                fragmented = not final
+            else:
                 raise ValueError("Nur binäre VNC-Daten erlaubt.")
             fragment.extend(payload)
             if len(fragment) > MAX_WS_MESSAGE:

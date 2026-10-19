@@ -41,6 +41,7 @@ STATUS_JS = """(() => {
   // service. The browser only renders a temporary copy.
   const samples = [];
   let lastTimestamp = -Infinity;
+  let historyLoading = false;
   let busy = false;
   let timer = null;
   let closed = false;
@@ -65,20 +66,26 @@ STATUS_JS = """(() => {
   function draw() {
     charts.forEach(chart => {
       const key = chart.dataset.metricChart;
-      const points = [];
+      const commands = [];
       const endTime = samples.length ? samples[samples.length - 1].ts : 0;
       const startTime = endTime - 299;
+      let previous = null;
       samples.forEach(sample => {
         const value = sample[key];
-        if (value == null || sample.ts < startTime) return;
-        // Real one-second positions; show gaps after a pause/resume.
-        // The chart is independent of the browser clock.
+        if (value == null || sample.ts < startTime) {
+          previous = null;
+          return;
+        }
+        // Each gap is a new SVG path segment, not a fabricated straight line.
         const x = 10 + (sample.ts - startTime) * 300 / 299;
         const y = 110 - value;
-        points.push(x.toFixed(2) + ',' + y.toFixed(2));
+        const command = previous !== null && sample.ts - previous <= 1.7
+            ? 'L' : 'M';
+        commands.push(command + x.toFixed(2) + ' ' + y.toFixed(2));
+        previous = sample.ts;
       });
-      const line = chart.querySelector('polyline');
-      if (line) line.setAttribute('points', points.join(' '));
+      const line = chart.querySelector('[data-monitor-line]');
+      if (line) line.setAttribute('d', commands.join(' '));
     });
   }
 
@@ -134,23 +141,39 @@ STATUS_JS = """(() => {
     finally { busy = false; }
   }
 
-  async function initialise() {
+  async function loadHistory() {
+    if (closed || historyLoading) return;
+    historyLoading = true;
     try {
       const response = await fetch('/api/metrics/history',
           {cache:'no-store', credentials:'same-origin'});
       if (response.ok && !response.redirected) {
         const payload = await response.json();
         if (Array.isArray(payload.samples)) {
+          samples.length = 0;
+          lastTimestamp = -Infinity;
           payload.samples.forEach(append);
           draw();
         }
       }
     } catch (_error) { /* Live values still work without a history request. */ }
+    finally { historyLoading = false; }
+  }
+
+  async function initialise() {
+    await loadHistory();
     if (!closed) {
       refresh();
       timer = window.setInterval(refresh, 1000);
     }
   }
+
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden && !closed) {
+      // The server has continued sampling while this tab was suspended.
+      loadHistory().then(refresh);
+    }
+  });
 
   window.addEventListener('pagehide', () => {
     closed = true;
@@ -306,23 +329,36 @@ VNC_JS = """import RFB from '/novnc/core/rfb.js';
     if (!response.ok) throw new Error('Verbindung nicht verfügbar.');
   }
   function connect() {
-    if (rfb) { rfb.disconnect(); rfb = null; }
+    // Older asynchronous disconnect events must not overwrite a newly
+    // connected session after the user presses Wiederherstellen.
+    const previous = rfb;
+    rfb = null;
+    if (previous) previous.disconnect();
     state('Verbindung wird hergestellt …');
     retry.hidden = true;
     const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
     const url = protocol + '//' + location.host + '/remote/vnc/ws';
     try {
-      rfb = new RFB(screen, url, {credentials: {password: screen.dataset.password}});
-      rfb.scaleViewport = true;
-      rfb.resizeSession = false;
-      rfb.viewOnly = false;
-      rfb.qualityLevel = 5;
-      rfb.compressionLevel = 7;
-      rfb.addEventListener('connect', () => state('Livebild aktiv · Klicken oder tippen zum Bedienen', true));
-      rfb.addEventListener('disconnect', () => {
-        if (!closed) state('Fernsteuerung unterbrochen. Wiederherstellen wählen.');
+      const client = new RFB(screen, url, {
+        credentials: {password: screen.dataset.password}
       });
-      rfb.addEventListener('securityfailure', () => state('VNC-Anmeldung fehlgeschlagen.'));
+      rfb = client;
+      client.scaleViewport = true;
+      client.resizeSession = false;
+      client.viewOnly = false;
+      client.qualityLevel = 5;
+      client.compressionLevel = 7;
+      client.addEventListener('connect', () => {
+        if (!closed && client === rfb)
+          state('Livebild aktiv · Klicken oder tippen zum Bedienen', true);
+      });
+      client.addEventListener('disconnect', () => {
+        if (!closed && client === rfb)
+          state('Fernsteuerung unterbrochen. Wiederherstellen wählen.');
+      });
+      client.addEventListener('securityfailure', () => {
+        if (!closed && client === rfb) state('VNC-Anmeldung fehlgeschlagen.');
+      });
     } catch (_error) {
       state('Fernsteuerung konnte nicht gestartet werden.');
     }
@@ -738,7 +774,7 @@ def chart_panel(title, key):
              '<text x="14" y="9" fill="#a8bacd" font-size="9">100%</text>'
              '<text x="14" y="57" fill="#a8bacd" font-size="9">50%</text>'
              '<text x="14" y="105" fill="#a8bacd" font-size="9">0%</text>'
-            '<polyline fill="none" stroke="#42bfea" stroke-width="2" points=""/>'
+            '<path data-monitor-line fill="none" stroke="#42bfea" stroke-width="2" d=""/>'
             '<text x="10" y="120" fill="#a8bacd" font-size="9">−5 min</text>'
             '<text x="310" y="120" fill="#a8bacd" font-size="9" text-anchor="end">Jetzt</text>'
             '</svg></article>')

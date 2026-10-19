@@ -234,9 +234,18 @@ class AdminHandler(BaseHTTPRequestHandler):
         self.send_header("X-Content-Type-Options", "nosniff")
         self.send_header("X-Frame-Options", "DENY")
         self.send_header("Referrer-Policy", "no-referrer")
+        # Explicit same-origin WSS is needed for noVNC; some browsers do not
+        # interpret CSP 'self' as allowing wss:// for a https:// page.
+        websocket_origin = (
+            f"wss://{self.server.bind_ip}:{self.server.server_port}"
+            if self.server.secure else None)
+        connect_sources = "connect-src 'self'"
+        if websocket_origin:
+            connect_sources += " " + websocket_origin
         self.send_header("Content-Security-Policy",
                          "default-src 'none'; style-src 'unsafe-inline'; "
-                         "script-src 'self'; img-src 'self'; connect-src 'self'; "
+                         "script-src 'self'; img-src 'self'; "
+                         + connect_sources + "; "
                          "form-action 'self'; frame-ancestors 'none'; base-uri 'none'")
         if location:
             self.send_header("Location", location)
