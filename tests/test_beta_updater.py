@@ -119,6 +119,88 @@ class BetaUpdaterTests(unittest.TestCase):
         with self.assertRaises(helper.UpdateError):
             helper.release_commit("develop/1.0.0")
 
+    def test_full_install_and_rollback_offline(self):
+        from unittest.mock import patch
+        with tempfile.TemporaryDirectory() as temp:
+            home = Path(temp)
+            project = home / "ItomiScan"
+            project.mkdir()
+            (project / "app.py").write_text("old-version\n")
+            stage_files = {
+                "app.py": b"print('new')\n",
+                "start-kiosk.sh": b"#!/bin/sh\nexit 0\n",
+                "install-beta.sh": b"#!/bin/sh\n",
+                "itomiscan/gui/kiosk.py": b"x=1\n",
+            }
+            expected = {name: (helper.git_blob_sha(data), 0o644)
+                        for name, data in stage_files.items()}
+            def download(_sha, path):
+                path.write_bytes(tarball(stage_files))
+                return "12345" * 12 + "abcd"
+            def fetch(path):
+                if path.startswith("releases"):
+                    return [{"tag_name": "v1.0.0-beta.4",
+                             "prerelease": True, "draft": False}]
+                raise AssertionError(path)
+            with patch.object(helper, "STATE", home / "private-state"), \
+                 patch.object(helper, "read_settings", return_value={}), \
+                 patch.object(helper, "preflight",
+                              return_value=("scanner", 1000, 1000, home, project)), \
+                 patch.object(helper, "fetch_json", side_effect=fetch), \
+                 patch.object(helper, "release_commit",
+                              return_value=("a" * 40, "b" * 40)), \
+                 patch.object(helper, "expected_tree", return_value=expected), \
+                 patch.object(helper, "download_archive", side_effect=download), \
+                 patch.object(helper, "chown_tree"), \
+                 patch.object(helper, "smoke_as_user"):
+                helper.install()
+                self.assertIn("new", (project / "app.py").read_text())
+                self.assertTrue((project / "start-kiosk.sh").stat().st_mode & 0o111)
+                self.assertEqual((project / ".itomiscan-beta-tag").read_text().strip(),
+                                 "v1.0.0-beta.4")
+                self.assertTrue((home / "private-state" / "last.json").exists())
+                helper.rollback()
+                self.assertEqual((project / "app.py").read_text(), "old-version\n")
+                self.assertFalse((home / "private-state" / "last.json").exists())
+
+    def test_smoke_failure_after_swap_restores_previous_version(self):
+        from unittest.mock import patch
+        with tempfile.TemporaryDirectory() as temp:
+            home = Path(temp)
+            project = home / "ItomiScan"
+            project.mkdir()
+            (project / "app.py").write_text("old-version\n")
+            stage_files = {
+                "app.py": b"print('new')\n",
+                "start-kiosk.sh": b"#!/bin/sh\n",
+                "install-beta.sh": b"#!/bin/sh\n",
+                "itomiscan/gui/kiosk.py": b"x=1\n",
+            }
+            expected = {name: (helper.git_blob_sha(data), 0o644)
+                        for name, data in stage_files.items()}
+            def download(_sha, path):
+                path.write_bytes(tarball(stage_files))
+                return "0" * 64
+            def verify(user, path):
+                if path == project and (project / "app.py").read_text() != "old-version\n":
+                    raise helper.UpdateError("simulierter Fehler nach Austausch")
+            with patch.object(helper, "STATE", home / "private-state"), \
+                 patch.object(helper, "read_settings", return_value={}), \
+                 patch.object(helper, "preflight",
+                              return_value=("scanner", 1000, 1000, home, project)), \
+                 patch.object(helper, "fetch_json",
+                              return_value=[{"tag_name": "v1.0.0-beta.4",
+                                             "prerelease": True, "draft": False}]), \
+                 patch.object(helper, "release_commit",
+                              return_value=("a" * 40, "b" * 40)), \
+                 patch.object(helper, "expected_tree", return_value=expected), \
+                 patch.object(helper, "download_archive", side_effect=download), \
+                 patch.object(helper, "chown_tree"), \
+                 patch.object(helper, "smoke_as_user", side_effect=verify):
+                with self.assertRaises(helper.UpdateError):
+                    helper.install()
+                self.assertEqual((project / "app.py").read_text(), "old-version\n")
+
     def test_progress_contract_json_lines(self):
         import contextlib
         import json

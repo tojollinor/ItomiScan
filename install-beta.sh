@@ -80,6 +80,11 @@ fi
 cp -a "$WORK/source/." "$PROJECT/"
 # Record the same commit whose archive was downloaded.
 printf '%s\n' "$ARCHIVE_SHA" > "$PROJECT/.itomiscan-beta-commit"
+if [[ "$SOURCE_REF" =~ ^v[0-9]+\.[0-9]+\.[0-9]+-beta\.[0-9]+$ ]]; then
+ printf '%s\n' "$SOURCE_REF" > "$PROJECT/.itomiscan-beta-tag"
+else
+ rm -f "$PROJECT/.itomiscan-beta-tag"
+fi
 chown -R "$USER_NAME:$(id -gn "$USER_NAME")" "$PROJECT"
 ok "Beta aus Archiv installiert, alte Dateien und Konfiguration gesichert."
 

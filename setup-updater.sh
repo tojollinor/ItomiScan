@@ -21,7 +21,11 @@ fi
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd -P)"
 HELPER="$SCRIPT_DIR/scripts/itomiscan-beta-updater.py"
 [[ -f "$HELPER" ]] || { echo "Updater-Helfer fehlt." >&2; exit 3; }
-/usr/bin/python3 -m py_compile "$HELPER"
+/usr/bin/python3 - "$HELPER" <<'PY'
+import pathlib, sys
+source = pathlib.Path(sys.argv[1])
+compile(source.read_bytes(), str(source), "exec")
+PY
 install -d -o root -g root -m 0755 /usr/local/libexec
 install -d -o root -g root -m 0700 /etc/itomiscan
 install -d -o root -g root -m 0700 /var/lib/itomiscan-updater

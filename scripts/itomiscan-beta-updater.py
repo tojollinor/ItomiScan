@@ -311,6 +311,11 @@ def install():
         extract_verified_archive(archive, stage, tree)
         progress(62, "Alle Dateien anhand ihrer Git-Blob-Hashes geprüft.")
         compile_python(stage)
+        launcher = stage / "start-kiosk.sh"
+        if not launcher.is_file():
+            raise UpdateError("Startskript im Beta-Release fehlt.")
+        # GitHub stores this script as mode 100644; startx requires it executable.
+        launcher.chmod(0o755)
         # The verified VNC release needs these fixed Debian packages, not
         # arbitrary names supplied by the archive or web interface.
         if "itomiscan/web/vnc_bridge.py" in tree and (
