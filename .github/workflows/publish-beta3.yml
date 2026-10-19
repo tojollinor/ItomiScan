@@ -1,0 +1,71 @@
+name: Publish ItomiScan Beta 3
+on:
+  push:
+    branches:
+      - develop/1.0.0
+    paths:
+      - docs/releases/v1.0.0-beta.3.md
+
+permissions:
+  contents: write
+
+concurrency:
+  group: itomiscan-publish-v1.0.0-beta.3
+  cancel-in-progress: false
+
+jobs:
+  prerelease:
+    name: Verify final source and publish Beta 3
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    if: github.repository == 'tojollinor/ItomiScan' && github.ref == 'refs/heads/develop/1.0.0'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Install isolated test prerequisites
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y python3-tk python3-pil python3-pil.imagetk xvfb xauth
+      - name: Python and shell syntax
+        run: |
+          python3 -m compileall -q app.py itomiscan tests
+          find . -maxdepth 2 -name '*.sh' -type f -print0 | xargs -0 -r -n1 bash -n
+      - name: Run all headless regression suites
+        run: |
+          set -euo pipefail
+          for test in tests/test_*.py; do
+            case "$test" in *test_gui_smoke.py|*test_touch_ui.py) continue ;; esac
+            timeout --signal=TERM --kill-after=10s 180s env PYTHONPATH=. python3 -u -m unittest discover -s tests -p "$(basename "$test")" -v
+          done
+      - name: Run GUI regression suites in isolated X11
+        run: |
+          timeout --signal=TERM --kill-after=10s 180s xvfb-run -a env PYTHONPATH=. python3 -u -m unittest discover -s tests -p test_gui_smoke.py -v
+          timeout --signal=TERM --kill-after=10s 180s xvfb-run -a env PYTHONPATH=. python3 -u -m unittest discover -s tests -p test_touch_ui.py -v
+      - name: Verify release notes, branch and uniqueness
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          test -s docs/releases/v1.0.0-beta.3.md
+          git diff --exit-code
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test "$GITHUB_REF" = "refs/heads/develop/1.0.0"
+          if gh release view v1.0.0-beta.3 --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Beta 3 release exists; will not overwrite."
+            exit 1
+          fi
+          if git ls-remote --exit-code --tags "https://github.com/${GITHUB_REPOSITORY}.git" refs/tags/v1.0.0-beta.3 >/dev/null 2>&1; then
+            echo "Beta 3 tag exists; will not overwrite."
+            exit 1
+          fi
+      - name: Publish Beta 3 as prerelease, not Stable
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create v1.0.0-beta.3 \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" \
+            --title "ItomiScan v1.0.0 Beta 3" \
+            --notes-file docs/releases/v1.0.0-beta.3.md \
+            --prerelease
