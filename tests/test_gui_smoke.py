@@ -88,6 +88,18 @@ class TouchGuiTests(unittest.TestCase):
         self.assertFalse(self.app.busy)
         self.assertFalse(self.app.scan_view.winfo_manager())
 
+    def test_update_dialog_has_install_and_recovery_controls(self):
+        self.enable_pin(permissions=("update",), profiles=("Dokument",))
+        self.unlock()
+        self.app.check_update()
+        dialog = self.app._beta_update_dialog
+        self.assertTrue(dialog.dialog.winfo_exists())
+        self.assertIsNone(dialog.candidate)
+        self.assertEqual(str(dialog.install_button["state"]), "disabled")
+        self.assertTrue(dialog.beta.get())
+        dialog.close()
+        self.assertFalse(dialog.dialog.winfo_exists())
+
     def test_personal_profile_and_logout_by_inactivity(self):
         self.enable_pin(permissions=("scan",), profiles=("Foto",))
         self.unlock()

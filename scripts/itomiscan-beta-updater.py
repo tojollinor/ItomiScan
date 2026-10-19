@@ -406,8 +406,7 @@ def main():
             else:
                 rollback()
             return 0
-        except (OSError, RuntimeError, ValueError, KeyError, tarfile.TarError,
-                subprocess.SubprocessError) as exc:
+        except Exception as exc:
             progress(0, "Update fehlgeschlagen: " + str(exc), state="error")
             return 1
 

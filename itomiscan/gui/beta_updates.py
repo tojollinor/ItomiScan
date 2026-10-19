@@ -136,6 +136,7 @@ class BetaUpdateDialog:
         self.candidate = None
         self.install_button.configure(state=tk.DISABLED)
         self.check_button.configure(state=tk.DISABLED)
+        self.channel.configure(state=tk.DISABLED)
         self.notice.set("Suche nach veröffentlichten Updates …")
 
         def worker():
@@ -168,6 +169,7 @@ class BetaUpdateDialog:
                     self.candidate = candidate
                     self.notice.set(message[:340])
                     self.check_button.configure(state=tk.NORMAL)
+                    self.channel.configure(state=tk.NORMAL)
                     self.install_button.configure(
                         state=tk.NORMAL if candidate else tk.DISABLED)
             self.app.dispatch(finish)
