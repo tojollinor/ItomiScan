@@ -730,7 +730,7 @@ def layout(title, body, *, active="", csrf="", notice="", error="", logged=True,
             '<body><main class="wrap"><header><div class="brand">'
             + logo_svg() + '<div class="brand-name">Itomi<b>Scan</b></div>'
             f'</div>{navigation}</header>{messages}{body}'
-            '<div class="end muted">ItomiScan 1.0.0 Entwicklung · '
+            '<div class="end muted">ItomiScan 1.0.0 · '
             'Webadministration nur im geschützten LAN/VPN</div></main>'
             + ('<script defer src="/assets/status.js"></script>' if live else '')
             + ('<script defer src="/assets/admin-dialogs.js"></script>' if logged else '')
@@ -788,8 +788,9 @@ def overview(status, counts, csrf, notice=""):
         ("Scanprofile", str(counts["profiles"]), "Gemeinsam mit dem Touchdisplay gespeichert."),
         ("Zielsysteme", str(counts["targets"]),
          "Konfiguration vorbereitet; Übertragung und Druck folgen."),
-        ("Versionszweig", status.get("branch", "Unbekannt"),
-         "Entwicklung ist kein Release."),
+        ("Version", status.get("release_tag") or status.get("branch", "Unbekannt"),
+         ("Installiertes Beta-Prerelease." if status.get("release_tag")
+          else "Entwicklung ist kein Release.")),
     )
     body += '<section class="grid">' + "".join(
         f'<article class="card"><h2>{e(name)}</h2>'

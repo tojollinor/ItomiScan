@@ -13,6 +13,7 @@ import ipaddress
 import json
 import logging
 import os
+import re
 from pathlib import Path
 import secrets
 import shutil
@@ -74,6 +75,21 @@ def inspect_system(store, bind, sampler=None, queue=None, diagnostic=""):
                 result[key] = process.stdout.strip()[:64]
         except (OSError, subprocess.TimeoutExpired):
             pass
+    # A tagged archive may carry an old .git folder from the user's original
+    # installation. Show the installed immutable tag/commit, not that folder's
+    # stale branch name, whenever validated release markers are present.
+    try:
+        tag = (root / ".itomiscan-beta-tag").read_text(
+            encoding="ascii").strip()
+        if re.fullmatch(r"v[0-9]+\\.[0-9]+\\.[0-9]+-beta\\.[0-9]+", tag):
+            result["release_tag"] = tag
+            result["branch"] = tag
+            installed_sha = (root / ".itomiscan-beta-commit").read_text(
+                encoding="ascii").strip()
+            if re.fullmatch(r"[0-9a-f]{40}", installed_sha):
+                result["commit"] = installed_sha[:10]
+    except (OSError, UnicodeError):
+        pass
     result.update((sampler or StatusSampler()).collect(store.path.parent))
     result["jobs_pending"] = "Nicht verfügbar"
     result["jobs_review"] = "Nicht verfügbar"

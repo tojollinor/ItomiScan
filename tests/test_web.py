@@ -58,6 +58,19 @@ class WebAdminTests(unittest.TestCase):
         self.assertEqual(code, 200)
         self.csrf = re.search(r'name="csrf" value="([^"]+)"', page).group(1)
 
+    def test_release_tag_is_visible_on_overview_without_claiming_hardware_acceptance(self):
+        from itomiscan.web import pages
+        html = pages.overview(
+            {"release_tag": "v1.0.0-beta.4", "branch": "develop/1.0.0"},
+            {"profiles": 0, "targets": 0}, "csrf")
+        self.assertIn("v1.0.0-beta.4", html)
+        self.assertIn("Installiertes Beta-Prerelease.", html)
+        self.assertNotIn("Entwicklung ist kein Release.", html)
+        development = pages.overview(
+            {"branch": "develop/1.0.0"},
+            {"profiles": 0, "targets": 0}, "csrf")
+        self.assertIn("Entwicklung ist kein Release.", development)
+
     def test_password_only_login_and_auth_guard(self):
         self.assertEqual(self.req("GET", "/")[0], 303)
         self.assertEqual(self.req("GET", "/backup.json")[0], 303)
