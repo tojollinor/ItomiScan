@@ -26,7 +26,7 @@ class VNCTests(unittest.TestCase):
     def test_reject_unmasked_websocket_frame(self):
         left, right = socket.socketpair()
         try:
-            left.sendall(b"\\x82\\x01x")
+            left.sendall(b"\x82\x01x")
             with self.assertRaises(ValueError):
                 _receive_frame(right)
         finally:
@@ -37,7 +37,7 @@ class VNCTests(unittest.TestCase):
         left, right = socket.socketpair()
         try:
             _send_frame(left, b"RFB")
-            self.assertEqual(right.recv(5), b"\\x82\\x03RFB")
+            self.assertEqual(right.recv(5), b"\x82\x03RFB")
         finally:
             left.close()
             right.close()
